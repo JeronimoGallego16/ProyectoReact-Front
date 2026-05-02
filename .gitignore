@@ -25,3 +25,12 @@ dist-ssr
 
 .env
 .env.*.local
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+academic_service/.venv/

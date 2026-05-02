@@ -1,32 +1,58 @@
 import apiService, { ApiResponse } from './api';
 import { Teacher } from '../models/teacher';
-import { CreateUserPayload, UpdateUserPayload } from './user.service';
+
+/**
+ * Payload para crear un docente
+ */
+export interface CreateTeacherPayload {
+  email: string;
+  password: string;
+  code: string;
+  first_name: string;
+  last_name: string;
+  identification: string;
+  phone?: string;
+  specialty?: string;
+}
+
+/**
+ * Payload para actualizar un docente
+ */
+export interface UpdateTeacherPayload {
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  identification?: string;
+  phone?: string;
+  specialty?: string;
+}
 
 /**
  * Servicio específico para Docentes
  */
 class TeacherService {
-  private endpoint = '/api/users';
+  private usersEndpoint = '/users';
+  private searchEndpoint = '/academic/teachers/search';
 
   /**
    * Listar todos los docentes
    */
   async getAllTeachers(): Promise<ApiResponse<Teacher[]>> {
-    return apiService.get<Teacher[]>(this.endpoint, { role: 'TEACHER' });
+    return apiService.get<Teacher[]>(this.searchEndpoint);
   }
 
   /**
    * Obtener un docente por ID
    */
   async getTeacherById(teacherId: string): Promise<ApiResponse<Teacher>> {
-    return apiService.get<Teacher>(`${this.endpoint}/${teacherId}`);
+    return apiService.get<Teacher>(`${this.usersEndpoint}/${teacherId}`);
   }
 
   /**
    * Crear un nuevo docente
    */
-  async createTeacher(payload: Omit<CreateUserPayload, 'role'>): Promise<ApiResponse<Teacher>> {
-    return apiService.post<Teacher>(this.endpoint, {
+  async createTeacher(payload: CreateTeacherPayload): Promise<ApiResponse<Teacher>> {
+    return apiService.post<Teacher>(`${this.usersEndpoint}/public/register-teacher`, {
       ...payload,
       role: 'TEACHER',
     });
@@ -35,8 +61,8 @@ class TeacherService {
   /**
    * Actualizar datos del docente
    */
-  async updateTeacher(teacherId: string, payload: UpdateUserPayload): Promise<ApiResponse<Teacher>> {
-    return apiService.put<Teacher>(`${this.endpoint}/${teacherId}`, payload);
+  async updateTeacher(teacherId: string, payload: UpdateTeacherPayload): Promise<ApiResponse<Teacher>> {
+    return apiService.put<Teacher>(`${this.usersEndpoint}/${teacherId}`, payload);
   }
 
   /**
@@ -44,7 +70,7 @@ class TeacherService {
    */
   async deactivateTeacher(teacherId: string): Promise<ApiResponse<Teacher>> {
     return apiService.patch<Teacher>(
-      `${this.endpoint}/${teacherId}/deactivate`,
+      `${this.usersEndpoint}/${teacherId}/deactivate`,
       {}
     );
   }
@@ -53,14 +79,7 @@ class TeacherService {
    * Eliminar docente
    */
   async deleteTeacher(teacherId: string): Promise<ApiResponse<any>> {
-    return apiService.delete<any>(`${this.endpoint}/${teacherId}`);
-  }
-
-  /**
-   * Registrar docente públicamente
-   */
-  async registerTeacher(payload: CreateUserPayload): Promise<ApiResponse<Teacher>> {
-    return apiService.post<Teacher>('/api/users/public/register-teacher', payload);
+    return apiService.delete<any>(`${this.usersEndpoint}/${teacherId}`);
   }
 }
 

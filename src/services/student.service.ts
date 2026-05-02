@@ -1,32 +1,54 @@
 import apiService, { ApiResponse } from './api';
 import { Student } from '../models/student';
-import { CreateUserPayload, UpdateUserPayload } from './user.service';
+
+/**
+ * Payload para crear un estudiante
+ */
+export interface CreateStudentPayload {
+  email: string;
+  password: string;
+  code: string;
+  first_name: string;
+  last_name: string;
+  identification: string;
+}
+
+/**
+ * Payload para actualizar un estudiante
+ */
+export interface UpdateStudentPayload {
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  identification?: string;
+}
 
 /**
  * Servicio específico para Estudiantes
  */
 class StudentService {
-  private endpoint = '/api/users';
+  private usersEndpoint = '/users';
+  private searchEndpoint = '/users/search';
 
   /**
    * Listar todos los estudiantes
    */
   async getAllStudents(): Promise<ApiResponse<Student[]>> {
-    return apiService.get<Student[]>(this.endpoint, { role: 'STUDENT' });
+    return apiService.get<Student[]>(this.searchEndpoint, { role: 'STUDENT' });
   }
 
   /**
    * Obtener un estudiante por ID
    */
   async getStudentById(studentId: string): Promise<ApiResponse<Student>> {
-    return apiService.get<Student>(`${this.endpoint}/${studentId}`);
+    return apiService.get<Student>(`${this.usersEndpoint}/${studentId}`);
   }
 
   /**
    * Crear un nuevo estudiante
    */
-  async createStudent(payload: Omit<CreateUserPayload, 'role'>): Promise<ApiResponse<Student>> {
-    return apiService.post<Student>(this.endpoint, {
+  async createStudent(payload: CreateStudentPayload): Promise<ApiResponse<Student>> {
+    return apiService.post<Student>(`${this.usersEndpoint}/public/register-student`, {
       ...payload,
       role: 'STUDENT',
     });
@@ -35,8 +57,8 @@ class StudentService {
   /**
    * Actualizar datos del estudiante
    */
-  async updateStudent(studentId: string, payload: UpdateUserPayload): Promise<ApiResponse<Student>> {
-    return apiService.put<Student>(`${this.endpoint}/${studentId}`, payload);
+  async updateStudent(studentId: string, payload: UpdateStudentPayload): Promise<ApiResponse<Student>> {
+    return apiService.put<Student>(`${this.usersEndpoint}/${studentId}`, payload);
   }
 
   /**
@@ -44,7 +66,7 @@ class StudentService {
    */
   async deactivateStudent(studentId: string): Promise<ApiResponse<Student>> {
     return apiService.patch<Student>(
-      `${this.endpoint}/${studentId}/deactivate`,
+      `${this.usersEndpoint}/${studentId}/deactivate`,
       {}
     );
   }
@@ -53,14 +75,7 @@ class StudentService {
    * Eliminar estudiante
    */
   async deleteStudent(studentId: string): Promise<ApiResponse<any>> {
-    return apiService.delete<any>(`${this.endpoint}/${studentId}`);
-  }
-
-  /**
-   * Registrar estudiante públicamente
-   */
-  async registerStudent(payload: CreateUserPayload): Promise<ApiResponse<Student>> {
-    return apiService.post<Student>('/api/users/public/register-student', payload);
+    return apiService.delete<any>(`${this.usersEndpoint}/${studentId}`);
   }
 }
 

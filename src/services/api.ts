@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 /**
  * Respuesta estándar del API
@@ -17,7 +17,7 @@ class ApiService {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    this.baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
     this.api = axios.create({
       baseURL: this.baseURL,
@@ -29,7 +29,7 @@ class ApiService {
 
     // Interceptor para agregar token JWT a cada petición
     this.api.interceptors.request.use(
-      (config: { headers: { Authorization: string; }; }) => {
+      (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
