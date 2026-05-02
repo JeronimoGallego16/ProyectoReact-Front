@@ -3,6 +3,7 @@ import { lazy } from 'react';
 const FormElements = lazy(() => import('../pages/Form/FormElements'));
 const FormLayout = lazy(() => import('../pages/Form/FormLayout'));
 const Profile = lazy(() => import('../pages/Profile'));
+const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
 
 const coreRoutes = [
   {
@@ -19,6 +20,11 @@ const coreRoutes = [
     path: '/forms/form-layout',
     title: 'Form Layouts',
     component: FormLayout,
+  },
+  {
+    path: '/evaluations',
+    title: 'Evaluations',
+    component: EvaluationPage,
   },
 ];
 
