@@ -1,4 +1,4 @@
-import RubricList from '../components/RubricList';
+import Tests from '../components/Tests';
 
 // Página para evaluar el funcionamiento de la gestión de rúbricas
 const EvaluationPage = () => {
@@ -11,12 +11,8 @@ const EvaluationPage = () => {
       
       <section>
         <h2>Gestión de Rúbricas</h2>
-        <RubricList /> 
+        <Tests/> 
       </section>
-      
-      <footer style={{ marginTop: '40px', fontSize: '0.8em', color: '#666' }}>
-        Endpoint base: {import.meta.env.VITE_API_URL}
-      </footer>
     </div>
   );
 };
