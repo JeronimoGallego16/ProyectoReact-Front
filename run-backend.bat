@@ -6,6 +6,6 @@ REM Activar venv
 call academic_service\.venv\Scripts\activate.bat
 
 REM Ejecutar el servidor
-python academic_service\run.py
+py academic_service\run.py
 
 pause

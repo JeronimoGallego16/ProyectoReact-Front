@@ -3,7 +3,11 @@ import { lazy } from 'react';
 const FormElements = lazy(() => import('../pages/Form/FormElements'));
 const FormLayout = lazy(() => import('../pages/Form/FormLayout'));
 const Profile = lazy(() => import('../pages/Profile'));
+<<<<<<< HEAD
 const TestUsers = lazy(() => import('../pages/TestUsers'));
+=======
+const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
+>>>>>>> 51dd1296afdfe4165c436e45bab868124b455a9c
 
 const coreRoutes = [
   {
@@ -22,9 +26,15 @@ const coreRoutes = [
     component: FormLayout,
   },
   {
+<<<<<<< HEAD
     path: '/test-users',
     title: 'Test Users',
     component: TestUsers,
+=======
+    path: '/evaluations',
+    title: 'Evaluations',
+    component: EvaluationPage,
+>>>>>>> 51dd1296afdfe4165c436e45bab868124b455a9c
   },
 ];
 
