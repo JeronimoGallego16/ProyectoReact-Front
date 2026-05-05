@@ -9,3 +9,6 @@ export interface Group {
   created_at?: string;
   updated_at?: string;
 }
+
+export type GroupCreateInput = Omit<Group, 'id' | 'created_at' | 'updated_at'>;
+export type GroupUpdateInput = Partial<GroupCreateInput>;

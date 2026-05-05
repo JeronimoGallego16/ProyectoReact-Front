@@ -9,3 +9,6 @@ export interface Enrollment {
   created_at?: string;
   updated_at?: string;
 }
+
+export type EnrollmentCreateInput = Omit<Enrollment, 'id' | 'created_at' | 'updated_at'>;
+export type EnrollmentUpdateInput = Partial<EnrollmentCreateInput>;

@@ -9,3 +9,6 @@ export interface StudyPlan {
   created_at?: string;
   updated_at?: string;
 }
+
+export type StudyPlanCreateInput = Omit<StudyPlan, 'id' | 'created_at' | 'updated_at'>;
+export type StudyPlanUpdateInput = Partial<StudyPlanCreateInput>;

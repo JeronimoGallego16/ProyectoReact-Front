@@ -8,3 +8,6 @@ export interface Semester {
   created_at?: string;
   updated_at?: string;
 }
+
+export type SemesterCreateInput = Omit<Semester, 'id' | 'created_at' | 'updated_at'>;
+export type SemesterUpdateInput = Partial<SemesterCreateInput>;

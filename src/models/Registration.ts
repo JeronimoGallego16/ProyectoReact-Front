@@ -8,3 +8,6 @@ export interface Registration {
   created_at?: string;
   updated_at?: string;
 }
+
+export type RegistrationCreateInput = Omit<Registration, 'id' | 'created_at' | 'updated_at'>;
+export type RegistrationUpdateInput = Partial<RegistrationCreateInput>;

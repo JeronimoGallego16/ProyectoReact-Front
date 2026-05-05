@@ -7,3 +7,6 @@ export interface Career {
   name: string;
   updated_at?: string;
 }
+
+export type CareerCreateInput = Omit<Career, 'id' | 'created_at' | 'updated_at'>;
+export type CareerUpdateInput = Partial<CareerCreateInput>;

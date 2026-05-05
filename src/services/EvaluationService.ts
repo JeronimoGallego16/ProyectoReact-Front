@@ -5,8 +5,6 @@ import { rubricService } from './RubricService';
 
 const API_URL_EVALUATIONS = '/evaluation/evaluations';
 
-// Clase que gestiona las operaciones relacionadas con las evaluaciones.
-
 class EvaluationService {
     // Método para obtener una lista de evaluaciones.
     async getEvaluations(): Promise<Evaluation[]> {

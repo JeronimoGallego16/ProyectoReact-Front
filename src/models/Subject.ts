@@ -8,3 +8,6 @@ export interface Subject {
   created_at?: string;
   updated_at?: string;
 }
+
+export type SubjectCreateInput = Omit<Subject, 'id' | 'created_at' | 'updated_at'>;
+export type SubjectUpdateInput = Partial<SubjectCreateInput>;
