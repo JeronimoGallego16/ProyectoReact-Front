@@ -1,27 +1,6 @@
 import apiService, { ApiResponse } from './api';
 import { Student } from '../models/student';
-
-/**
- * Payload para crear un estudiante
- */
-export interface CreateStudentPayload {
-  email: string;
-  password: string;
-  code: string;
-  first_name: string;
-  last_name: string;
-  identification: string;
-}
-
-/**
- * Payload para actualizar un estudiante
- */
-export interface UpdateStudentPayload {
-  email?: string;
-  first_name?: string;
-  last_name?: string;
-  identification?: string;
-}
+import { CreateStudentPayload, UpdateStudentPayload } from '../models/StudentPayload';
 
 /**
  * Servicio específico para Estudiantes

@@ -1,31 +1,6 @@
 import apiService, { ApiResponse } from './api';
-import { Teacher } from '../models/Teacher';
-
-/**
- * Payload para crear un docente
- */
-export interface CreateTeacherPayload {
-  email: string;
-  password: string;
-  code: string;
-  first_name: string;
-  last_name: string;
-  identification: string;
-  phone?: string;
-  specialty?: string;
-}
-
-/**
- * Payload para actualizar un docente
- */
-export interface UpdateTeacherPayload {
-  email?: string;
-  first_name?: string;
-  last_name?: string;
-  identification?: string;
-  phone?: string;
-  specialty?: string;
-}
+import { Teacher } from '../models/teacher';
+import { CreateTeacherPayload, UpdateTeacherPayload } from '../models/TeacherPayload';
 
 /**
  * Servicio específico para Docentes

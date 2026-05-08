@@ -10,7 +10,7 @@ class SecurityService extends EventTarget {
     private readonly userKey: string;
     private readonly API_URL: string;
     private user: User | null;
-    private theAuthProvider: any;
+    //private theAuthProvider: any;
     private storage: StorageProvider;
     private axios: any;
 

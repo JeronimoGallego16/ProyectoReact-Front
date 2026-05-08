@@ -2,24 +2,7 @@ import { registrationService } from './RegistrationService';
 import apiService from './api';
 import { careerService } from './CareerService';
 import { Registration, RegistrationCreateInput } from '../models/Registration';
-
-interface StudentRegistrationPayload {
-  studentId: string;
-  careerId: string;
-  admissionPeriod?: string;
-  academicStatus?: string;
-}
-
-interface StudentRegistrationResponse {
-  success: boolean;
-  registration?: Registration;
-  error?: string;
-  details?: {
-    studentName?: string;
-    careerName?: string;
-    registrationId?: string;
-  };
-}
+import { StudentRegistrationPayload, StudentRegistrationResponse } from '../models/StudentRegistration';
 
 class StudentRegistrationService {
   private academicEndpoint = '/academic';

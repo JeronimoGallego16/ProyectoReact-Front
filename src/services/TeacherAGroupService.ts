@@ -1,26 +1,6 @@
 import apiService from './api';
-import { careerService } from './CareerService';
 import { Group, GroupCreateInput } from '../models/Group';
-
-interface TeacherGroupPayload {
-  teacherId: string;
-  subjectId: string;
-  semesterId: string;
-  name: string;
-  groupCode: string;
-  capacity: number;
-}
-
-interface TeacherGroupResponse {
-  success: boolean;
-  group?: Group;
-  error?: string;
-  details?: {
-    teacherName?: string;
-    subjectName?: string;
-    groupId?: string;
-  };
-}
+import { TeacherGroupPayload, TeacherGroupResponse } from '../models/TeacherGroup';
 
 class TeacherAGroupService {
   private academicEndpoint = '/academic';
