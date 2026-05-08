@@ -1,4 +1,4 @@
-import { User, StudentProfile } from './user';
+import { User, StudentProfile } from './User';
 
 /**
  * Interface Estudiante - Extiende User

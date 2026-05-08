@@ -1,5 +1,5 @@
 import apiService, { ApiResponse } from './api';
-import { Teacher } from '../models/teacher';
+import { Teacher } from '../models/Teacher';
 
 /**
  * Payload para crear un docente

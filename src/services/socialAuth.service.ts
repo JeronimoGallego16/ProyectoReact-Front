@@ -8,7 +8,7 @@ import {
 } from "firebase/auth";
 import { store } from "../store/store";
 import { setUser } from "../store/userSlice";
-import { User } from "../models/user";
+import { User } from "../models/User";
 
 class SocialAuthService {
   // Google

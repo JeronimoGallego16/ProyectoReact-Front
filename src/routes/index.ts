@@ -5,6 +5,7 @@ const FormLayout = lazy(() => import('../pages/Form/FormLayout'));
 const Profile = lazy(() => import('../pages/Profile'));
 const TestUsers = lazy(() => import('../pages/TestUsers'));
 const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
+const PruebaMatricula = lazy(() => import('../pages/PruebaMatricula'));
 
 const coreRoutes = [
   {
@@ -26,6 +27,11 @@ const coreRoutes = [
     path: '/test-users',
     title: 'Test Users',
     component: TestUsers,
+  },
+  {
+    path: '/prueba-matricula',
+    title: 'Prueba Matrícula',
+    component: PruebaMatricula,
   },
   {
     path: '/evaluations',
