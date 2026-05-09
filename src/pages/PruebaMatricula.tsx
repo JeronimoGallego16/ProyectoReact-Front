@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import StudentRegistrationService from '../services/StudentRegistrationService';
+import FilterTable from '../components/FilterTable';
 
 interface RegistrationResult {
     timestamp: string;
@@ -20,6 +21,61 @@ export default function PruebaMatricula() {
     const [academicStatus, setAcademicStatus] = useState('ACTIVE');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<RegistrationResult[]>([]);
+    const [filters, setFilters] = useState<Record<string, string>>({});
+
+    const filterOptions = [
+        {
+            id: 'asignatura',
+            label: 'Asignatura',
+            type: 'select' as const,
+            placeholder: 'Todas',
+            options: [
+                { value: 'programacion', label: 'Programación I' },
+                { value: 'estructuras', label: 'Estructuras de Datos' },
+                { value: 'algoritmos', label: 'Algoritmos' },
+                { value: 'bd', label: 'Bases de Datos' },
+            ],
+        },
+        {
+            id: 'evaluacion',
+            label: 'Evaluación',
+            type: 'select' as const,
+            placeholder: 'Todas',
+            options: [
+                { value: 'proyecto', label: 'Proyecto de Programación' },
+                { value: 'examen', label: 'Examen Parcial' },
+                { value: 'quiz', label: 'Quiz' },
+            ],
+        },
+        {
+            id: 'grupo',
+            label: 'Grupo',
+            type: 'select' as const,
+            placeholder: 'Todos',
+            options: [
+                { value: 'ing-sis-01', label: 'ING-SIS-01' },
+                { value: 'ing-sis-02', label: 'ING-SIS-02' },
+                { value: 'ing-sis-03', label: 'ING-SIS-03' },
+            ],
+        },
+        {
+            id: 'docente',
+            label: 'Docente',
+            type: 'select' as const,
+            placeholder: 'Todos',
+            options: [
+                { value: 'luis-perez', label: 'Luis Pérez' },
+                { value: 'maria-garcia', label: 'María García' },
+                { value: 'juan-martinez', label: 'Juan Martínez' },
+            ],
+        },
+    ];
+
+    const handleFilterChange = (newFilters: Record<string, string>) => {
+        setFilters(newFilters);
+        // Los datos se filtrarán cuando se implementen
+        console.log('Filtros aplicados:', newFilters);
+    };
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -168,6 +224,11 @@ export default function PruebaMatricula() {
                             4. Los resultados aparecerán en la sección de abajo
                         </p>
                     </div>
+                </div>
+
+                {/* Filtro de Tabla */}
+                <div className="mb-8">
+                    <FilterTable filters={filterOptions} onFilterChange={handleFilterChange} />
                 </div>
 
                 {/* Resultados */}
