@@ -4,6 +4,7 @@ const FormElements = lazy(() => import('../pages/Form/FormElements'));
 const FormLayout = lazy(() => import('../pages/Form/FormLayout'));
 const Profile = lazy(() => import('../pages/Profile'));
 const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
+const TableTest = lazy(() => import('../pages/TableTest'));
 
 const coreRoutes = [
   {
@@ -25,6 +26,11 @@ const coreRoutes = [
     path: '/evaluations',
     title: 'Evaluations',
     component: EvaluationPage,
+  },
+  {
+    path: '/table-test',
+    title: 'Table Test',
+    component: TableTest,
   },
 ];
 
