@@ -51,6 +51,8 @@ const SelectableTable: React.FC<SelectableTableProps> = ({
                                         type={selectionMode === 1 ? "radio" : "checkbox"}
                                         name={selectionMode === 1 ? "table-selection" : undefined}
                                         className="w-4 h-4 cursor-pointer"
+                                        // En SelectableTable.tsx, en el <input type="checkbox">:
+                                        onChange={() => onAction("select", item)}
                                     />
                                 </td>
                                 {columns.map((col, colIndex) => (

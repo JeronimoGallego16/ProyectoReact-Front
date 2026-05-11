@@ -5,6 +5,9 @@ const FormLayout = lazy(() => import('../pages/Form/FormLayout'));
 const Profile = lazy(() => import('../pages/Profile'));
 const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
 const TableTest = lazy(() => import('../pages/TableTest'));
+const RubricsPage = lazy(() => import('../pages/Evaluation/Rubrics'));
+const CriteriaByRubricPage = lazy(() => import('../pages/Evaluation/CriteriaByRubric'));
+const ScalesByCriterionPage = lazy(() => import('../pages/Evaluation/ScalesByCriterion'));
 
 const coreRoutes = [
   {
@@ -32,6 +35,21 @@ const coreRoutes = [
     title: 'Table Test',
     component: TableTest,
   },
+  {
+    path: '/rubrics',
+    title: 'Rubrics Page',
+    component: RubricsPage,
+  },
+  {
+    path: '/rubrics/:rubricId/criteria',
+    title: 'Criteria by Rubric Page',
+    component: CriteriaByRubricPage,
+  },
+  {
+    path: '/criteria/:criterionId/scales',
+    title: 'Scales by Criterion Page',
+    component: ScalesByCriterionPage,
+  }
 ];
 
 const routes = [...coreRoutes];
