@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from .config.settings import Config
 from .models import db
 from .middleware.auth_interceptor import auth_middleware
@@ -12,6 +13,13 @@ from .utils.db_init import initialize_database
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    # Habilitar CORS
+    CORS(app, 
+         resources={r"/api/*": {"origins": "*"}},
+         supports_credentials=True,
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
     db.init_app(app)
 

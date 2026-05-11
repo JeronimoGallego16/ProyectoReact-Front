@@ -1,0 +1,82 @@
+import apiService, { ApiResponse } from './api';
+import { Student } from '../models/student';
+
+/**
+ * Payload para crear un estudiante
+ */
+export interface CreateStudentPayload {
+  email: string;
+  password: string;
+  code: string;
+  first_name: string;
+  last_name: string;
+  identification: string;
+}
+
+/**
+ * Payload para actualizar un estudiante
+ */
+export interface UpdateStudentPayload {
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  identification?: string;
+}
+
+/**
+ * Servicio específico para Estudiantes
+ */
+class StudentService {
+  private usersEndpoint = '/users';
+  private searchEndpoint = '/users/search';
+
+  /**
+   * Listar todos los estudiantes
+   */
+  async getAllStudents(): Promise<ApiResponse<Student[]>> {
+    return apiService.get<Student[]>(this.searchEndpoint, { role: 'STUDENT' });
+  }
+
+  /**
+   * Obtener un estudiante por ID
+   */
+  async getStudentById(studentId: string): Promise<ApiResponse<Student>> {
+    return apiService.get<Student>(`${this.usersEndpoint}/${studentId}`);
+  }
+
+  /**
+   * Crear un nuevo estudiante
+   */
+  async createStudent(payload: CreateStudentPayload): Promise<ApiResponse<Student>> {
+    return apiService.post<Student>(`${this.usersEndpoint}/public/register-student`, {
+      ...payload,
+      role: 'STUDENT',
+    });
+  }
+
+  /**
+   * Actualizar datos del estudiante
+   */
+  async updateStudent(studentId: string, payload: UpdateStudentPayload): Promise<ApiResponse<Student>> {
+    return apiService.put<Student>(`${this.usersEndpoint}/${studentId}`, payload);
+  }
+
+  /**
+   * Desactivar estudiante
+   */
+  async deactivateStudent(studentId: string): Promise<ApiResponse<Student>> {
+    return apiService.patch<Student>(
+      `${this.usersEndpoint}/${studentId}/deactivate`,
+      {}
+    );
+  }
+
+  /**
+   * Eliminar estudiante
+   */
+  async deleteStudent(studentId: string): Promise<ApiResponse<any>> {
+    return apiService.delete<any>(`${this.usersEndpoint}/${studentId}`);
+  }
+}
+
+export default new StudentService();
