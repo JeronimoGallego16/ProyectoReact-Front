@@ -1,4 +1,4 @@
-import apiClient from '../interceptor/apiClient';
+import apiService, { ApiResponse } from './api';
 import { Rubric } from '../models/Rubric';
 import { Criterion } from '../models/Criterion';
 import { Scale } from '../models/Scale';
@@ -12,264 +12,247 @@ const API_URL_SCALES = '/evaluation/scales'
 class RubricService {
     // Rúbricas
     // Método para obtener una lista de rúbricas.
-    async getRubrics(): Promise<Rubric[]> {
-        try {
-            const response = await apiClient.get(API_URL_RUBRICS);
-            const rubricData = this._extractData(response);
-            return Array.isArray(rubricData) ? rubricData as Rubric[] : [];
-        } catch (error) {
-            return this._handleError(error) || [];
-        }
+    async getRubrics(): Promise<ApiResponse<Rubric[]>> {
+        return apiService.get<Rubric[]>(API_URL_RUBRICS);
     }
 
     // Método para obtener una rúbrica por su ID.
-    async getRubricById(id: string): Promise<Rubric | null> {
-        try {
-            const response = await apiClient.get(`${API_URL_RUBRICS}/${id}`);
-            const data = this._extractData(response);
-            return data as Rubric || null;
-        } catch (error) {
-            return this._handleError(error);
-        }
+    async getRubricById(id: string): Promise<ApiResponse<Rubric>> {
+        return apiService.get<Rubric>(`${API_URL_RUBRICS}/${id}`);
     } 
 
     // Método para crear una nueva rúbrica.
-    async createRubric(rubric: Omit<Rubric, "id">): Promise<Rubric | null> {
-        try {
-            const response = await apiClient.post<Rubric>(API_URL_RUBRICS, rubric);
-            return response.data;
-         } catch (error) {
-            return this._handleError(error);
-        }
+    async createRubric(rubric: Omit<Rubric, "id">): Promise<ApiResponse<Rubric>> {
+        return apiService.post<Rubric>(API_URL_RUBRICS, rubric);
     }
 
     // Método para modificar una rúbrica existente.
-    async updateRubric(id: string, rubric: Partial<Rubric>): Promise<Rubric | null> {
-        try {
-            const response = await apiClient.put<Rubric>(`${API_URL_RUBRICS}/${id}`, rubric);
-            return response.data;
-        } catch (error) {
-            return this._handleError(error);
-        }
+    async updateRubric(id: string, rubric: Partial<Rubric>): Promise<ApiResponse<Rubric>> {
+        return apiService.put<Rubric>(`${API_URL_RUBRICS}/${id}`, rubric);
     }
 
     // Método para publicar una rúbrica.
-    async publishRubric(id: string): Promise<Rubric | null> {
-        try {
-            const rubric = await this.getRubricById(id);
-            if (!rubric) return null;
-
-            if (rubric.is_public) {
-                console.warn(`La rúbrica ${id} ya está publicada.`);
-                return rubric;
-            }
-
-            const rubricCriteria = await this.getCriteriaByRubricId(id);
-            if (rubricCriteria.length < 2) {
-                console.error(`No se puede publicar la rúbrica ${id}: requiere mínimo 2 criterios y solo tiene ${rubricCriteria.length}`);
-                return null;
-            }
-            
-            const criteriaScales = await Promise.all(rubricCriteria.map(c => this.getScaleByCriterionId(c.id)));
-            if (criteriaScales.some(scales => scales.length < 2)) {
-                console.error(`No se puede publicar la rúbrica ${id}: cada criterio requiere mínimo 2 escalas`);
-                return null;
-            }
-
-            const response = await apiClient.patch(`${API_URL_RUBRICS}/${id}/publish`, { is_public: true, is_archived: false });
-            const publishedRubric = this._extractData(response) as Rubric | null;
-
-            const normalizedRubric = await this.updateRubric(id, { is_public: true, is_archived: false });
-            return normalizedRubric || publishedRubric || null;
-        } catch (error) {
-            return this._handleError(error);
+    async publishRubric(id: string): Promise<ApiResponse<Rubric>> {
+        const rubricResponse = await this.getRubricById(id);
+        const rubric = rubricResponse.data;
+        if (!rubric) {
+            return {
+                success: false,
+                error: rubricResponse.error || `No existe la rúbrica con id ${id}`,
+            };
         }
+
+        if (rubric.is_public) {
+            console.warn(`La rúbrica ${id} ya está publicada.`);
+            return rubricResponse;
+        }
+
+        const rubricCriteriaResponse = await this.getCriteriaByRubricId(id);
+        const rubricCriteria = Array.isArray(rubricCriteriaResponse.data) ? rubricCriteriaResponse.data : [];
+        if (rubricCriteria.length < 2) {
+            console.error(`No se puede publicar la rúbrica ${id}: requiere mínimo 2 criterios y solo tiene ${rubricCriteria.length}`);
+            return {
+                success: false,
+                error: `No se puede publicar la rúbrica ${id}: requiere mínimo 2 criterios y solo tiene ${rubricCriteria.length}`,
+            };
+        }
+        
+        const criteriaScales = await Promise.all(rubricCriteria.map(c => this.getScaleByCriterionId(c.id)));
+        if (criteriaScales.some(scalesResponse => (Array.isArray(scalesResponse.data) ? scalesResponse.data : []).length < 2)) {
+            console.error(`No se puede publicar la rúbrica ${id}: cada criterio requiere mínimo 2 escalas`);
+            return {
+                success: false,
+                error: `No se puede publicar la rúbrica ${id}: cada criterio requiere mínimo 2 escalas`,
+            };
+        }
+
+        const response = await apiService.patch<Rubric>(`${API_URL_RUBRICS}/${id}/publish`, { is_public: true, is_archived: false });
+        if (response.error) {
+            console.error('Error:', response.error);
+            return response;
+        }
+
+        const updatedRubricResponse = await this.updateRubric(id, { is_public: true, is_archived: false });
+        return updatedRubricResponse.data ? updatedRubricResponse : response;
     }
 
     // Método para eliminar una rúbrica.
-    async deleteRubric(id: string): Promise<boolean> {
-        try {
-            const rubric = await this.getRubricById(id);
-            if (!rubric || rubric.is_public) {
-                console.error(`No se puede eliminar porque la rúbrica está publicada. Debes archivarla.`);
-                return false;
-            }
-
-            await apiClient.delete(`${API_URL_RUBRICS}/${id}`);
-            return true;
-        } catch (error) {
-            this._handleError(error);
-            return false;
+    async deleteRubric(id: string): Promise<ApiResponse<any>> {
+        const rubricResponse = await this.getRubricById(id);
+        const rubric = rubricResponse.data;
+        if (!rubric || rubric.is_public) {
+            console.error(`No se puede eliminar porque la rúbrica está publicada. Debes archivarla.`);
+            return {
+                success: false,
+                error: `No se puede eliminar porque la rúbrica está publicada. Debes archivarla.`,
+            };
         }
+
+        return apiService.delete<any>(`${API_URL_RUBRICS}/${id}`);
     }
 
     // Método para archivar una rúbrica.
-    async archiveRubric(id: string): Promise<boolean> {
-        try {
-            const rubric = await this.getRubricById(id);
-            if (!rubric || rubric.is_archived) {
-                console.error(`La rúbrica ya está archivada.`);
-                return false;
-            }
-
-            await this.updateRubric(id, { is_archived: true, is_public: false });
-            return true;
-        } catch (error) {
-            this._handleError(error);
-            return false;
+    async archiveRubric(id: string): Promise<ApiResponse<Rubric>> {
+        const rubricResponse = await this.getRubricById(id);
+        const rubric = rubricResponse.data;
+        if (!rubric || rubric.is_archived) {
+            console.error(`La rúbrica ya está archivada.`);
+            return {
+                success: false,
+                error: `La rúbrica ya está archivada.`,
+            };
         }
+
+        return this.updateRubric(id, { is_archived: true, is_public: false });
     }
 
 
     //Criterios
     // Método para obtener los criterios de una rúbrica específica.
-    async getCriteriaByRubricId(rubricId: string): Promise<Criterion[]> {
-        try {
-            const response = await apiClient.get(API_URL_CRITERIA);
-            const criteriaData = this._extractData(response);
-            const criteria = Array.isArray(criteriaData) ? criteriaData as Criterion[] : [];
-            return criteria.filter(c => c.rubric_id === rubricId);
-        } catch (error) {
-            return this._handleError(error) || [];
-        }
+    async getCriteriaByRubricId(rubricId: string): Promise<ApiResponse<Criterion[]>> {
+        const response = await apiService.get<Criterion[]>(API_URL_CRITERIA);
+        const criteria = Array.isArray(response.data) ? response.data : [];
+        return {
+            ...response,
+            data: criteria.filter(c => c.rubric_id === rubricId),
+        };
     }
 
     // Método para obtener un criterio por su ID.
-    async getCriterionById(id: string): Promise<Criterion | null> {
-        try {
-            const response = await apiClient.get(`${API_URL_CRITERIA}/${id}`);
-            const data = this._extractData(response);
-            return data as Criterion || null;
-        } catch (error) {
-            return this._handleError(error);
-        }
+    async getCriterionById(id: string): Promise<ApiResponse<Criterion>> {
+        return apiService.get<Criterion>(`${API_URL_CRITERIA}/${id}`);
     } 
 
     // Método para crear un criterio para una rúbrica. 
-    async createCriterion(criterion: Omit<Criterion, "id">): Promise<Criterion | null> {
-        try {
-            if (!criterion.rubric_id) {
-                console.error("Se requiere el id de una rúbrica existente para asignar el criterio.");
-                return null;
-            }
-
-            const validation = await this.validateCriterionWeight(criterion.rubric_id, Number(criterion.weight) || 0);
-            if (!validation.ok) {
-                console.error(validation.message);
-                return null;
-            }
-
-            await this._RubricExists(criterion.rubric_id);
-
-            const response = await apiClient.post<Criterion>(API_URL_CRITERIA, criterion);
-            return response.data;
-         } catch (error) {
-            return this._handleError(error);
+    async createCriterion(criterion: Omit<Criterion, "id">): Promise<ApiResponse<Criterion>> {
+        if (!criterion.rubric_id) {
+            console.error("Se requiere el id de una rúbrica existente para asignar el criterio.");
+            return {
+                success: false,
+                error: "Se requiere el id de una rúbrica existente para asignar el criterio.",
+            };
         }
+
+        const validation = await this.validateCriterionWeight(criterion.rubric_id, Number(criterion.weight) || 0);
+        if (!validation.ok) {
+            console.error(validation.message);
+            return {
+                success: false,
+                error: validation.message,
+            };
+        }
+
+        const rubricExists = await this._RubricExists(criterion.rubric_id);
+        if (!rubricExists) {
+            return {
+                success: false,
+                error: `No existe la rúbrica con id ${criterion.rubric_id}`,
+            };
+        }
+
+        return apiService.post<Criterion>(API_URL_CRITERIA, criterion);
     }
 
     // Método para modificar un criterio existente.
-    async updateCriterion(id: string, criterion: Partial<Criterion>): Promise<Criterion | null> {
-        try {
-            const response = await apiClient.put<Criterion>(`${API_URL_CRITERIA}/${id}`, criterion);
-            return response.data;
-        } catch (error) {
-            return this._handleError(error);
-        }
+    async updateCriterion(id: string, criterion: Partial<Criterion>): Promise<ApiResponse<Criterion>> {
+        return apiService.put<Criterion>(`${API_URL_CRITERIA}/${id}`, criterion);
     }
 
 
     // Escalas
     // Método para obtener las escalas de un criterio específico.
-    async getScaleByCriterionId(criterionId: string): Promise<Scale[]> {
-        try {
-            const response = await apiClient.get(API_URL_SCALES);
-            const scaleData = this._extractData(response);
-            const scales = Array.isArray(scaleData) ? scaleData as Scale[] : [];
-            return scales.filter(c => c.criterion_id === criterionId);
-        } catch (error) {
-            return this._handleError(error) || [];
-        }
+    async getScaleByCriterionId(criterionId: string): Promise<ApiResponse<Scale[]>> {
+        const response = await apiService.get<Scale[]>(API_URL_SCALES);
+        const scales = Array.isArray(response.data) ? response.data : [];
+        return {
+            ...response,
+            data: scales.filter(c => c.criterion_id === criterionId),
+        };
     }
 
     // Método para obtener una escala por su ID.
-    async getScaleById(id: string): Promise<Scale | null> {
-        try {
-            const response = await apiClient.get(`${API_URL_SCALES}/${id}`);
-            const data = this._extractData(response);
-            return data as Scale || null;
-        } catch (error) {
-            return this._handleError(error);
-        }
+    async getScaleById(id: string): Promise<ApiResponse<Scale>> {
+        return apiService.get<Scale>(`${API_URL_SCALES}/${id}`);
     }
     
     // Método para crear una escala para un críterio.. 
-    async createScale(scale: Omit<Scale, "id">): Promise<Scale | null> {
-        try {
-            if (!scale.criterion_id) {
-                console.error("Se requiere el id de un criterio existente para asignar la escala.");
-                return null;
-            }
-
-            await this._CriterionExists(scale.criterion_id);
-
-            const response = await apiClient.post<Scale>(API_URL_SCALES, scale);
-            return response.data;
-         } catch (error) {
-            return this._handleError(error);
+    async createScale(scale: Omit<Scale, "id">): Promise<ApiResponse<Scale>> {
+        if (!scale.criterion_id) {
+            console.error("Se requiere el id de un criterio existente para asignar la escala.");
+            return {
+                success: false,
+                error: "Se requiere el id de un criterio existente para asignar la escala.",
+            };
         }
+
+        const criterionExists = await this._CriterionExists(scale.criterion_id);
+        if (!criterionExists) {
+            return {
+                success: false,
+                error: `No existe el criterio con id ${scale.criterion_id}`,
+            };
+        }
+
+        return apiService.post<Scale>(API_URL_SCALES, scale);
     }
 
     // Método para modificar una escala existente.
-    async updateScale(id: string, scale: Partial<Scale>): Promise<Scale | null> {
-        try {
-            const response = await apiClient.put<Scale>(`${API_URL_SCALES}/${id}`, scale);
-            return response.data;
-        } catch (error) {
-            return this._handleError(error);
-        }
+    async updateScale(id: string, scale: Partial<Scale>): Promise<ApiResponse<Scale>> {
+        return apiService.put<Scale>(`${API_URL_SCALES}/${id}`, scale);
     }
 
     // Método para copiar una escala existente a otro criterio.
-    async copyScaleToCriterion(scaleId: string, targetCriterionId: string): Promise<Scale | null> {
-        try {
-            const sourceScale = await this.getScaleById(scaleId);
-            if (!sourceScale) {
-                console.error(`No existe la escala con id ${scaleId}`);
-                return null;
-            }
-
-            if (!targetCriterionId) {
-                console.error('Se requiere el id del criterio destino para copiar la escala.');
-                return null;
-            }
-
-            const targetCriterion = await this.getCriterionById(targetCriterionId);
-            if (!targetCriterion) {
-                console.error(`No existe el criterio destino con id ${targetCriterionId}`);
-                return null;
-            }
-
-            const existingTargetScales = await this.getScaleByCriterionId(targetCriterionId);
-            if (existingTargetScales.some(scale => scale.value === sourceScale.value)) {
-                console.error(`El criterio destino ya tiene una escala con value ${sourceScale.value}`);
-                return null;
-            }
-
-            return await this.createScale({
-                criterion_id: targetCriterionId,
-                name: sourceScale.name,
-                description: sourceScale.description,
-                value: sourceScale.value,
-            } as Omit<Scale, 'id'>);
-        } catch (error) {
-            return this._handleError(error);
+    async copyScaleToCriterion(scaleId: string, targetCriterionId: string): Promise<ApiResponse<Scale>> {
+        const sourceScaleResponse = await this.getScaleById(scaleId);
+        const sourceScale = sourceScaleResponse.data;
+        if (!sourceScale) {
+            console.error(`No existe la escala con id ${scaleId}`);
+            return {
+                success: false,
+                error: `No existe la escala con id ${scaleId}`,
+            };
         }
+
+        if (!targetCriterionId) {
+            console.error('Se requiere el id del criterio destino para copiar la escala.');
+            return {
+                success: false,
+                error: 'Se requiere el id del criterio destino para copiar la escala.',
+            };
+        }
+
+        const targetCriterionResponse = await this.getCriterionById(targetCriterionId);
+        const targetCriterion = targetCriterionResponse.data;
+        if (!targetCriterion) {
+            console.error(`No existe el criterio destino con id ${targetCriterionId}`);
+            return {
+                success: false,
+                error: `No existe el criterio destino con id ${targetCriterionId}`,
+            };
+        }
+
+        const existingTargetScalesResponse = await this.getScaleByCriterionId(targetCriterionId);
+        const existingTargetScales = Array.isArray(existingTargetScalesResponse.data) ? existingTargetScalesResponse.data : [];
+        if (existingTargetScales.some(scale => scale.value === sourceScale.value)) {
+            console.error(`El criterio destino ya tiene una escala con value ${sourceScale.value}`);
+            return {
+                success: false,
+                error: `El criterio destino ya tiene una escala con value ${sourceScale.value}`,
+            };
+        }
+
+        return await this.createScale({
+            criterion_id: targetCriterionId,
+            name: sourceScale.name,
+            description: sourceScale.description,
+            value: sourceScale.value,
+        } as Omit<Scale, 'id'>);
     }
 
     // Valida que el nuevo criterio no haga que la suma de pesos supere 100.
     async validateCriterionWeight(rubricId: string, newWeight: number): Promise<{ ok: boolean; message?: string; total: number; remaining: number; projectedTotal: number }> {
-        const rubricCriteria = await this.getCriteriaByRubricId(rubricId);
+        const rubricCriteriaResponse = await this.getCriteriaByRubricId(rubricId);
+        const rubricCriteria = Array.isArray(rubricCriteriaResponse.data) ? rubricCriteriaResponse.data : [];
         const currentTotal = rubricCriteria.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
         const projectedTotal = currentTotal + (Number(newWeight) || 0);
         const remaining = Math.max(0, 100 - currentTotal);
@@ -292,44 +275,23 @@ class RubricService {
         };
     }
 
-
-    // Helpers
-    // Método para extraer datos que pueden venir en { data: { data: ... } } o { data: ... }
-    _extractData(response: any) {
-        if (!response) return null;
-        if (response.data && response.data.data !== undefined) return response.data.data;
-        if (response.data !== undefined) return response.data;
-        return null;
-    }
-
-    // Método para mostrar un mensaje de error por conexión al backend fallida.
-    _handleError(error: any) {
-        if (error.response) {
-            console.error("Servidor respondió con error:", error.response.status);
-            if (error.response.data) {
-                console.error("Detalle del backend:", error.response.data);
-            }
-        } else if (error.request) {
-            console.error("No se recibió respuesta (¿Back apagado?):", error.request);
-        }
-        return null;
-    }
-
     // Método que verifica si una rúbrica existe.
     async _RubricExists(id: string): Promise<boolean> { 
-        if (!await this.getRubricById(id)) {
+        const response = await this.getRubricById(id);
+        if (!response.data) {
             console.error(`No existe la rúbrica con id ${id}`);
-                return false;
-            }
+            return false;
+        }
         return true;
     }
 
     // Método que verifica si un criterio existe.
     async _CriterionExists(id: string): Promise<boolean> { 
-        if (!await this.getCriterionById(id)) {
+        const response = await this.getCriterionById(id);
+        if (!response.data) {
             console.error(`No existe el criterio con id ${id}`);
-                return false;
-            }
+            return false;
+        }
         return true;
     }
 

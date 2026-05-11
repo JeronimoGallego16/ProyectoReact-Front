@@ -59,12 +59,12 @@ const ScalesByCriterionPage: React.FC = () => {
     const loadData = async () => {
         if (!criterionId) return;
         setLoading(true);
-        const [criterionData, scalesData] = await Promise.all([
+        const [criterionResponse, scalesResponse] = await Promise.all([
             rubricService.getCriterionById(criterionId),
             rubricService.getScaleByCriterionId(criterionId),
         ]);
-        setCriterion(criterionData);
-        setScales(scalesData);
+        setCriterion(criterionResponse.data || null);
+        setScales(Array.isArray(scalesResponse.data) ? scalesResponse.data : []);
         setLoading(false);
     };
 
@@ -87,7 +87,8 @@ const ScalesByCriterionPage: React.FC = () => {
             return;
         }
 
-        const updated = await rubricService.updateScale(selectedId, { criterion_id: criterionId });
+        const response = await rubricService.updateScale(selectedId, { criterion_id: criterionId });
+        const updated = response.data;
         if (updated) {
             showFeedback("success", "Scale assigned to criterion successfully.");
             setSelectedId(null);
@@ -126,7 +127,8 @@ const ScalesByCriterionPage: React.FC = () => {
 
     const handleSubmit = async () => {
         if (crudMode === "create") {
-            const created = await rubricService.createScale({ ...form, criterion_id: criterionId ?? "" });
+            const response = await rubricService.createScale({ ...form, criterion_id: criterionId ?? "" });
+            const created = response.data;
             if (created) {
                 showFeedback("success", "Scale created successfully.");
                 closeCrud();
@@ -137,7 +139,8 @@ const ScalesByCriterionPage: React.FC = () => {
         }
 
         if (crudMode === "edit" && selectedScale) {
-            const updated = await rubricService.updateScale(selectedScale.id, form);
+            const response = await rubricService.updateScale(selectedScale.id, form);
+            const updated = response.data;
             if (updated) {
                 showFeedback("success", "Scale updated successfully.");
                 closeCrud();
@@ -151,7 +154,8 @@ const ScalesByCriterionPage: React.FC = () => {
             // RubricService does not expose deleteScale yet.
             // TODO: Call rubricService.deleteScale(selectedScale.id) when available.
             // For now we unassign the scale from the criterion by clearing criterion_id.
-            const updated = await rubricService.updateScale(selectedScale.id, { criterion_id: undefined });
+            const response = await rubricService.updateScale(selectedScale.id, { criterion_id: undefined });
+            const updated = response.data;
             if (updated) {
                 showFeedback("success", "Scale removed from criterion.");
                 closeCrud();

@@ -1,4 +1,4 @@
-import apiClient from '../interceptor/apiClient';
+import apiService, { ApiResponse } from './api';
 import { Grade } from '../models/Grade';
 import { GradeDetail } from '../models/GradeDetail';
 
@@ -33,46 +33,33 @@ class GradeService {
 	}
 
 	// Método para obtener una lista de notas.
-	async getGrades(): Promise<Grade[]> {
-		try {
-			const response = await apiClient.get(API_URL_GRADES);
-			const gradeData = this._extractData(response);
-			return Array.isArray(gradeData) ? gradeData as Grade[] : [];
-		} catch (error) {
-			return this._handleError(error) || [];
-		}
+	async getGrades(): Promise<ApiResponse<Grade[]>> {
+		return apiService.get<Grade[]>(API_URL_GRADES);
 	}
 
 	// Método para obtener una nota específica por su ID junto con sus detalles.
-	async getGradeById(id: string): Promise<Grade | null> {
-		try {
-			const response = await apiClient.get(`${API_URL_GRADES}/${id}`);
-			const gradeData = this._extractData(response);
-			return gradeData as Grade | null;
-		} catch (error) {
-			return this._handleError(error);
-		}
+	async getGradeById(id: string): Promise<ApiResponse<Grade>> {
+		return apiService.get<Grade>(`${API_URL_GRADES}/${id}`);
 	}
 
 	// Método para obtener los detalles de una nota específica.
-	async getGradeDetailsByGradeId(id: string): Promise<GradeDetail[]> {
-		try {
-			const grade = await this.getGradeById(id);
-			return grade?.details ?? [];
-		} catch (error) {
-			return this._handleError(error) || [];
-		}
+	async getGradeDetailsByGradeId(id: string): Promise<ApiResponse<GradeDetail[]>> {
+		const response = await this.getGradeById(id);
+		const details = response.data?.details ?? [];
+		return {
+			...response,
+			data: details,
+		};
 	}
 
 	// Método para obtener una nota específica por su ID.
-	async getGradesByRubricId(rubricId: string): Promise<Grade[]> {
-		try {
-			const grades = await this.getGrades();
-			return grades.filter(grade => grade.rubric_id === rubricId);
-		} catch (error) {
-            return this._handleError(error) || [];
-        }
-		
+	async getGradesByRubricId(rubricId: string): Promise<ApiResponse<Grade[]>> {
+		const response = await this.getGrades();
+		const grades = Array.isArray(response.data) ? response.data : [];
+		return {
+			...response,
+			data: grades.filter(grade => grade.rubric_id === rubricId),
+		};
 	}
 
 	// Método centralizado para crear la nota y sus detalles en una sola llamada.
@@ -83,53 +70,22 @@ class GradeService {
 		details: Array<{ scale_id: string; comment?: string }>;
 		status?: string;
 		observations?: string;
-	}): Promise<Grade | null> {
+	}): Promise<ApiResponse<Grade>> {
 		const validationError = this._validateSavePayload(payload);
 		if (validationError) {
 			console.error(validationError);
-			return null;
+			return {
+				success: false,
+				error: validationError,
+			};
 		}
 
-		try {
-			const response = await apiClient.post(API_URL_GRADES, payload);
-			return this._extractData(response) as Grade | null;
-		} catch (error) {
-			return this._handleError(error);
-		}
+		return apiService.post<Grade>(API_URL_GRADES, payload);
 	}
 
     // Método para modificar una nota existente.
-    async updateGrade(id: string, grade: Partial<Grade>): Promise<Grade | null> {
-        try {
-            const response = await apiClient.put<Grade>(`${API_URL_GRADES}/${id}`, grade
-			);
-            return response.data;
-        } catch (error) {
-            return this._handleError(error);
-        }
-    }
-
-
-	// Helpers
-	// Método para extraer datos que pueden venir en { data: { data: ... } } o { data: ... }
-	_extractData(response: any): any {
-		if (!response) return null;
-		if (response.data && response.data.data !== undefined) return response.data.data;
-		if (response.data !== undefined) return response.data;
-		return null;
-	}
-
-	// Método para mostrar un mensaje de error por conexión al backend fallida.
-	_handleError(error: any) {
-		if (error.response) {
-			console.error('Servidor respondió con error:', error.response.status);
-			if (error.response.data) {
-				console.error('Detalle del backend:', error.response.data);
-			}
-		} else if (error.request) {
-			console.error('No se recibió respuesta (¿Back apagado?):', error.request);
-		}
-		return null;
+	async updateGrade(id: string, grade: Partial<Grade>): Promise<ApiResponse<Grade>> {
+		return apiService.put<Grade>(`${API_URL_GRADES}/${id}`, grade);
 	}
 }
 

@@ -57,7 +57,8 @@ const RubricsPage: React.FC = () => {
 
     const loadRubrics = async () => {
         setLoading(true);
-        const data = await rubricService.getRubrics();
+        const response = await rubricService.getRubrics();
+        const data = Array.isArray(response.data) ? response.data : [];
         setRubrics(data);
         setLoading(false);
     };
@@ -111,7 +112,8 @@ const RubricsPage: React.FC = () => {
 
     const handleSubmit = async () => {
         if (crudMode === "create") {
-            const created = await rubricService.createRubric(form);
+            const response = await rubricService.createRubric(form);
+            const created = response.data;
             if (created) {
                 showFeedback("success", "Rubric created successfully.");
                 closeCrud();
@@ -122,7 +124,8 @@ const RubricsPage: React.FC = () => {
         }
 
         if (crudMode === "edit" && selectedRubric) {
-            const updated = await rubricService.updateRubric(selectedRubric.id, form);
+            const response = await rubricService.updateRubric(selectedRubric.id, form);
+            const updated = response.data;
             if (updated) {
                 showFeedback("success", "Rubric updated successfully.");
                 closeCrud();
@@ -133,8 +136,8 @@ const RubricsPage: React.FC = () => {
         }
 
         if (crudMode === "archive" && selectedRubric) {
-            const success = await rubricService.archiveRubric(selectedRubric.id);
-            if (success) {
+            const response = await rubricService.archiveRubric(selectedRubric.id);
+            if (!response.error) {
                 showFeedback("success", "Rubric archived successfully.");
                 closeCrud();
                 await loadRubrics();
@@ -144,8 +147,8 @@ const RubricsPage: React.FC = () => {
         }
 
         if (crudMode === "delete" && selectedRubric) {
-            const success = await rubricService.deleteRubric(selectedRubric.id);
-            if (success) {
+            const response = await rubricService.deleteRubric(selectedRubric.id);
+            if (!response.error) {
                 showFeedback("success", "Rubric deleted successfully.");
                 closeCrud();
                 await loadRubrics();

@@ -69,12 +69,12 @@ const CriteriaByRubricPage: React.FC<CriteriaByRubricPageProps> = () => {
     const loadData = async () => {
         if (!rubricId) return;
         setLoading(true);
-        const [rubricData, criteriaData] = await Promise.all([
+        const [rubricResponse, criteriaResponse] = await Promise.all([
             rubricService.getRubricById(rubricId),
             rubricService.getCriteriaByRubricId(rubricId),
         ]);
-        setRubric(rubricData);
-        setCriteria(criteriaData);
+        setRubric(rubricResponse.data || null);
+        setCriteria(Array.isArray(criteriaResponse.data) ? criteriaResponse.data : []);
         setLoading(false);
     };
 
@@ -109,7 +109,8 @@ const CriteriaByRubricPage: React.FC<CriteriaByRubricPageProps> = () => {
         let failCount = 0;
 
         for (const id of selectedIds) {
-            const updated = await rubricService.updateCriterion(id, { rubric_id: rubricId });
+            const response = await rubricService.updateCriterion(id, { rubric_id: rubricId });
+            const updated = response.data;
             updated ? successCount++ : failCount++;
         }
 
@@ -155,7 +156,8 @@ const CriteriaByRubricPage: React.FC<CriteriaByRubricPageProps> = () => {
 
     const handleSubmit = async () => {
         if (crudMode === "create") {
-            const created = await rubricService.createCriterion({ ...form, rubric_id: rubricId });
+            const response = await rubricService.createCriterion({ ...form, rubric_id: rubricId });
+            const created = response.data;
             if (created) {
                 showFeedback("success", "Criterion created successfully.");
                 closeCrud();
@@ -166,7 +168,8 @@ const CriteriaByRubricPage: React.FC<CriteriaByRubricPageProps> = () => {
         }
 
         if (crudMode === "edit" && selectedCriterion) {
-            const updated = await rubricService.updateCriterion(selectedCriterion.id, form);
+            const response = await rubricService.updateCriterion(selectedCriterion.id, form);
+            const updated = response.data;
             if (updated) {
                 showFeedback("success", "Criterion updated successfully.");
                 closeCrud();
@@ -180,7 +183,8 @@ const CriteriaByRubricPage: React.FC<CriteriaByRubricPageProps> = () => {
             // RubricService does not expose deleteCriterion yet.
             // TODO: Call rubricService.deleteCriterion(selectedCriterion.id) when available.
             // For now we unassign the criterion from the rubric by clearing rubric_id.
-            const updated = await rubricService.updateCriterion(selectedCriterion.id, { rubric_id: undefined });
+            const response = await rubricService.updateCriterion(selectedCriterion.id, { rubric_id: undefined });
+            const updated = response.data;
             if (updated) {
                 showFeedback("success", "Criterion removed from rubric.");
                 closeCrud();
