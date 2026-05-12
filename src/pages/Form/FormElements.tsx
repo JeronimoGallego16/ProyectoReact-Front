@@ -4,14 +4,13 @@ import CheckboxFour from '../../components/CheckboxFour';
 import CheckboxOne from '../../components/CheckboxOne';
 import CheckboxThree from '../../components/CheckboxThree';
 import CheckboxTwo from '../../components/CheckboxTwo';
-import VerticalTextFormCard from '../../components/VerticalTextFormCard';
+import VerticalTextFormCard, { type VerticalTextFormField } from '../../components/VerticalTextFormCard';
 import SwitcherFour from '../../components/SwitcherFour';
 import SwitcherOne from '../../components/SwitcherOne';
 import SwitcherThree from '../../components/SwitcherThree';
 import SwitcherTwo from '../../components/SwitcherTwo';
-import SelectableFieldsFormCard, { type SelectableField } from '../../components/SelectableFieldsFormCard';
 
-// Datos de prueba para SelectableFieldsFormCard
+// Datos de prueba para VerticalTextFormCard con campos de tipo select
 const subjectsOptions = [
   { id: 1, label: 'Matemáticas I', value: 'math-1' },
   { id: 2, label: 'Matemáticas II', value: 'math-2' },
@@ -35,17 +34,17 @@ const semesterOptions = [
 ];
 
 const creditsOptions = [
-  { id: 1, label: '1 Crédito', value: 1 },
-  { id: 2, label: '2 Créditos', value: 2 },
-  { id: 3, label: '3 Créditos', value: 3 },
-  { id: 4, label: '4 Créditos', value: 4 },
+  { id: 1, label: '1 Crédito', value: '1' },
+  { id: 2, label: '2 Créditos', value: '2' },
+  { id: 3, label: '3 Créditos', value: '3' },
+  { id: 4, label: '4 Créditos', value: '4' },
 ];
 
-// Ejemplo 1: 3 campos (Asignatura, Semestre, Créditos)
-const selectableFields: SelectableField[] = [
+const selectableFields: VerticalTextFormField[] = [
   {
     name: 'subject',
     label: 'Asignatura',
+    kind: 'select',
     options: subjectsOptions,
     placeholder: 'Selecciona una asignatura',
     required: true,
@@ -53,6 +52,7 @@ const selectableFields: SelectableField[] = [
   {
     name: 'semester',
     label: 'Semestre Sugerido',
+    kind: 'select',
     options: semesterOptions,
     placeholder: 'Selecciona un semestre',
     required: true,
@@ -60,17 +60,18 @@ const selectableFields: SelectableField[] = [
   {
     name: 'credits',
     label: 'Créditos',
+    kind: 'select',
     options: creditsOptions,
     placeholder: 'Selecciona los créditos',
     required: true,
   },
 ];
 
-// Ejemplo 2: Puedes tener diferentes combinaciones para otras páginas
-const anotherSelectableFields: SelectableField[] = [
+const anotherSelectableFields: VerticalTextFormField[] = [
   {
     name: 'career',
     label: 'Carrera',
+    kind: 'select',
     options: [
       { id: 1, label: 'Ingeniería en Sistemas', value: 'sys-eng' },
       { id: 2, label: 'Ingeniería Civil', value: 'civ-eng' },
@@ -82,6 +83,7 @@ const anotherSelectableFields: SelectableField[] = [
   {
     name: 'status',
     label: 'Estado',
+    kind: 'select',
     options: [
       { id: 1, label: 'Activo', value: 'active' },
       { id: 2, label: 'Inactivo', value: 'inactive' },
@@ -498,11 +500,11 @@ const FormElements = () => {
         </div>
       </div>
 
-      {/* SelectableFieldsFormCard - Campos Seleccionables Reutilizable */}
+      {/* VerticalTextFormCard con campos select */}
       <div className="mb-9 mt-9">
-        <SelectableFieldsFormCard
+        <VerticalTextFormCard
           title="Campos Seleccionables con Dropdown"
-          description="Ejemplo 1: 3 campos (Asignatura, Semestre, Créditos) - La cantidad de campos es dinámica según el array 'fields'"
+          description="Ejemplo 1: 3 campos (Asignatura, Semestre, Créditos) usando kind: 'select'"
           fields={selectableFields}
           onSave={(values) => {
             console.log('Formulario guardado:', values);
@@ -516,12 +518,10 @@ const FormElements = () => {
 
       {/* Otro ejemplo con diferente cantidad de campos */}
       <div className="mb-9">
-        <SelectableFieldsFormCard
+        <VerticalTextFormCard
           title="Otro Ejemplo: 2 campos diferentes"
-          description="Ejemplo 2: 2 campos (Carrera, Estado) - Demuestra que puedes tener cualquier cantidad de campos"
+          description="Ejemplo 2: 2 campos (Carrera, Estado) - mismo componente, otro array de fields"
           fields={anotherSelectableFields}
-          saveLabel="Registrar"
-          cancelLabel="Descartar"
           onSave={(values) => {
             console.log('Formulario guardado:', values);
             alert(`Carrera: ${values.career}\nEstado: ${values.status}`);

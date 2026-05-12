@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
+export type VerticalTextFormOption = {
+  id?: string | number;
+  label: string;
+  value: string | number;
+};
+
 export type VerticalTextFormField = {
   name: string;
   label: string;
   placeholder?: string;
   type?: string;
-  kind?: 'input' | 'textarea';
+  kind?: 'input' | 'textarea' | 'select';
   rows?: number;
   value?: string;
+  options?: VerticalTextFormOption[];
+  required?: boolean;
 };
 
 type VerticalTextFormCardProps = {
@@ -79,14 +87,30 @@ const VerticalTextFormCard = ({
                 rows={field.rows ?? 5}
                 value={values[field.name] ?? ''}
                 placeholder={field.placeholder ?? field.label}
+                required={field.required}
                 onChange={(event) => handleChange(field.name, event.target.value)}
                 className="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
               />
+            ) : field.kind === 'select' ? (
+              <select
+                value={values[field.name] ?? ''}
+                required={field.required}
+                onChange={(event) => handleChange(field.name, event.target.value)}
+                className="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+              >
+                <option value="">{field.placeholder ?? field.label}</option>
+                {field.options?.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             ) : (
               <input
                 type={field.type ?? 'text'}
                 value={values[field.name] ?? ''}
                 placeholder={field.placeholder ?? field.label}
+                required={field.required}
                 onChange={(event) => handleChange(field.name, event.target.value)}
                 className="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
               />
