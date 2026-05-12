@@ -1,10 +1,27 @@
 import { useState } from 'react';
 import UserModal from '../components/UserModal';
+import DeactivateUserModal from '../components/DeactivateUserModal';
+import SearchUserModal from '../components/SearchUserModal';
+
+interface UserData {
+    id: string;
+    email: string;
+    code: string;
+    profile?: {
+        first_name?: string;
+        last_name?: string;
+    };
+    role?: string;
+}
 
 export default function TestUsers() {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+    const [searchAction, setSearchAction] = useState<'edit' | 'deactivate'>('edit');
     const [editMode, setEditMode] = useState<'create' | 'edit'>('create');
     const [editUserId, setEditUserId] = useState<string>('');
+    const [deactivateUserId, setDeactivateUserId] = useState<string>('');
 
     const handleCreateClick = () => {
         setEditMode('create');
@@ -13,11 +30,25 @@ export default function TestUsers() {
     };
 
     const handleEditClick = () => {
-        const id = prompt('Ingresa el ID del usuario a editar:');
-        if (id && id.trim()) {
+        setSearchAction('edit');
+        setIsSearchModalOpen(true);
+    };
+
+    const handleDeactivateClick = () => {
+        setSearchAction('deactivate');
+        setIsSearchModalOpen(true);
+    };
+
+    const handleUserFound = (userId: string, userData: UserData) => {
+        setIsSearchModalOpen(false);
+
+        if (searchAction === 'edit') {
             setEditMode('edit');
-            setEditUserId(id.trim());
+            setEditUserId(userId);
             setIsModalOpen(true);
+        } else if (searchAction === 'deactivate') {
+            setDeactivateUserId(userId);
+            setIsDeactivateModalOpen(true);
         }
     };
 
@@ -43,6 +74,12 @@ export default function TestUsers() {
                         className="flex-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-blue-600 hover:to-blue-700 transition-all"
                     >
                         ✏️ Editar Usuario
+                    </button>
+                    <button
+                        onClick={handleDeactivateClick}
+                        className="flex-1 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-red-600 hover:to-red-700 transition-all"
+                    >
+                        🚫 Desactivar Usuario
                     </button>
                 </div>
 
@@ -85,14 +122,14 @@ export default function TestUsers() {
                             </ul>
                         </div>
 
-                        <div className="rounded-lg bg-orange-50 p-4">
-                            <h3 className="mb-2 flex items-center text-lg font-semibold text-orange-900">
-                                <span className="mr-2">🎯</span> Modo Editar
+                        <div className="rounded-lg bg-red-50 p-4">
+                            <h3 className="mb-2 flex items-center text-lg font-semibold text-red-900">
+                                <span className="mr-2">🚫</span> Desactivación
                             </h3>
-                            <ul className="space-y-1 text-sm text-orange-800">
-                                <li>✓ Carga datos automáticos</li>
-                                <li>✓ Modifica información</li>
-                                <li>✓ Actualiza en el backend</li>
+                            <ul className="space-y-1 text-sm text-red-800">
+                                <li>✓ Busca por ID de usuario</li>
+                                <li>✓ Muestra datos antes de confirmar</li>
+                                <li>✓ Desactiva usuario sin eliminar datos</li>
                             </ul>
                         </div>
                     </div>
@@ -102,8 +139,9 @@ export default function TestUsers() {
                             <strong>💡 Instrucciones:</strong><br />
                             1. Haz clic en "<strong>➕ Crear Usuario</strong>" para crear un nuevo usuario<br />
                             2. Haz clic en "<strong>✏️ Editar Usuario</strong>" e ingresa un ID para editar<br />
-                            3. Completa los datos en el modal (2 pestañas para algunos roles)<br />
-                            4. Haz clic en "Guardar" para guardar los cambios
+                            3. Haz clic en "<strong>🚫 Desactivar Usuario</strong>" para desactivar un usuario<br />
+                            4. Completa los datos en el modal (2 pestañas para algunos roles)<br />
+                            5. Haz clic en "Guardar" o "Desactivar usuario" para completar la acción
                         </p>
                     </div>
                 </div>
@@ -118,6 +156,28 @@ export default function TestUsers() {
                 }}
                 mode={editMode}
                 userId={editUserId || undefined}
+            />
+
+            {/* Modal de Búsqueda de Usuario */}
+            <SearchUserModal
+                isOpen={isSearchModalOpen}
+                onClose={() => setIsSearchModalOpen(false)}
+                onUserFound={handleUserFound}
+                action={searchAction}
+            />
+
+            {/* Modal de Desactivación */}
+            <DeactivateUserModal
+                isOpen={isDeactivateModalOpen}
+                onClose={() => {
+                    setIsDeactivateModalOpen(false);
+                    setDeactivateUserId('');
+                }}
+                onSuccess={() => {
+                    setIsDeactivateModalOpen(false);
+                    setDeactivateUserId('');
+                }}
+                userId={deactivateUserId || undefined}
             />
         </div>
     );

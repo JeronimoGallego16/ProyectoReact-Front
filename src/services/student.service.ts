@@ -1,5 +1,5 @@
 import apiService, { ApiResponse } from './api';
-import { Student } from '../models/student';
+import { Student } from '../models/Student';
 import { CreateStudentPayload, UpdateStudentPayload } from '../models/StudentPayload';
 
 /**

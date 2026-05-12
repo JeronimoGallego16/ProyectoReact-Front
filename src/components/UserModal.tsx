@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import adminService from '../services/admin.service';
 import studentService from '../services/student.service';
 import teacherService from '../services/teacher.service';
+import apiService from '../services/api';
 
 interface UserModalProps {
     isOpen: boolean;
@@ -31,6 +32,7 @@ export default function UserModal({
     const [password, setPassword] = useState('');
     const [code, setCode] = useState('');
     const [role, setRole] = useState<UserRole>('STUDENT');
+    const [isActive, setIsActive] = useState(true);
 
     // Pestaña 2: Datos de perfil
     const [firstName, setFirstName] = useState('');
@@ -52,37 +54,32 @@ export default function UserModal({
     const loadUserData = async () => {
         setIsLoadingData(true);
         try {
-            let userData: any;
+            // Llamada genérica a /users/{userId} - obtiene el usuario con su rol
+            const response = await apiService.get<any>(`/users/${userId}`);
 
-            if (role === 'ADMIN') {
-                const response = await adminService.getAdminById(userId!);
-                userData = response.data;
-                if (userData) {
-                    setEmail(userData.email || '');
-                    setCode(userData.code || '');
-                }
-            } else if (role === 'STUDENT') {
-                const response = await studentService.getStudentById(userId!);
-                userData = response.data;
-                if (userData) {
-                    setEmail(userData.email || '');
-                    setCode(userData.code || '');
-                    setFirstName(userData.profile?.first_name || '');
-                    setLastName(userData.profile?.last_name || '');
-                    setIdentification(userData.profile?.identification || '');
-                }
-            } else if (role === 'TEACHER') {
-                const response = await teacherService.getTeacherById(userId!);
-                userData = response.data;
-                if (userData) {
-                    setEmail(userData.email || '');
-                    setCode(userData.code || '');
-                    setFirstName(userData.profile?.first_name || '');
-                    setLastName(userData.profile?.last_name || '');
-                    setIdentification(userData.profile?.identification || '');
-                    setPhone(userData.profile?.phone || '');
-                    setSpecialty(userData.profile?.specialty || '');
-                }
+            if (!response.data) {
+                toast.error('No se encontró el usuario');
+                return;
+            }
+
+            const userData = response.data;
+
+            // Actualizar el rol obtenido del backend
+            const userRole = userData.role as UserRole;
+            setRole(userRole);
+
+            // Llenar datos básicos
+            setEmail(userData.email || '');
+            setCode(userData.code || '');
+            setIsActive(userData.is_active !== false);
+
+            // Llenar datos del profile si existen
+            if (userData.profile) {
+                setFirstName(userData.profile.first_name || '');
+                setLastName(userData.profile.last_name || '');
+                setIdentification(userData.profile.identification || '');
+                setPhone(userData.profile.phone || '');
+                setSpecialty(userData.profile.specialty || '');
             }
         } catch (error) {
             toast.error('Error al cargar los datos del usuario');
@@ -97,6 +94,7 @@ export default function UserModal({
         setPassword('');
         setCode('');
         setRole('STUDENT');
+        setIsActive(true);
         setFirstName('');
         setLastName('');
         setIdentification('');
@@ -153,6 +151,10 @@ export default function UserModal({
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
 
+        // Validar siempre step 1 primero
+        if (!validateStep1()) return;
+
+        // Luego validar step 2 si es aplicable
         if (currentTab === 1 && !validateStep2()) return;
 
         setLoading(true);
@@ -166,7 +168,7 @@ export default function UserModal({
                     });
                     toast.success('Admin creado exitosamente');
                 } else {
-                    await adminService.updateAdmin(userId!, { email });
+                    await adminService.updateAdmin(userId!, { email, is_active: isActive });
                     toast.success('Admin actualizado exitosamente');
                 }
             } else if (role === 'STUDENT') {
@@ -186,6 +188,7 @@ export default function UserModal({
                         first_name: firstName,
                         last_name: lastName,
                         identification,
+                        is_active: isActive,
                     });
                     toast.success('Estudiante actualizado exitosamente');
                 }
@@ -210,6 +213,7 @@ export default function UserModal({
                         identification,
                         phone,
                         specialty,
+                        is_active: isActive,
                     });
                     toast.success('Docente actualizado exitosamente');
                 }
@@ -345,6 +349,23 @@ export default function UserModal({
                                         <option value="STUDENT">Estudiante</option>
                                         <option value="TEACHER">Docente</option>
                                         <option value="ADMIN">Administrador</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Estado - solo en modo edit */}
+                            {mode === 'edit' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        Estado <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        value={isActive ? 'activo' : 'desactivo'}
+                                        onChange={(e) => setIsActive(e.target.value === 'activo')}
+                                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
+                                    >
+                                        <option value="activo">✅ Activo</option>
+                                        <option value="desactivo">🚫 Desactivo</option>
                                     </select>
                                 </div>
                             )}
