@@ -4,6 +4,7 @@ import CheckboxFour from '../../components/CheckboxFour';
 import CheckboxOne from '../../components/CheckboxOne';
 import CheckboxThree from '../../components/CheckboxThree';
 import CheckboxTwo from '../../components/CheckboxTwo';
+import VerticalTextFormCard from '../../components/VerticalTextFormCard';
 import SwitcherFour from '../../components/SwitcherFour';
 import SwitcherOne from '../../components/SwitcherOne';
 import SwitcherThree from '../../components/SwitcherThree';
@@ -13,6 +14,75 @@ const FormElements = () => {
   return (
     <>
       <Breadcrumb pageName="FormElements" />
+
+      <div className="mb-9">
+        <VerticalTextFormCard
+          title="Formulario de carrera"
+          description="Código, nombre y descripción, con acciones al final."
+          fields={[
+            {
+              name: 'codigo_carrera',
+              label: 'Código',
+              placeholder: 'Escribe el código de la carrera',
+            },
+            {
+              name: 'nombre_carrera',
+              label: 'Nombre',
+              placeholder: 'Escribe el nombre de la carrera',
+            },
+            {
+              name: 'descripcion_carrera',
+              label: 'Descripción',
+              kind: 'textarea',
+              rows: 5,
+              placeholder: 'Escribe la descripción de la carrera',
+            },
+          ]}
+          onSave={(values) => {
+            console.log('Formulario guardado', values);
+          }}
+          onCancel={() => {
+            console.log('Edición cancelada');
+          }}
+        />
+      </div>
+
+      <div className="mb-9">
+        <VerticalTextFormCard
+          title="Formulario de asignatura"
+          description="Incluye código, nombre, descripción y créditos."
+          fields={[
+            {
+              name: 'codigo_asignatura',
+              label: 'Código',
+              placeholder: 'Escribe el código de la asignatura',
+            },
+            {
+              name: 'nombre_asignatura',
+              label: 'Nombre',
+              placeholder: 'Escribe el nombre de la asignatura',
+            },
+            {
+              name: 'descripcion_asignatura',
+              label: 'Descripción',
+              kind: 'textarea',
+              rows: 5,
+              placeholder: 'Escribe la descripción de la asignatura',
+            },
+            {
+              name: 'creditos_asignatura',
+              label: 'Créditos',
+              placeholder: 'Escribe los créditos de la asignatura',
+            },
+          ]}
+          onSave={(values) => {
+            console.log('Formulario guardado', values);
+          }}
+          onCancel={() => {
+            console.log('Edición cancelada');
+          }}
+        />
+      </div>
 
       <div className="grid grid-cols-1 gap-9 sm:grid-cols-2">
         <div className="flex flex-col gap-9">
