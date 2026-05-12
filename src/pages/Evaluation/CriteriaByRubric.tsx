@@ -3,7 +3,7 @@ import SelectableTable from "../../components/SelectableTable";
 import { rubricService } from "../../services/RubricService";
 import { Rubric } from "../../models/Rubric";
 import { Criterion } from "../../models/Criterion";
-//import securityService from "../services/segurity.service";
+import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
 import { useNavigate, useParams } from "react-router-dom";
 // TODO: Import CriterionCrudPanel when available
@@ -59,9 +59,9 @@ const CriteriaByRubricPage: React.FC<CriteriaByRubricPageProps> = () => {
     const [form, setForm] = useState<Omit<Criterion, "id">>(emptyForm());
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-    // const user = securityService.getUser();
-    // const role: UserRole = user?.role ?? "STUDENT";
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
+    //const role: UserRole = "ADMIN";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────

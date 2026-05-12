@@ -2,11 +2,10 @@ import React, { useEffect, useState } from "react";
 import GenericTable from "../../components/GenericTable";
 import { rubricService } from "../../services/RubricService";
 import { Rubric } from "../../models/Rubric";
-//import securityService from "../services/segurity.service";
+import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
 // TODO: Import RubricCrudPanel when available
 // import RubricCrudPanel from "../components/RubricCrudPanel";
-// TODO: Import useNavigate (or your router's navigate hook) when CriteriaByRubricPage is ready
 import { useNavigate } from "react-router-dom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,10 +46,10 @@ const RubricsPage: React.FC = () => {
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
     const navigate = useNavigate();
 
-    // const user = securityService.getUser();
-    // const role: UserRole = user?.role ?? "STUDENT";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
 
-    const role: UserRole = "STUDENT";
+    // const role: UserRole = "ADMIN";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import SelectableTable from "../../components/SelectableTable";
 import { rubricService } from "../../services/RubricService";
 import { Criterion } from "../../models/Criterion";
 import { Scale } from "../../models/Scale";
-//import securityService from "../services/segurity.service";
+import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
 // TODO: Import ScaleCrudPanel when available
 // import ScaleCrudPanel from "../components/ScaleCrudPanel";
@@ -49,9 +49,9 @@ const ScalesByCriterionPage: React.FC = () => {
     const [form, setForm] = useState<Omit<Scale, "id">>(emptyForm());
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-    // const user = securityService.getUser();
-    // const role: UserRole = user?.role ?? "STUDENT";
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
+    //const role: UserRole = "ADMIN";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
