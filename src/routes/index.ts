@@ -6,6 +6,7 @@ const Profile = lazy(() => import('../pages/Profile'));
 const TestUsers = lazy(() => import('../pages/TestUsers'));
 const UsersPage = lazy(() => import('../pages/UsersPage'));
 const GroupsPage = lazy(() => import('../pages/GroupsPage'));
+const CareersPage = lazy(() => import('../pages/CareersPage'));
 const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
 const PruebaMatricula = lazy(() => import('../pages/PruebaMatricula'));
 const PruebaDocenteGrupo = lazy(() => import('../pages/PruebaDocenteGrupo'));
@@ -40,6 +41,11 @@ const coreRoutes = [
     path: '/grupos',
     title: 'Grupos',
     component: GroupsPage,
+  },
+  {
+    path: '/carreras',
+    title: 'Carreras',
+    component: CareersPage,
   },
   {
     path: '/prueba-matricula',
