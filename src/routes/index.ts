@@ -4,6 +4,8 @@ const FormElements = lazy(() => import('../pages/Form/FormElements'));
 const FormLayout = lazy(() => import('../pages/Form/FormLayout'));
 const Profile = lazy(() => import('../pages/Profile'));
 const TestUsers = lazy(() => import('../pages/TestUsers'));
+const UsersPage = lazy(() => import('../pages/UsersPage'));
+const GroupsPage = lazy(() => import('../pages/GroupsPage'));
 const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
 const PruebaMatricula = lazy(() => import('../pages/PruebaMatricula'));
 const PruebaDocenteGrupo = lazy(() => import('../pages/PruebaDocenteGrupo'));
@@ -28,6 +30,16 @@ const coreRoutes = [
     path: '/test-users',
     title: 'Test Users',
     component: TestUsers,
+  },
+  {
+    path: '/usuarios',
+    title: 'Usuarios',
+    component: UsersPage,
+  },
+  {
+    path: '/grupos',
+    title: 'Grupos',
+    component: GroupsPage,
   },
   {
     path: '/prueba-matricula',
