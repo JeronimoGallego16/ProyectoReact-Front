@@ -6,28 +6,28 @@ import { CreateTeacherPayload, UpdateTeacherPayload } from '../models/TeacherPay
  * Servicio específico para Docentes
  */
 class TeacherService {
-  private usersEndpoint = '/users';
-  private searchEndpoint = '/academic/teachers/search';
+  private endpoint = '/users';
+  private searchEndpoint = '/users/search';
 
   /**
    * Listar todos los docentes
    */
   async getAllTeachers(): Promise<ApiResponse<Teacher[]>> {
-    return apiService.get<Teacher[]>(this.searchEndpoint);
+    return apiService.get<Teacher[]>(this.searchEndpoint, { role: 'TEACHER' });
   }
 
   /**
    * Obtener un docente por ID
    */
   async getTeacherById(teacherId: string): Promise<ApiResponse<Teacher>> {
-    return apiService.get<Teacher>(`${this.usersEndpoint}/${teacherId}`);
+    return apiService.get<Teacher>(`${this.endpoint}/${teacherId}`);
   }
 
   /**
    * Crear un nuevo docente
    */
   async createTeacher(payload: CreateTeacherPayload): Promise<ApiResponse<Teacher>> {
-    return apiService.post<Teacher>(`${this.usersEndpoint}/public/register-teacher`, {
+    return apiService.post<Teacher>(`${this.endpoint}/public/register-teacher`, {
       ...payload,
       role: 'TEACHER',
     });
@@ -37,7 +37,7 @@ class TeacherService {
    * Actualizar datos del docente
    */
   async updateTeacher(teacherId: string, payload: UpdateTeacherPayload): Promise<ApiResponse<Teacher>> {
-    return apiService.put<Teacher>(`${this.usersEndpoint}/${teacherId}`, payload);
+    return apiService.put<Teacher>(`${this.endpoint}/${teacherId}`, payload);
   }
 
   /**
@@ -45,7 +45,7 @@ class TeacherService {
    */
   async deactivateTeacher(teacherId: string): Promise<ApiResponse<Teacher>> {
     return apiService.patch<Teacher>(
-      `${this.usersEndpoint}/${teacherId}/deactivate`,
+      `${this.endpoint}/${teacherId}/deactivate`,
       {}
     );
   }
@@ -54,7 +54,7 @@ class TeacherService {
    * Eliminar docente
    */
   async deleteTeacher(teacherId: string): Promise<ApiResponse<any>> {
-    return apiService.delete<any>(`${this.usersEndpoint}/${teacherId}`);
+    return apiService.delete<any>(`${this.endpoint}/${teacherId}`);
   }
 }
 

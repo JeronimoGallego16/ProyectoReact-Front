@@ -1,118 +1,111 @@
 import apiService from './api';
 import { Group, GroupCreateInput } from '../models/Group';
-import { TeacherGroupPayload, TeacherGroupResponse } from '../models/TeacherGroup';
+import { groupService } from './GroupService';
+import teacherService from './teacher.service';
+
+interface AssignTeacherPayload {
+  semesterId: string;
+  groupId: string;
+  teacherId: string;
+}
+
+interface AssignTeacherResponse {
+  success: boolean;
+  group?: Group;
+  error?: string;
+  message?: string;
+}
 
 class TeacherAGroupService {
-  private academicEndpoint = '/academic';
-
   /**
-   * Crea un grupo asignado a un docente existente
+   * Asigna un docente a un grupo con todas las validaciones
+   * 
    * Validaciones:
-   * 1. El docente existe
-   * 2. La asignatura existe
-   * 3. El semestre existe
-   * 4. El código de grupo es único
+   * 1. El grupo existe y tiene semestre_id con estado = true
+   * 2. El docente existe y es_activo = true
+   * 3. El grupo tiene asignatura_id definido
+   * 4. El docente no tiene otro grupo con la misma asignatura en el mismo semestre
+   * 5. El docente actual es diferente al nuevo docente
    */
-  async createGroupForTeacher(
-    payload: TeacherGroupPayload
-  ): Promise<TeacherGroupResponse> {
+  async assignTeacherToGroup(
+    payload: AssignTeacherPayload
+  ): Promise<AssignTeacherResponse> {
     try {
-      const {
-        teacherId,
-        subjectId,
-        semesterId,
-        name,
-        groupCode,
-        capacity,
-      } = payload;
+      const { semesterId, groupId, teacherId } = payload;
 
-      // Validación 1: Verificar que el docente existe
-      const teacherResponse = await apiService.get<any>(
-        `${this.academicEndpoint}/teachers/${teacherId}`
-      );
-      if (!teacherResponse?.data) {
+      // Validación 1: Verificar que el grupo existe
+      const group = await groupService.getGroupById(groupId);
+      if (!group) {
         return {
           success: false,
-          error: 'Docente no encontrado',
+          error: 'Grupo no encontrado',
+        };
+      }
+
+      // Validación 3: Verificar que el grupo tiene asignatura definida
+      if (!group.subject_id) {
+        return {
+          success: false,
+          error: 'El grupo no tiene una asignatura definida. Completa la información del grupo primero.',
+        };
+      }
+
+      // Validación 2: Verificar que el docente existe y está activo
+      const teacherResponse = await apiService.get<any>(
+        `/users/${teacherId}`
+      );
+      if (!teacherResponse?.data || !teacherResponse.data.is_active) {
+        return {
+          success: false,
+          error: 'Docente no encontrado o inactivo',
         };
       }
       const teacher = teacherResponse.data;
 
-      // Validación 2: Verificar que la asignatura existe
-      const subjectResponse = await apiService.get<any>(
-        `${this.academicEndpoint}/subjects/${subjectId}`
-      );
-      if (!subjectResponse?.data) {
+      // Validación 5: Verificar que el docente actual es diferente
+      if (group.teacher_id === teacherId) {
         return {
           success: false,
-          error: 'Asignatura no encontrada',
-        };
-      }
-      const subject = subjectResponse.data;
-
-      // Validación 3: Verificar que el semestre existe
-      const semesterResponse = await apiService.get<any>(
-        `${this.academicEndpoint}/semesters/${semesterId}`
-      );
-      if (!semesterResponse?.data) {
-        return {
-          success: false,
-          error: 'Semestre no encontrado',
+          error: 'El docente seleccionado ya está asignado a este grupo',
         };
       }
 
-      // Validación 4: Verificar que el código de grupo sea único
-      const existingGroup = await apiService.get<any>(
-        `${this.academicEndpoint}/groups`
+      // Validación 4: Verificar que el docente no tenga conflicto (mismo asignatura en mismo semestre)
+      const teacherGroups = await groupService.getGroupsByTeacher(teacherId);
+      const conflict = teacherGroups.find(
+        g => g.subject_id === group.subject_id && 
+            g.semester_id === semesterId && 
+            g.id !== groupId
       );
-      if (Array.isArray(existingGroup?.data)) {
-        const codeExists = existingGroup.data.some(
-          (g: Group) => g.group_code === groupCode
-        );
-        if (codeExists) {
-          return {
-            success: false,
-            error: 'El código de grupo ya existe',
-          };
-        }
+      if (conflict) {
+        return {
+          success: false,
+          error: `El docente ya tiene un grupo con esta asignatura en este semestre (${conflict.group_code})`,
+        };
       }
 
-      // Crear el grupo
-      const groupPayload: GroupCreateInput = {
+      // Actualizar el grupo con el nuevo docente
+      const updatedGroup = await groupService.updateGroup(groupId, {
         teacher_id: teacherId,
-        subject_id: subjectId,
-        semester_id: semesterId,
-        name,
-        group_code: groupCode,
-        capacity,
-      };
+      });
 
-      const groupResponse = await apiService.post<Group>(
-        `${this.academicEndpoint}/groups`,
-        groupPayload
-      );
-
-      if (!groupResponse?.data) {
+      if (!updatedGroup) {
         return {
           success: false,
-          error: 'Error al crear el grupo en el backend',
+          error: 'Error al actualizar el grupo en el servidor',
         };
       }
 
       return {
         success: true,
-        group: groupResponse.data,
-        details: {
-          teacherName: `${teacher.first_name} ${teacher.last_name}`,
-          subjectName: subject.name,
-          groupId: groupResponse.data.id,
-        },
+        group: updatedGroup,
+        message: `Docente ${teacher.email} asignado correctamente al grupo ${group.group_code}`,
       };
     } catch (error: any) {
-      console.error('Error en createGroupForTeacher:', error);
+      console.error('Error en assignTeacherToGroup:', error);
       return {
         success: false,
-        error: error.message || 'Error desconocido',
+        error: error.message || 'Error desconocido al asignar docente',
       };
     }
   }
@@ -122,11 +115,7 @@ class TeacherAGroupService {
    */
   async getTeacherGroups(teacherId: string): Promise<Group[]> {
     try {
-      const response = await apiService.get<Group[]>(
-        `${this.academicEndpoint}/groups`
-      );
-      if (!Array.isArray(response?.data)) return [];
-      return response.data.filter((g: Group) => g.teacher_id === teacherId);
+      return await groupService.getGroupsByTeacher(teacherId);
     } catch (error) {
       console.error('Error al obtener grupos del docente:', error);
       return [];
@@ -138,10 +127,7 @@ class TeacherAGroupService {
    */
   async getGroupById(groupId: string): Promise<Group | null> {
     try {
-      const response = await apiService.get<Group>(
-        `${this.academicEndpoint}/groups/${groupId}`
-      );
-      return response?.data || null;
+      return await groupService.getGroupById(groupId);
     } catch (error) {
       console.error('Error al obtener grupo:', error);
       return null;
@@ -156,11 +142,7 @@ class TeacherAGroupService {
     updates: Partial<GroupCreateInput>
   ): Promise<Group | null> {
     try {
-      const response = await apiService.put<Group>(
-        `${this.academicEndpoint}/groups/${groupId}`,
-        updates
-      );
-      return response?.data || null;
+      return await groupService.updateGroup(groupId, updates);
     } catch (error) {
       console.error('Error al actualizar grupo:', error);
       return null;
@@ -168,14 +150,14 @@ class TeacherAGroupService {
   }
 
   /**
-   * Elimina un grupo
+   * Desactiva un grupo
    */
   async deleteGroup(groupId: string): Promise<boolean> {
     try {
-      await apiService.delete(`${this.academicEndpoint}/groups/${groupId}`);
-      return true;
+      const result = await groupService.deactivateGroup(groupId);
+      return !!result;
     } catch (error) {
-      console.error('Error al eliminar grupo:', error);
+      console.error('Error al desactivar grupo:', error);
       return false;
     }
   }
