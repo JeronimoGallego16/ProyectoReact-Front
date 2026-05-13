@@ -76,8 +76,22 @@ class RegistrationService {
 
       const response = await apiClient.post(API_URL, payload);
       return this._extractData(response) as Registration || null;
-    } catch (error) {
-      return this._handleError(error);
+    } catch (error: any) {
+      let errorMessage = 'Error desconocido';
+      
+      // Capturar error del backend (400, 500, etc.)
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      console.error('Registration error:', errorMessage);
+      throw new Error(errorMessage);
     }
   }
 
@@ -132,11 +146,8 @@ class RegistrationService {
   }
 
   private _handleError(error: any): any {
-    if (error.response?.data?.error) {
-      console.error('Registration error:', error.response.data.error);
-    } else {
-      console.error('Registration error:', error.message);
-    }
+    const errorMessage = error.response?.data?.error || error.message || 'Error desconocido';
+    console.error('Registration error:', errorMessage);
     return null;
   }
 }

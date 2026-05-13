@@ -5,6 +5,7 @@ import { Registration, RegistrationCreateInput } from '../models/Registration';
 import { StudentRegistrationPayload, StudentRegistrationResponse } from '../models/StudentRegistration';
 
 class StudentRegistrationService {
+  private usersEndpoint = '/users';
   private academicEndpoint = '/academic';
 
   /**
@@ -26,8 +27,8 @@ class StudentRegistrationService {
       } = payload;
 
       // Validación 1: Verificar que el estudiante existe
-      // Usar el endpoint /academic/students/{id} que busca en la tabla students, no en users
-      const studentResponse = await apiService.get<any>(`${this.academicEndpoint}/students/${studentId}`);
+      // Usar el endpoint /users/{id} que obtiene el usuario estudiante
+      const studentResponse = await apiService.get<any>(`${this.usersEndpoint}/${studentId}`);
       if (!studentResponse?.data) {
         return {
           success: false,
@@ -35,6 +36,15 @@ class StudentRegistrationService {
         };
       }
       const student = studentResponse.data;
+      
+      // Usar el ID del perfil académico del estudiante (student profile ID)
+      const academicStudentId = student.profile?.id;
+      if (!academicStudentId) {
+        return {
+          success: false,
+          error: 'Perfil académico del estudiante no encontrado',
+        };
+      }
 
       // Validación 2: Verificar que la carrera existe
       const career = await careerService.getCareerById(careerId);
@@ -47,7 +57,7 @@ class StudentRegistrationService {
 
       // Validación 3: Verificar que no tenga matrícula activa en esa carrera
       const hasActive = await registrationService.hasActiveRegistration(
-        studentId,
+        academicStudentId,
         careerId
       );
       if (hasActive) {
@@ -59,16 +69,24 @@ class StudentRegistrationService {
 
       // Crear la matrícula
       const registrationPayload: RegistrationCreateInput = {
-        student_id: studentId,
+        student_id: academicStudentId,
         career_id: careerId,
         admission_period: admissionPeriod,
         academic_status: academicStatus,
         is_active: true,
       };
 
-      const registration = await registrationService.createRegistration(
-        registrationPayload
-      );
+      let registration;
+      try {
+        registration = await registrationService.createRegistration(
+          registrationPayload
+        );
+      } catch (registrationError: any) {
+        return {
+          success: false,
+          error: registrationError.message || 'Error al crear la matrícula en el backend',
+        };
+      }
 
       if (!registration) {
         return {
