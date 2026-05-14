@@ -149,7 +149,13 @@ class EvaluationService:
         if existing_grade and evaluation.rubric_id and evaluation.rubric_id != rubric_id:
             raise ValueError('rubric cannot be changed because grades already exist')
         evaluation.rubric_id = rubric_id
-        evaluation.subject_id = rubric.subject_id
+        # ensure evaluation subject matches the group's subject
+        if evaluation.group and evaluation.group.subject_id:
+            evaluation.subject_id = evaluation.group.subject_id
+        else:
+            # fallback: keep existing subject_id or raise
+            if not evaluation.subject_id:
+                raise ValueError('evaluation has no group subject to assign')
         db.session.commit()
         return model_to_dict(evaluation)
 

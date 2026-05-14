@@ -9,6 +9,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{DB_PATH}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JSON_SORT_KEYS = False
+    # Origenes permitidos para CORS. Puede ser '*' o una lista separada por comas.
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', '*')
     EXCLUDED_AUTH_PATHS = {
         '/health',
         '/api/auth/login',
