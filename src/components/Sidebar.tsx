@@ -125,7 +125,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                               fill=""
                           />
                       </svg>
-                      Rubrics
+                      Rúbricas
                   </NavLink>
               </li>
               {/* <!-- Menu Item Rubrics --> */}

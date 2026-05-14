@@ -37,12 +37,12 @@ const createToast=(title: string, msg: string, type: number)=>{toast.custom((t) 
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
-              stroke-width="1.5"
+              strokeWidth="1.5"
               stroke="currentColor"
               className="h-6 w-6">
               <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 d="M6 18L18 6M6 6l12 12" />
             </svg>
           </span>
@@ -51,6 +51,10 @@ const createToast=(title: string, msg: string, type: number)=>{toast.custom((t) 
       </div>
     </div>
   ))};
+
+export const showToast = (title: string, msg: string, type: number) => {
+  createToast(title, msg, type);
+};
 // let dataJSON: any;
 // let headers = new Headers();
 // headers.append('Access-Control-Allow-Origin', 'http://127.0.0.1:8000');

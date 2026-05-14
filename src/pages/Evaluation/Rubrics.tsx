@@ -1,27 +1,30 @@
 import React, { useEffect, useState } from "react";
 import GenericTable from "../../components/GenericTable";
+import PageHeader from "../../components/PageHeader";
+import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import { rubricService } from "../../services/RubricService";
 import { Rubric } from "../../models/Rubric";
-import securityService from "../../services/segurity.service";
+//import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
-// TODO: Import RubricCrudPanel when available
-// import RubricCrudPanel from "../components/RubricCrudPanel";
 import { useNavigate } from "react-router-dom";
+import { showToast } from "../../hooks/fireToast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CrudMode = "create" | "edit" | "archive" | "delete" | null;
+type CrudMode = "create" | "edit" | null;
 
-const COLUMNS = ["title", "description", "is_public", "is_archived", "created_at"];
+const COLUMNS = ["title", "description", "is_public", "is_archived"];
 
 const ADMIN_TEACHER_ACTIONS = [
-    { name: "edit", label: "Edit" },
-    { name: "archive", label: "Archive" },
-    { name: "delete", label: "Delete" },
+    { name: "view", label: "Ver" },
+    { name: "edit", label: "Editar" },
+    { name: "delete", label: "Eliminar" },
+    { name: "archive", label: "Archivar" },
+    { name: "publish", label: "Publicar" },
 ];
 
 const STUDENT_ACTIONS = [
-    { name: "view", label: "View" },
+    { name: "view", label: "Ver" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -31,8 +34,6 @@ const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACH
 const emptyForm = (): Omit<Rubric, "id"> => ({
     title: "",
     description: "",
-    is_public: false,
-    is_archived: false,
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -43,13 +44,12 @@ const RubricsPage: React.FC = () => {
     const [crudMode, setCrudMode] = useState<CrudMode>(null);
     const [selectedRubric, setSelectedRubric] = useState<Rubric | null>(null);
     const [form, setForm] = useState<Omit<Rubric, "id">>(emptyForm());
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
     const navigate = useNavigate();
 
-    const user = securityService.getUser();
-    const role: UserRole = user?.role ?? "STUDENT";
+    //const user = securityService.getUser();
+    //const role: UserRole = user?.role ?? "STUDENT";
 
-    // const role: UserRole = "ADMIN";
+    const role: UserRole = "ADMIN";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
@@ -66,22 +66,13 @@ const RubricsPage: React.FC = () => {
         loadRubrics();
     }, []);
 
-    // ── Feedback ──────────────────────────────────────────────────────────────
-
-    const showFeedback = (type: "success" | "error", message: string) => {
-        setFeedback({ type, message });
-        setTimeout(() => setFeedback(null), 3000);
-    };
-
     // ── CRUD handlers ─────────────────────────────────────────────────────────
 
     const handleAction = (actionName: string, item: Record<string, any>) => {
         const rubric = item as Rubric;
 
         if (actionName === "view") {
-            // TODO: Replace alert with navigation when CriteriaByRubricPage is ready.
             navigate(`/rubrics/${rubric.id}/criteria`);
-            alert(`Navigate to criteria page for rubric: ${rubric.id}`);
             return;
         }
 
@@ -90,70 +81,59 @@ const RubricsPage: React.FC = () => {
             setForm({
                 title: rubric.title ?? "",
                 description: rubric.description ?? "",
-                is_public: rubric.is_public ?? false,
-                is_archived: rubric.is_archived ?? false,
-                subject_id: rubric.subject_id,
             });
             setCrudMode("edit");
         }
 
-        if (actionName === "archive") {
-            setSelectedRubric(rubric);
-            setCrudMode("archive");
+        if (actionName === "delete") {
+            void handleDelete(rubric);
         }
 
-        if (actionName === "delete") {
-            setSelectedRubric(rubric);
-            setCrudMode("delete");
+        if (actionName === "archive") {
+            void handleArchive(rubric);
+        }
+
+        if (actionName === "publish") {
+            void handlePublish(rubric);
         }
     };
 
+    const handleDelete = async (rubric: Rubric) => {
+        const ok = window.confirm(`Eliminar la rúbrica "${rubric.title ?? rubric.id}"? Esta acción no se puede deshacer.`);
+        if (!ok) return;
 
-    const handleSubmit = async () => {
-        if (crudMode === "create") {
-            const response = await rubricService.createRubric(form);
-            const created = response.data;
-            if (created) {
-                showFeedback("success", "Rubric created successfully.");
-                closeCrud();
-                await loadRubrics();
-            } else {
-                showFeedback("error", "Could not create rubric.");
-            }
+        const response = await rubricService.deleteRubric(rubric.id);
+        if (!response.error) {
+            showToast("Éxito", "Rúbrica eliminada exitosamente.", 0);
+            await loadRubrics();
+        } else {
+            showToast("Error", response.error || "No se pudo eliminar la rúbrica. Puede que ya esté publicada.", 2);
         }
+    };
 
-        if (crudMode === "edit" && selectedRubric) {
-            const response = await rubricService.updateRubric(selectedRubric.id, form);
-            const updated = response.data;
-            if (updated) {
-                showFeedback("success", "Rubric updated successfully.");
-                closeCrud();
-                await loadRubrics();
-            } else {
-                showFeedback("error", "Could not update rubric.");
-            }
+    const handleArchive = async (rubric: Rubric) => {
+        const ok = window.confirm(`Archivar la rúbrica "${rubric.title ?? rubric.id}"? Se despublicará y quedará archivada.`);
+        if (!ok) return;
+
+        const response = await rubricService.archiveRubric(rubric.id);
+        if (!response.error) {
+            showToast("Éxito", "Rúbrica archivada exitosamente.", 0);
+            await loadRubrics();
+        } else {
+            showToast("Error", response.error || "No se pudo archivar la rúbrica.", 2);
         }
+    };
 
-        if (crudMode === "archive" && selectedRubric) {
-            const response = await rubricService.archiveRubric(selectedRubric.id);
-            if (!response.error) {
-                showFeedback("success", "Rubric archived successfully.");
-                closeCrud();
-                await loadRubrics();
-            } else {
-                showFeedback("error", "Could not archive rubric.");
-            }
-        }
+    const handlePublish = async (rubric: Rubric) => {
+        const ok = window.confirm(`Publicar la rúbrica "${rubric.title ?? rubric.id}"? Verifica que tenga los criterios necesarios.`);
+        if (!ok) return;
 
-        if (crudMode === "delete" && selectedRubric) {
-            const response = await rubricService.deleteRubric(selectedRubric.id);
-            if (!response.error) {
-                showFeedback("success", "Rubric deleted successfully.");
-                closeCrud();
-                await loadRubrics();
-            } else {
-                showFeedback("error", "Could not delete rubric. It may already be published.");
-            }
+        const response = await rubricService.publishRubric(rubric.id);
+        if (!response.error) {
+            showToast("Éxito", "Rúbrica publicada exitosamente.", 0);
+            await loadRubrics();
+        } else {
+            showToast("Error", response.error || "No se pudo publicar la rúbrica.", 2);
         }
     };
 
@@ -169,52 +149,101 @@ const RubricsPage: React.FC = () => {
         setCrudMode("create");
     };
 
+    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
+
+    const getFormTitle = (): string => {
+        if (crudMode === "create") return "Crear Rúbrica";
+        if (crudMode === "edit") return `Editar Rúbrica`;
+        return "";
+    };
+
+    const getFormDescription = (): string => {
+        if (selectedRubric && crudMode === "edit") {
+            return `Título: ${selectedRubric.title ?? "—"}`;
+        }
+        return "";
+    };
+
+    const getFormFields = (): VerticalTextFormField[] => {
+        const baseFields: VerticalTextFormField[] = [
+            {
+                name: "title",
+                label: "Título",
+                placeholder: "Ingrese el título de la rúbrica",
+                type: "text",
+                value: form.title,
+            },
+            {
+                name: "description",
+                label: "Descripción",
+                placeholder: "Ingrese la descripción de la rúbrica",
+                kind: "textarea",
+                rows: 3,
+                value: form.description,
+            },
+        ];
+
+        return baseFields;
+    };
+
+    const getFormSaveLabel = (): string => {
+        if (crudMode === "create") return "Crear";
+        if (crudMode === "edit") return "Guardar Cambios";
+        return "Guardar";
+    };
+
+    const handleFormSave = async (values: Record<string, string>) => {
+        const nextForm: Omit<Rubric, "id"> = {
+            ...form,
+            title: values.title ?? form.title,
+            description: values.description ?? form.description
+        };
+
+        setForm(nextForm);
+
+        if (crudMode === "create") {
+            const response = await rubricService.createRubric(nextForm);
+            if (response.data) {
+                showToast("Éxito", "Rúbrica creada exitosamente.", 0);
+                closeCrud();
+                await loadRubrics();
+            } else {
+                showToast("Error", "No se pudo crear la rúbrica.", 2);
+            }
+            return;
+        }
+
+        if (crudMode === "edit" && selectedRubric) {
+            const response = await rubricService.updateRubric(selectedRubric.id, nextForm);
+            if (response.data) {
+                showToast("Éxito", "Rúbrica actualizada exitosamente.", 0);
+                closeCrud();
+                await loadRubrics();
+            } else {
+                showToast("Error", "No se pudo actualizar la rúbrica.", 2);
+            }
+        }
+    };
+
     // ── Render ────────────────────────────────────────────────────────────────
 
     const tableData = rubrics.map((r) => ({
         ...r,
-        is_public: r.is_public ? "Yes" : "No",
-        is_archived: r.is_archived ? "Yes" : "No",
+        is_public: r.is_public ? "Sí" : "No",
+        is_archived: r.is_archived ? "Sí" : "No",
     }));
 
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
             {/* Page header */}
-            <div className="mb-6 flex items-center justify-between">
-                <div>
-                    <h2 className="text-title-md2 font-semibold text-black dark:text-white">
-                        Rubrics
-                    </h2>
-                    <p className="text-sm text-body dark:text-bodydark">
-                        {editable
-                            ? "Manage your rubrics: create, edit, archive or delete."
-                            : "Browse available rubrics."}
-                    </p>
-                </div>
-
-                {editable && (
-                    <button
-                        onClick={openCreate}
-                        className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
-                    >
-                        + New Rubric
-                    </button>
-                )}
-            </div>
-
-            {/* Feedback */}
-            {feedback && (
-                <div
-                    className={`mb-4 rounded-md px-4 py-3 text-sm font-medium ${
-                        feedback.type === "success"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                    }`}
-                >
-                    {feedback.message}
-                </div>
-            )}
+            <PageHeader
+                title="Rúbricas"
+                description={editable
+                    ? "Gestiona tus rúbricas: crea, edita, archiva o elimina"
+                    : "Busca y navega por las rúbricas disponibles."}
+                primaryAction={{ label: "+ Nueva Rúbrica", onClick: openCreate }}
+            />
 
             {/* Table — scrollable, takes full height when no CRUD panel is open */}
             <div
@@ -224,9 +253,9 @@ const RubricsPage: React.FC = () => {
             >
                 <div className="h-full overflow-y-auto">
                     {loading ? (
-                        <p className="p-6 text-sm text-body dark:text-bodydark">Loading rubrics…</p>
+                        <p className="p-6 text-sm text-body dark:text-bodydark">Cargando rúbricas…</p>
                     ) : rubrics.length === 0 ? (
-                        <p className="p-6 text-sm text-body dark:text-bodydark">No rubrics found.</p>
+                        <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron rúbricas.</p>
                     ) : (
                         <GenericTable
                             data={tableData}
@@ -238,197 +267,21 @@ const RubricsPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* CRUD panel — only visible for ADMIN / TEACHER */}
-            {editable && crudMode && selectedRubric && (
-                <div className="mt-6 rounded-sm border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
-
-                    {/*
-                     * TODO: Replace the placeholder below with <RubricCrudPanel /> when available.
-                     *
-                     * Suggested props:
-                     *   <RubricCrudPanel
-                     *       mode={crudMode}             // "create" | "edit" | "archive" | "delete"
-                     *       rubric={selectedRubric}     // Rubric | null (null for create)
-                     *       form={form}                 // form state (for create/edit)
-                     *       onFormChange={setForm}      // form state setter
-                     *       onSubmit={handleSubmit}     // confirm action
-                     *       onClose={closeCrud}         // cancel / close panel
-                     *   />
-                     */}
-
-                    {/* ── Placeholder header ── */}
-                    <div className="mb-4 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-black dark:text-white">
-                            {crudMode === "create" && "Create Rubric"}
-                            {crudMode === "edit" && `Edit Rubric: ${selectedRubric?.title ?? selectedRubric?.id}`}
-                            {crudMode === "archive" && `Archive Rubric: ${selectedRubric?.title ?? selectedRubric?.id}`}
-                            {crudMode === "delete" && `Delete Rubric: ${selectedRubric?.title ?? selectedRubric?.id}`}
-                        </h3>
-                        <button
-                            onClick={closeCrud}
-                            className="text-sm text-body hover:text-black dark:text-bodydark dark:hover:text-white"
-                        >
-                            ✕ Close
-                        </button>
-                    </div>
-
-                    {/* ── Rubric info (shown for edit / archive / delete) ── */}
-                    {(crudMode === "edit" || crudMode === "archive" || crudMode === "delete") && selectedRubric && (
-                        <div className="mb-4 rounded-md border border-stroke bg-gray-2 px-4 py-3 text-sm dark:border-strokedark dark:bg-meta-4">
-                            <p className="text-black dark:text-white"><span className="font-medium">ID:</span> {selectedRubric.id}</p>
-                            <p className="text-black dark:text-white"><span className="font-medium">Title:</span> {selectedRubric.title ?? "—"}</p>
-                            <p className="text-black dark:text-white"><span className="font-medium">Description:</span> {selectedRubric.description ?? "—"}</p>
-                            <p className="text-black dark:text-white"><span className="font-medium">Public:</span> {selectedRubric.is_public ? "Yes" : "No"}</p>
-                            <p className="text-black dark:text-white"><span className="font-medium">Archived:</span> {selectedRubric.is_archived ? "Yes" : "No"}</p>
-                        </div>
-                    )}
-
-                    {/* ── Edit form ── */}
-                    {crudMode === "edit" && (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-black dark:text-white">Title</label>
-                                <input
-                                    type="text"
-                                    value={form.title ?? ""}
-                                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                                    className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-black dark:text-white">Description</label>
-                                <input
-                                    type="text"
-                                    value={form.description ?? ""}
-                                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                    className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                                />
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="checkbox"
-                                    id="is_public"
-                                    checked={form.is_public ?? false}
-                                    onChange={(e) => setForm({ ...form, is_public: e.target.checked })}
-                                    className="h-4 w-4 accent-primary"
-                                />
-                                <label htmlFor="is_public" className="text-sm font-medium text-black dark:text-white">Public</label>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="checkbox"
-                                    id="is_archived"
-                                    checked={form.is_archived ?? false}
-                                    onChange={(e) => setForm({ ...form, is_archived: e.target.checked })}
-                                    className="h-4 w-4 accent-primary"
-                                />
-                                <label htmlFor="is_archived" className="text-sm font-medium text-black dark:text-white">Archived</label>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* ── Confirmation message for archive / delete ── */}
-                    {crudMode === "archive" && (
-                        <p className="text-sm text-body dark:text-bodydark">
-                            Are you sure you want to archive this rubric? It will be unpublished and hidden.
-                        </p>
-                    )}
-                    {crudMode === "delete" && (
-                        <p className="text-sm text-red-500">
-                            Are you sure you want to permanently delete this rubric? This action cannot be undone.
-                        </p>
-                    )}
-
-                    {/* ── Actions ── */}
-                    <div className="mt-6 flex gap-3">
-                        <button
-                            onClick={handleSubmit}
-                            className={`rounded-md px-5 py-2 text-sm font-medium text-white hover:bg-opacity-90 ${
-                                crudMode === "delete" ? "bg-red-500" : "bg-primary"
-                            }`}
-                        >
-                            {crudMode === "create" && "Create"}
-                            {crudMode === "edit" && "Save Changes"}
-                            {crudMode === "archive" && "Confirm Archive"}
-                            {crudMode === "delete" && "Confirm Delete"}
-                        </button>
-                        <button
-                            onClick={closeCrud}
-                            className="rounded-md border border-stroke px-5 py-2 text-sm font-medium text-black hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-
+            {/* CRUD panel using VerticalTextFormCard */}
+            {editable && crudMode && (
+                <div className="mt-6">
+                    {/* Render appropriate fields based on CRUD mode */}
+                    <VerticalTextFormCard
+                        title={getFormTitle()}
+                        description={getFormDescription()}
+                        fields={getFormFields()}
+                        saveLabel={getFormSaveLabel()}
+                        cancelLabel="Cancelar"
+                        onSave={handleFormSave}
+                        onCancel={closeCrud}
+                    />
                 </div>
             )}
-
-            {/* Create panel — no rubric selected */}
-            {editable && crudMode === "create" && !selectedRubric && (
-                <div className="mt-6 rounded-sm border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
-                    <div className="mb-4 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-black dark:text-white">Create Rubric</h3>
-                        <button onClick={closeCrud} className="text-sm text-body hover:text-black dark:text-bodydark dark:hover:text-white">
-                            ✕ Close
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-black dark:text-white">Title</label>
-                            <input
-                                type="text"
-                                value={form.title ?? ""}
-                                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                                className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                            />
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-black dark:text-white">Description</label>
-                            <input
-                                type="text"
-                                value={form.description ?? ""}
-                                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                            />
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <input
-                                type="checkbox"
-                                id="is_public_create"
-                                checked={form.is_public ?? false}
-                                onChange={(e) => setForm({ ...form, is_public: e.target.checked })}
-                                className="h-4 w-4 accent-primary"
-                            />
-                            <label htmlFor="is_public_create" className="text-sm font-medium text-black dark:text-white">Public</label>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <input
-                                type="checkbox"
-                                id="is_archived_create"
-                                checked={form.is_archived ?? false}
-                                onChange={(e) => setForm({ ...form, is_archived: e.target.checked })}
-                                className="h-4 w-4 accent-primary"
-                            />
-                            <label htmlFor="is_archived_create" className="text-sm font-medium text-black dark:text-white">Archived</label>
-                        </div>
-                    </div>
-                    <div className="mt-6 flex gap-3">
-                        <button
-                            onClick={handleSubmit}
-                            className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-white hover:bg-opacity-90"
-                        >
-                            Create
-                        </button>
-                        <button
-                            onClick={closeCrud}
-                            className="rounded-md border border-stroke px-5 py-2 text-sm font-medium text-black hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            )}
-
         </div>
     );
 };

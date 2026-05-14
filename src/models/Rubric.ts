@@ -1,6 +1,5 @@
 export interface Rubric {
     id: string;
-    subject_id?: string;
     title?: string;
     description?: string;
     is_public?: boolean;
