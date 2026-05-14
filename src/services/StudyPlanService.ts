@@ -1,6 +1,6 @@
 import apiClient from '../interceptor/apiClient';
 import { StudyPlan, StudyPlanCreateInput, StudyPlanUpdateInput } from '../models/StudyPlan';
-import { subjectService } from './SubjectService';
+import { studyPlanSubjectService } from './StudyPlanSubjectService';
 
 const API_URL = '/academic/study-plans';
 
@@ -47,16 +47,11 @@ class StudyPlanService {
     }
   }
 
-  // Método para crear una entrada en el plan de estudios (vincula asignatura a carrera con semestre sugerido).
+  // Método para crear un plan de estudio (versión de carrera).
   // El plan inicia como borrador (is_published=false).
+  // Las asignaturas se vinculan a través de StudyPlanSubjectService.
   async createStudyPlan(payload: StudyPlanCreateInput): Promise<StudyPlan | null> {
     try {
-      // Validar que la asignatura exista y esté activa
-      const subject = await subjectService.getSubjectById(payload.subject_id);
-      if (!subject || !subject.is_active) {
-        throw new Error('Subject does not exist or is archived');
-      }
-
       const response = await apiClient.post(API_URL, payload);
       return this._extractData(response) as StudyPlan || null;
     } catch (error) {
@@ -88,27 +83,15 @@ class StudyPlanService {
         return plan;
       }
 
-      // Validar que tenga al menos una asignatura
-      const plansByCareer = await this.getStudyPlansByCareer(plan.career_id);
-      if (plansByCareer.length === 0) {
+      // Validar que tenga al menos una asignatura vinculada
+      const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(id);
+      if (subjects.length === 0) {
         throw new Error('Cannot publish a study plan without any subjects');
       }
 
       return await this.updateStudyPlan(id, { is_published: true });
     } catch (error) {
       return this._handleError(error);
-    }
-  }
-
-  // Método para desvincular una asignatura del plan (la elimina).
-  // Solo posible si la asignatura no tiene inscripciones activas en grupos.
-  async removeSubjectFromPlan(planId: string): Promise<boolean> {
-    try {
-      await apiClient.delete(`${API_URL}/${planId}`);
-      return true;
-    } catch (error) {
-      this._handleError(error);
-      return false;
     }
   }
 
@@ -119,6 +102,22 @@ class StudyPlanService {
       return plans.sort((a, b) => b.year - a.year);
     } catch (error) {
       return this._handleError(error) || [];
+    }
+  }
+
+  // Método para eliminar un plan de estudio (solo si está en borrador).
+  async deleteStudyPlan(id: string): Promise<boolean> {
+    try {
+      const plan = await this.getStudyPlanById(id);
+      if (plan && plan.is_published) {
+        throw new Error('Cannot delete a published study plan');
+      }
+
+      await apiClient.delete(`${API_URL}/${id}`);
+      return true;
+    } catch (error) {
+      this._handleError(error);
+      return false;
     }
   }
 
