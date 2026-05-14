@@ -1,0 +1,265 @@
+import React, { useEffect, useState } from "react";
+import GenericTable from "../../components/GenericTable";
+import PageHeader from "../../components/PageHeader";
+import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
+import ModalLauncher from "../../components/ModalLauncher";
+import { evaluationService } from "../../services/EvaluationService";
+import { subjectService } from "../../services/SubjectService";
+import { Evaluation } from "../../models/Evaluation";
+import { Subject } from "../../models/Subject";
+//import securityService from "../../services/segurity.service";
+import { UserRole } from "../../models/user";
+import { showToast } from "../../hooks/fireToast";
+import { useCrudModal } from "../../hooks/useCrudModal";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+const COLUMNS = ["name", "description", "weight", "subject_id"];
+
+const ADMIN_TEACHER_ACTIONS = [
+    { name: "view", label: "Ver" },
+    { name: "edit", label: "Editar" },
+    { name: "delete", label: "Eliminar" },
+];
+
+const STUDENT_ACTIONS = [
+    { name: "view", label: "Ver" },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
+
+const emptyForm = (): Omit<Evaluation, "id"> => ({
+    name: "",
+    description: "",
+    weight: 0,
+    subject_id: "",
+});
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+const EvaluationsPage: React.FC = () => {
+    const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const {
+            crudMode,
+            selectedItem: selectedEvaluation,
+            form,
+            setForm,
+            closeCrud,
+            openCreate,
+            openEdit,
+        } = useCrudModal<Evaluation>(emptyForm());
+
+    //const user = securityService.getUser();
+    //const role: UserRole = user?.role ?? "STUDENT";
+
+    const role: UserRole = "ADMIN";
+    const editable = canEdit(role);
+
+    // ── Data loading ──────────────────────────────────────────────────────────
+
+    const loadData = async () => {
+        setLoading(true);
+        const evaluationsResponse = await evaluationService.getEvaluations();
+        const subjectsData = await subjectService.getActiveSubjects();
+        setEvaluations(Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : []);
+        setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    // ── CRUD handlers ─────────────────────────────────────────────────────────
+
+    const handleAction = (actionName: string, item: Record<string, any>) => {
+        const evaluation = item as Evaluation;
+
+        if (actionName === "view") {
+            // TODO: Navigate to evaluation detail page when available.
+            // navigate(`/evaluations/${evaluation.id}`);
+            showToast("Info", `Evaluación: ${evaluation.name ?? evaluation.id}`, 1);
+            return;
+        }
+
+        if (actionName === "edit") {
+            openEdit(evaluation);
+        }
+
+        if (actionName === "delete") {
+            void handleDelete(evaluation);
+        }
+    };
+
+    const handleDelete = async (evaluation: Evaluation) => {
+        const ok = window.confirm(`¿Eliminar la evaluación "${evaluation.name ?? evaluation.id}"? Esta acción no se puede deshacer.`);
+        if (!ok) return;
+
+        const success = await evaluationService.deleteEvaluation(evaluation.id);
+        if (success) {
+            showToast("Éxito", "Evaluación eliminada exitosamente.", 0);
+            await loadData();
+        } else {
+            showToast("Error", "No se pudo eliminar la evaluación.", 2);
+        }
+    };
+
+    // ── Helper functions for VerticalTextFormCard ─────────────────────────────
+
+    const getFormTitle = (): string => {
+        if (crudMode === "create") return "Crear Evaluación";
+        if (crudMode === "edit") return "Editar Evaluación";
+        return "";
+    };
+
+    const getFormDescription = (): string => {
+        if (selectedEvaluation && crudMode === "edit") {
+            return `Nombre: ${selectedEvaluation.name ?? "—"} - Peso: ${selectedEvaluation.weight ?? "—"}`;
+        }
+        return "";
+    };
+
+    const getFormFields = (): VerticalTextFormField[] => {
+        return [
+            {
+                name: "name",
+                label: "Nombre",
+                placeholder: "Ingrese el nombre de la evaluación",
+                type: "text",
+                value: form.name,
+            },
+            {
+                name: "description",
+                label: "Descripción",
+                placeholder: "Ingrese la descripción de la evaluación",
+                kind: "textarea",
+                rows: 3,
+                value: form.description,
+            },
+            {
+                name: "weight",
+                label: "Peso",
+                placeholder: "Ingrese el peso de la evaluación (0-100)",
+                type: "number",
+                value: String(form.weight),
+            },
+            {
+                name: "subject_id",
+                label: "Asignatura",
+                kind: "select",
+                value: form.subject_id,
+                options: subjects.map((s) => ({
+                    label: `${s.name} (${s.code})`,
+                    value: s.id,
+                })),
+            },
+        ];
+    };
+
+    const getFormSaveLabel = (): string => {
+        if (crudMode === "create") return "Crear";
+        if (crudMode === "edit") return "Guardar Cambios";
+        return "Guardar";
+    };
+
+    const handleFormSave = async (values: Record<string, string>) => {
+        const nextForm: Omit<Evaluation, "id"> = {
+            ...form,
+            name: values.name ?? form.name,
+            description: values.description ?? form.description,
+            weight: Number(values.weight) || 0,
+            subject_id: values.subject_id ?? form.subject_id,
+        };
+
+        setForm(nextForm);
+
+        if (crudMode === "create") {
+            const created = await evaluationService.createEvaluation(nextForm);
+            if (created) {
+                showToast("Éxito", "Evaluación creada exitosamente.", 0);
+                closeCrud();
+                await loadData();
+            } else {
+                showToast("Error", "No se pudo crear la evaluación.", 2);
+            }
+            return;
+        }
+
+        if (crudMode === "edit" && selectedEvaluation) {
+            const updated = await evaluationService.updateEvaluation(selectedEvaluation.id, nextForm);
+            if (updated) {
+                showToast("Éxito", "Evaluación actualizada exitosamente.", 0);
+                closeCrud();
+                await loadData();
+            } else {
+                showToast("Error", "No se pudo actualizar la evaluación.", 2);
+            }
+        }
+    };
+
+    // ── Table data ────────────────────────────────────────────────────────────
+
+    const tableData = evaluations.map((e) => ({
+        ...e,
+        subject_id: subjects.find((s) => s.id === e.subject_id)?.name ?? e.subject_id ?? "—",
+    }));
+
+    // ── Render ────────────────────────────────────────────────────────────────
+
+    return (
+        <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
+
+            {/* Page header */}
+            <PageHeader
+                title="Evaluaciones"
+                description={editable
+                    ? "Gestiona tus evaluaciones: crea, edita y elimina."
+                    : "Busca y navega por las evaluaciones disponibles."}
+                primaryAction={editable ? { label: "+ Nueva Evaluación", onClick: openCreate } : undefined}
+            />
+
+            {/* Table — full height */}
+            <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[70vh]">
+                <div className="h-full overflow-y-auto">
+                    {loading ? (
+                        <p className="p-6 text-sm text-body dark:text-bodydark">Cargando evaluaciones…</p>
+                    ) : evaluations.length === 0 ? (
+                        <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron evaluaciones.</p>
+                    ) : (
+                        <GenericTable
+                            data={tableData}
+                            columns={COLUMNS}
+                            actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
+                            onAction={handleAction}
+                        />
+                    )}
+                </div>
+            </div>
+
+            {/* CRUD modal using ModalLauncher */}
+            {editable && crudMode && (
+                <ModalLauncher isOpen={true} onClose={closeCrud}>
+                    {(close) => (
+                        <VerticalTextFormCard
+                            title={getFormTitle()}
+                            description={getFormDescription()}
+                            fields={getFormFields()}
+                            saveLabel={getFormSaveLabel()}
+                            cancelLabel="Cancelar"
+                            onSave={handleFormSave}
+                            onCancel={close}
+                        />
+                    )}
+                </ModalLauncher>
+            )}
+
+        </div>
+    );
+};
+
+export default EvaluationsPage;

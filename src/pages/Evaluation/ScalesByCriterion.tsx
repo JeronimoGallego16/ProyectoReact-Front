@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SelectableTable from "../../components/SelectableTable";
-import AppModal from "../../components/AppModal";
+import EntityHeader from "../../components/EntityHeader";
+import ModalLauncher from "../../components/ModalLauncher";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import { rubricService } from "../../services/RubricService";
@@ -10,10 +11,9 @@ import { Scale } from "../../models/Scale";
 //import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
 import { showToast } from "../../hooks/fireToast";
+import { useCrudModal } from "../../hooks/useCrudModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type CrudMode = "create" | "edit" | null;
 
 const COLUMNS = ["name", "description", "value"];
 
@@ -49,9 +49,17 @@ const ScalesByCriterionPage: React.FC = () => {
     const [scales, setScales] = useState<Scale[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [crudMode, setCrudMode] = useState<CrudMode>(null);
-    const [selectedScale, setSelectedScale] = useState<Scale | null>(null);
-    const [form, setForm] = useState<Omit<Scale, "id">>(emptyForm());
+
+    const {
+        crudMode,
+        selectedItem: selectedScale, // Renombramos para mantener consistencia con tu código
+        form,
+        setForm,
+        closeCrud,
+        openCreate,
+        openEdit,
+    } = useCrudModal<Scale>(emptyForm());
+
     const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
     const [sourceScale, setSourceScale] = useState<Scale | null>(null);
     const [targetCriteria, setTargetCriteria] = useState<Criterion[]>([]);
@@ -113,14 +121,7 @@ const ScalesByCriterionPage: React.FC = () => {
         }
 
         if (actionName === "edit") {
-            setSelectedScale(scale);
-            setForm({
-                criterion_id: scale.criterion_id ?? criterionId ?? "",
-                name: scale.name ?? "",
-                description: scale.description ?? "",
-                value: scale.value ?? 0,
-            });
-            setCrudMode("edit");
+            openEdit(scale);
         }
 
         if (actionName === "delete") {
@@ -302,100 +303,85 @@ const ScalesByCriterionPage: React.FC = () => {
         }
     };
 
-    const closeCrud = () => {
-        setCrudMode(null);
-        setSelectedScale(null);
-        setForm(emptyForm());
-    };
-
-    const openCreate = () => {
-        setSelectedScale(null);
-        setForm({ ...emptyForm(), criterion_id: criterionId ?? "" });
-        setCrudMode("create");
-    };
-
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
-            {/* Back button */}
-            <button
-                onClick={() => navigate(-1)}
-                className="mb-4 inline-flex items-center gap-1 text-sm text-body hover:text-black dark:text-bodydark dark:hover:text-white"
-            >
-                ← Volver a Criterios
-            </button>
-
-            {/* Criterion info header */}
+            {/* Entity header with back button and criterion info */}
             {criterion && (
-                <div className="mb-6 rounded-sm border border-stroke bg-white px-6 py-4 shadow-default dark:border-strokedark dark:bg-boxdark">
-                    <p className="text-xs font-medium uppercase text-body dark:text-bodydark">Criterio</p>
-                    <h2 className="mt-1 text-title-md2 font-semibold text-black dark:text-white">
-                        {criterion.name ?? criterion.id}
-                    </h2>
-                    {criterion.description && (
-                        <p className="mt-1 text-sm text-body dark:text-bodydark">{criterion.description}</p>
-                    )}
+                <EntityHeader
+                    onBack={() => navigate(-1)}
+                    backLabel="← Volver a Criterios"
+                    title={criterion.name ?? criterion.id}
+                    description={criterion.description}
+                    entityType="Criterio"
+                >
                     {criterion.weight !== undefined && (
-                        <p className="mt-1 text-sm text-body dark:text-bodydark">Peso: {criterion.weight}</p>
+                        <p className="text-sm text-body dark:text-bodydark">Peso: {criterion.weight}</p>
                     )}
-                </div>
+                </EntityHeader>
             )}
 
             {/* Copy scale modal */}
-            <AppModal
-                isOpen={isCopyModalOpen}
-                onClose={closeCopyModal}
-                title="Copiar escala a otros criterios"
-                description={
-                    <>
-                        Escala origen: <span className="font-medium text-black dark:text-white">{sourceScale?.name ?? sourceScale?.id}</span>
-                    </>
-                }
-            >
-                <p className="mb-4 text-sm text-body dark:text-bodydark">
-                    Selecciona uno o varios criterios destino para copiar la escala sin perder la original.
-                </p>
+            {isCopyModalOpen && (
+                <ModalLauncher isOpen={true} onClose={closeCopyModal}>
+                    {(close) => (
+                        <div>
+                            <div className="mb-4">
+                                <h3 className="text-lg font-semibold text-black dark:text-white">
+                                    Copiar escala a otros criterios
+                                </h3>
+                                <p className="mt-2 text-sm text-body dark:text-bodydark">
+                                    Escala origen: <span className="font-medium text-black dark:text-white">{sourceScale?.name ?? sourceScale?.id}</span>
+                                </p>
+                            </div>
 
-                <div className="max-h-[50vh] overflow-y-auto">
-                    {loadingTargets ? (
-                        <p className="p-4 text-sm text-body dark:text-bodydark">Cargando criterios destino…</p>
-                    ) : targetCriteria.length === 0 ? (
-                        <p className="p-4 text-sm text-body dark:text-bodydark">No hay criterios disponibles para copiar esta escala.</p>
-                    ) : (
-                        <SelectableTable
-                            data={targetCriteria}
-                            columns={TARGET_CRITERIA_COLUMNS}
-                            actions={[]}
-                            onAction={(actionName, item) => {
-                                if (actionName === "select") {
-                                    toggleTargetSelection((item as Criterion).id);
-                                }
-                            }}
-                            selectionMode={2}
-                        />
+                            <p className="mb-4 text-sm text-body dark:text-bodydark">
+                                Selecciona uno o varios criterios destino para copiar la escala sin perder la original.
+                            </p>
+
+                            <div className="max-h-[50vh] overflow-y-auto">
+                                {loadingTargets ? (
+                                    <p className="p-4 text-sm text-body dark:text-bodydark">Cargando criterios destino…</p>
+                                ) : targetCriteria.length === 0 ? (
+                                    <p className="p-4 text-sm text-body dark:text-bodydark">No hay criterios disponibles para copiar esta escala.</p>
+                                ) : (
+                                    <SelectableTable
+                                        data={targetCriteria}
+                                        columns={TARGET_CRITERIA_COLUMNS}
+                                        actions={[]}
+                                        onAction={(actionName, item) => {
+                                            if (actionName === "select") {
+                                                toggleTargetSelection((item as Criterion).id);
+                                            }
+                                        }}
+                                        selectionMode={2}
+                                    />
+                                )}
+                            </div>
+
+                            <div className="mt-5 flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={close}
+                                    className="rounded-md border border-stroke px-4 py-2 text-sm font-medium text-body hover:bg-gray-2 dark:border-strokedark dark:text-bodydark"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleCopyToSelectedCriteria()}
+                                    disabled={loadingTargets || isCopying || targetCriteria.length === 0}
+                                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {isCopying ? "Copiando..." : `Copiar a seleccionados (${selectedTargetIds.size})`}
+                                </button>
+                            </div>
+                        </div>
                     )}
-                </div>
-
-                <div className="mt-5 flex items-center justify-end gap-3">
-                    <button
-                        type="button"
-                        onClick={closeCopyModal}
-                        className="rounded-md border border-stroke px-4 py-2 text-sm font-medium text-body hover:bg-gray-2 dark:border-strokedark dark:text-bodydark"
-                    >
-                        Cancelar
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => void handleCopyToSelectedCriteria()}
-                        disabled={loadingTargets || isCopying || targetCriteria.length === 0}
-                        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {isCopying ? "Copiando..." : `Copiar a seleccionados (${selectedTargetIds.size})`}
-                    </button>
-                </div>
-            </AppModal>
+                </ModalLauncher>
+            )}
 
             {/* Page header */}
             <PageHeader

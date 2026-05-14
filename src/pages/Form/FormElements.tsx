@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Breadcrumb from '../../components/Breadcrumb';
 import CheckboxFive from '../../components/CheckboxFive';
 import CheckboxFour from '../../components/CheckboxFour';
@@ -5,6 +6,7 @@ import CheckboxOne from '../../components/CheckboxOne';
 import CheckboxThree from '../../components/CheckboxThree';
 import CheckboxTwo from '../../components/CheckboxTwo';
 import VerticalTextFormCard, { type VerticalTextFormField } from '../../components/VerticalTextFormCard';
+import ModalLauncher from '../../components/ModalLauncher';
 import SwitcherFour from '../../components/SwitcherFour';
 import SwitcherOne from '../../components/SwitcherOne';
 import SwitcherThree from '../../components/SwitcherThree';
@@ -93,77 +95,121 @@ const anotherSelectableFields: VerticalTextFormField[] = [
 ];
 
 const FormElements = () => {
+  const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isExtraModalOpen, setIsExtraModalOpen] = useState(false);
+
   return (
     <>
       <Breadcrumb pageName="FormElements" />
 
-      <div className="mb-9">
-        <VerticalTextFormCard
-          title="Formulario de carrera"
-          description="Código, nombre y descripción, con acciones al final."
-          fields={[
-            {
-              name: 'codigo_carrera',
-              label: 'Código',
-              placeholder: 'Escribe el código de la carrera',
-            },
-            {
-              name: 'nombre_carrera',
-              label: 'Nombre',
-              placeholder: 'Escribe el nombre de la carrera',
-            },
-            {
-              name: 'descripcion_carrera',
-              label: 'Descripción',
-              kind: 'textarea',
-              rows: 5,
-              placeholder: 'Escribe la descripción de la carrera',
-            },
-          ]}
-          onSave={(values) => {
-            console.log('Formulario guardado', values);
-          }}
-          onCancel={() => {
-            console.log('Edición cancelada');
-          }}
-        />
+      <div className="mb-9 rounded-sm border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-black dark:text-white">Formulario de carrera</h3>
+            <p className="mt-1 text-sm text-body dark:text-bodydark">Se abre como modal con campos de texto y textarea.</p>
+          </div>
+          <ModalLauncher
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={open}
+                className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-white transition hover:bg-opacity-90"
+              >
+                Abrir modal
+              </button>
+            )}
+          >
+            {(close) => (
+              <VerticalTextFormCard
+                title="Formulario de carrera"
+                description="Código, nombre y descripción, con acciones al final."
+                fields={[
+                  {
+                    name: 'codigo_carrera',
+                    label: 'Código',
+                    placeholder: 'Escribe el código de la carrera',
+                  },
+                  {
+                    name: 'nombre_carrera',
+                    label: 'Nombre',
+                    placeholder: 'Escribe el nombre de la carrera',
+                  },
+                  {
+                    name: 'descripcion_carrera',
+                    label: 'Descripción',
+                    kind: 'textarea',
+                    rows: 5,
+                    placeholder: 'Escribe la descripción de la carrera',
+                  },
+                ]}
+                onSave={(values) => {
+                  console.log('Formulario guardado', values);
+                  close();
+                }}
+                onCancel={() => {
+                  console.log('Edición cancelada');
+                  close();
+                }}
+              />
+            )}
+          </ModalLauncher>
+        </div>
       </div>
 
-      <div className="mb-9">
-        <VerticalTextFormCard
-          title="Formulario de asignatura"
-          description="Incluye código, nombre, descripción y créditos."
-          fields={[
-            {
-              name: 'codigo_asignatura',
-              label: 'Código',
-              placeholder: 'Escribe el código de la asignatura',
-            },
-            {
-              name: 'nombre_asignatura',
-              label: 'Nombre',
-              placeholder: 'Escribe el nombre de la asignatura',
-            },
-            {
-              name: 'descripcion_asignatura',
-              label: 'Descripción',
-              kind: 'textarea',
-              rows: 5,
-              placeholder: 'Escribe la descripción de la asignatura',
-            },
-            {
-              name: 'creditos_asignatura',
-              label: 'Créditos',
-              placeholder: 'Escribe los créditos de la asignatura',
-            },
-          ]}
-          onSave={(values) => {
-            console.log('Formulario guardado', values);
-          }}
-          onCancel={() => {
-            console.log('Edición cancelada');
-          }}
-        />
+      <div className="mb-9 rounded-sm border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-black dark:text-white">Formulario de asignatura</h3>
+            <p className="mt-1 text-sm text-body dark:text-bodydark">Se abre como modal con campos de texto y textarea.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsSubjectModalOpen(true)}
+            className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-white transition hover:bg-opacity-90"
+          >
+            Abrir modal
+          </button>
+        </div>
+
+        {isSubjectModalOpen ? (
+          <VerticalTextFormCard
+            title="Formulario de asignatura"
+            description="Incluye código, nombre, descripción y créditos."
+            fields={[
+              {
+                name: 'codigo_asignatura',
+                label: 'Código',
+                placeholder: 'Escribe el código de la asignatura',
+              },
+              {
+                name: 'nombre_asignatura',
+                label: 'Nombre',
+                placeholder: 'Escribe el nombre de la asignatura',
+              },
+              {
+                name: 'descripcion_asignatura',
+                label: 'Descripción',
+                kind: 'textarea',
+                rows: 5,
+                placeholder: 'Escribe la descripción de la asignatura',
+              },
+              {
+                name: 'creditos_asignatura',
+                label: 'Créditos',
+                placeholder: 'Escribe los créditos de la asignatura',
+              },
+            ]}
+            onSave={(values) => {
+              console.log('Formulario guardado', values);
+              setIsSubjectModalOpen(false);
+            }}
+            onCancel={() => {
+              console.log('Edición cancelada');
+              setIsSubjectModalOpen(false);
+            }}
+          />
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-9 sm:grid-cols-2">
@@ -501,32 +547,70 @@ const FormElements = () => {
       </div>
 
       {/* VerticalTextFormCard con campos select */}
-      <div className="mb-9 mt-9">
-        <VerticalTextFormCard
-          title="Campos Seleccionables con Dropdown"
-          description="Ejemplo 1: 3 campos (Asignatura, Semestre, Créditos) usando kind: 'select'"
-          fields={selectableFields}
-          onSave={(values) => {
-            console.log('Formulario guardado:', values);
-            alert(`Valores guardados:\n${JSON.stringify(values, null, 2)}`);
-          }}
-          onCancel={() => {
-            console.log('Edición cancelada');
-          }}
-        />
+      <div className="mb-9 rounded-sm border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-black dark:text-white">Campos Seleccionables con Dropdown</h3>
+            <p className="mt-1 text-sm text-body dark:text-bodydark">Ejemplo con 3 campos mezclando el mismo formulario base.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-white transition hover:bg-opacity-90"
+          >
+            Abrir modal
+          </button>
+        </div>
+
+        {isModalOpen ? (
+          <VerticalTextFormCard
+            title="Campos Seleccionables con Dropdown"
+            description="Ejemplo 1: 3 campos (Asignatura, Semestre, Créditos) usando kind: 'select'"
+            fields={selectableFields}
+            onSave={(values) => {
+              console.log('Formulario guardado:', values);
+              alert(`Valores guardados:\n${JSON.stringify(values, null, 2)}`);
+              setIsModalOpen(false);
+            }}
+            onCancel={() => {
+              console.log('Edición cancelada');
+              setIsModalOpen(false);
+            }}
+          />
+        ) : null}
       </div>
 
-      {/* Otro ejemplo con diferente cantidad de campos */}
-      <div className="mb-9">
-        <VerticalTextFormCard
-          title="Otro Ejemplo: 2 campos diferentes"
-          description="Ejemplo 2: 2 campos (Carrera, Estado) - mismo componente, otro array de fields"
-          fields={anotherSelectableFields}
-          onSave={(values) => {
-            console.log('Formulario guardado:', values);
-            alert(`Carrera: ${values.career}\nEstado: ${values.status}`);
-          }}
-        />
+      <div className="mb-9 rounded-sm border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-black dark:text-white">Ejemplo modal extra</h3>
+            <p className="mt-1 text-sm text-body dark:text-bodydark">Otro array de campos, también en modal.</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsExtraModalOpen(true)}
+            className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-white transition hover:bg-opacity-90"
+          >
+            Abrir modal
+          </button>
+        </div>
+
+        {isExtraModalOpen ? (
+          <VerticalTextFormCard
+            title="Otro Ejemplo: 2 campos diferentes"
+            description="Ejemplo 2: 2 campos (Carrera, Estado) - mismo componente, otro array de fields"
+            fields={anotherSelectableFields}
+            onSave={(values) => {
+              console.log('Formulario guardado:', values);
+              alert(`Carrera: ${values.career}\nEstado: ${values.status}`);
+              setIsExtraModalOpen(false);
+            }}
+            onCancel={() => {
+              setIsExtraModalOpen(false);
+            }}
+          />
+        ) : null}
       </div>
     </>
   );

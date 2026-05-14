@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import SelectableTable from "../../components/SelectableTable";
 import PageHeader from "../../components/PageHeader";
+import EntityHeader from "../../components/EntityHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
+import ModalLauncher from "../../components/ModalLauncher";
 import { rubricService } from "../../services/RubricService";
 import { Rubric } from "../../models/Rubric";
 import { Criterion } from "../../models/Criterion";
@@ -9,17 +11,16 @@ import { Criterion } from "../../models/Criterion";
 import { UserRole } from "../../models/user";
 import { useNavigate, useParams } from "react-router-dom";
 import { showToast } from "../../hooks/fireToast";
+import { useCrudModal } from "../../hooks/useCrudModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type CrudMode = "create" | "edit" | null;
 
 const COLUMNS = ["name", "description", "weight"];
 
 const ADMIN_TEACHER_ACTIONS = [
+    { name: "view", label: "Ver Escalas" },
     { name: "edit", label: "Editar" },
     { name: "delete", label: "Eliminar" },
-    { name: "view", label: "Ver Escalas" },
 ];
 
 const STUDENT_ACTIONS = [
@@ -49,9 +50,16 @@ const CriteriaByRubricPage: React.FC = () => {
     const [criteria, setCriteria] = useState<Criterion[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [crudMode, setCrudMode] = useState<CrudMode>(null);
-    const [selectedCriterion, setSelectedCriterion] = useState<Criterion | null>(null);
-    const [form, setForm] = useState<Omit<Criterion, "id">>(emptyForm());
+    
+    const {
+            crudMode,
+            selectedItem: selectedCriterion,
+            form,
+            setForm,
+            closeCrud,
+            openCreate,
+            openEdit,
+        } = useCrudModal<Criterion>(emptyForm());
 
     //const user = securityService.getUser();
     //const role: UserRole = user?.role ?? "STUDENT";
@@ -130,14 +138,7 @@ const CriteriaByRubricPage: React.FC = () => {
                 showToast("Error", "No puedes editar criterios de una rúbrica publicada. Archívala primero.", 2);
                 return;
             }
-            setSelectedCriterion(criterion);
-            setForm({
-                rubric_id: criterion.rubric_id ?? rubricId,
-                name: criterion.name ?? "",
-                description: criterion.description ?? "",
-                weight: criterion.weight ?? 0,
-            });
-            setCrudMode("edit");
+            openEdit(criterion);
         }
 
         if (actionName === "delete") {
@@ -194,18 +195,6 @@ const CriteriaByRubricPage: React.FC = () => {
                 showToast("Error", response.error || "No se pudo actualizar el criterio.", 2);
             }
         }
-    };
-
-    const closeCrud = () => {
-        setCrudMode(null);
-        setSelectedCriterion(null);
-        setForm(emptyForm());
-    };
-
-    const openCreate = () => {
-        setSelectedCriterion(null);
-        setForm({ ...emptyForm(), rubric_id: rubricId });
-        setCrudMode("create");
     };
 
     // ── Helper functions for VerticalTextFormCard ──────────────────────────────
@@ -273,24 +262,14 @@ const CriteriaByRubricPage: React.FC = () => {
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
-            {/* Back button */}
-            <button
-                onClick={onBack}
-                className="mb-4 inline-flex items-center gap-1 text-sm text-body hover:text-black dark:text-bodydark dark:hover:text-white"
-            >
-                ← Volver a Rúbricas
-            </button>
-
-            {/* Rubric info header */}
+            {/* Entity header with back button and rubric info */}
             {rubric && (
-                <div className="mb-6 rounded-sm border border-stroke bg-white px-6 py-4 shadow-default dark:border-strokedark dark:bg-boxdark">
-                    <h2 className="mt-1 text-title-md2 font-semibold text-black dark:text-white">
-                        {rubric.title ?? rubric.id}
-                    </h2>
-                    {rubric.description && (
-                        <p className="mt-1 text-sm text-body dark:text-bodydark">{rubric.description}</p>
-                    )}
-                </div>
+                <EntityHeader
+                    onBack={onBack}
+                    backLabel="← Volver a Rúbricas"
+                    title={rubric.title ?? rubric.id}
+                    description={rubric.description}
+                />
             )}
 
             {/* Page header */}
@@ -311,12 +290,8 @@ const CriteriaByRubricPage: React.FC = () => {
                 )}
             </PageHeader>
 
-            {/* Table */}
-            <div
-                className={`overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark transition-all duration-300 ${
-                    crudMode ? "max-h-80" : "max-h-[60vh]"
-                }`}
-            >
+            {/* Table — full height */}
+            <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[60vh]">
                 <div className="h-full overflow-y-auto">
                     {loading ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">Cargando criterios…</p>
@@ -340,19 +315,21 @@ const CriteriaByRubricPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* CRUD panel using VerticalTextFormCard */}
+            {/* CRUD modal using ModalLauncher */}
             {editable && crudMode && (
-                <div className="mt-6">
-                    <VerticalTextFormCard
-                        title={getFormTitle()}
-                        description={getFormDescription()}
-                        fields={getFormFields()}
-                        saveLabel={getFormSaveLabel()}
-                        cancelLabel="Cancelar"
-                        onSave={handleFormSave}
-                        onCancel={closeCrud}
-                    />
-                </div>
+                <ModalLauncher isOpen={true} onClose={closeCrud}>
+                    {(close) => (
+                        <VerticalTextFormCard
+                            title={getFormTitle()}
+                            description={getFormDescription()}
+                            fields={getFormFields()}
+                            saveLabel={getFormSaveLabel()}
+                            cancelLabel="Cancelar"
+                            onSave={handleFormSave}
+                            onCancel={close}
+                        />
+                    )}
+                </ModalLauncher>
             )}
 
         </div>

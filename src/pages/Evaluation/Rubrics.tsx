@@ -2,16 +2,18 @@ import React, { useEffect, useState } from "react";
 import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
+import ModalLauncher from "../../components/ModalLauncher";
 import { rubricService } from "../../services/RubricService";
 import { Rubric } from "../../models/Rubric";
 //import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../../hooks/fireToast";
+import { useCrudModal } from "../../hooks/useCrudModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CrudMode = "create" | "edit" | null;
+
 
 const COLUMNS = ["title", "description", "is_public", "is_archived"];
 
@@ -41,9 +43,16 @@ const emptyForm = (): Omit<Rubric, "id"> => ({
 const RubricsPage: React.FC = () => {
     const [rubrics, setRubrics] = useState<Rubric[]>([]);
     const [loading, setLoading] = useState(true);
-    const [crudMode, setCrudMode] = useState<CrudMode>(null);
-    const [selectedRubric, setSelectedRubric] = useState<Rubric | null>(null);
-    const [form, setForm] = useState<Omit<Rubric, "id">>(emptyForm());
+    const {
+        crudMode,
+        selectedItem: selectedRubric,
+        form,
+        setForm,
+        closeCrud,
+        openCreate,
+        openEdit,
+    } = useCrudModal<Rubric>(emptyForm());
+    
     const navigate = useNavigate();
 
     //const user = securityService.getUser();
@@ -77,12 +86,7 @@ const RubricsPage: React.FC = () => {
         }
 
         if (actionName === "edit") {
-            setSelectedRubric(rubric);
-            setForm({
-                title: rubric.title ?? "",
-                description: rubric.description ?? "",
-            });
-            setCrudMode("edit");
+            openEdit(rubric);
         }
 
         if (actionName === "delete") {
@@ -135,18 +139,6 @@ const RubricsPage: React.FC = () => {
         } else {
             showToast("Error", response.error || "No se pudo publicar la rúbrica.", 2);
         }
-    };
-
-    const closeCrud = () => {
-        setCrudMode(null);
-        setSelectedRubric(null);
-        setForm(emptyForm());
-    };
-
-    const openCreate = () => {
-        setSelectedRubric(null);
-        setForm(emptyForm());
-        setCrudMode("create");
     };
 
     // ── Helper functions for VerticalTextFormCard ──────────────────────────────
@@ -245,12 +237,8 @@ const RubricsPage: React.FC = () => {
                 primaryAction={{ label: "+ Nueva Rúbrica", onClick: openCreate }}
             />
 
-            {/* Table — scrollable, takes full height when no CRUD panel is open */}
-            <div
-                className={`overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark transition-all duration-300 ${
-                    crudMode ? "max-h-80" : "max-h-[70vh]"
-                }`}
-            >
+            {/* Table — full height */}
+            <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[70vh]">
                 <div className="h-full overflow-y-auto">
                     {loading ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">Cargando rúbricas…</p>
@@ -267,20 +255,21 @@ const RubricsPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* CRUD panel using VerticalTextFormCard */}
+            {/* CRUD modal using ModalLauncher */}
             {editable && crudMode && (
-                <div className="mt-6">
-                    {/* Render appropriate fields based on CRUD mode */}
-                    <VerticalTextFormCard
-                        title={getFormTitle()}
-                        description={getFormDescription()}
-                        fields={getFormFields()}
-                        saveLabel={getFormSaveLabel()}
-                        cancelLabel="Cancelar"
-                        onSave={handleFormSave}
-                        onCancel={closeCrud}
-                    />
-                </div>
+                <ModalLauncher isOpen={true} onClose={closeCrud}>
+                    {(close) => (
+                        <VerticalTextFormCard
+                            title={getFormTitle()}
+                            description={getFormDescription()}
+                            fields={getFormFields()}
+                            saveLabel={getFormSaveLabel()}
+                            cancelLabel="Cancelar"
+                            onSave={handleFormSave}
+                            onCancel={close}
+                        />
+                    )}
+                </ModalLauncher>
             )}
         </div>
     );
