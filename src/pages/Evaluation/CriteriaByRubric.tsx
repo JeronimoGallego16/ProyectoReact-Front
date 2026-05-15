@@ -48,15 +48,16 @@ const CriteriaByRubricPage: React.FC = () => {
     const [rubric, setRubric] = useState<Rubric | null>(null);
     const [criteria, setCriteria] = useState<Criterion[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
     
     const {
             crudMode,
             selectedItem: selectedCriterion,
             form,
             setForm,
-            closeCrud,
-            openCreate,
-            openEdit,
+            resetCrud,
+            startCreate,
+            startEdit,
         } = useCrudModal<Criterion>(emptyForm());
 
     //const user = securityService.getUser();
@@ -100,7 +101,8 @@ const CriteriaByRubricPage: React.FC = () => {
                 showToast("Error", "No puedes editar criterios de una rúbrica publicada. Archívala primero.", 2);
                 return;
             }
-            openEdit(criterion);
+            startEdit(criterion);
+            setIsCrudModalOpen(true);
         }
 
         if (actionName === "delete") {
@@ -134,7 +136,8 @@ const CriteriaByRubricPage: React.FC = () => {
             const created = response.data;
             if (created) {
                 showToast("Éxito", "Criterio creado exitosamente.", 0);
-                closeCrud();
+                setIsCrudModalOpen(false);
+                resetCrud();
                 await loadData();
             } else {
                 showToast("Error", response.error || "No se pudo crear el criterio. Verifique que la suma de pesos no exceda 100.", 2);
@@ -151,7 +154,8 @@ const CriteriaByRubricPage: React.FC = () => {
             const updated = response.data;
             if (updated) {
                 showToast("Éxito", "Criterio actualizado exitosamente.", 0);
-                closeCrud();
+                setIsCrudModalOpen(false);
+                resetCrud();
                 await loadData();
             } else {
                 showToast("Error", response.error || "No se pudo actualizar el criterio.", 2);
@@ -240,7 +244,7 @@ const CriteriaByRubricPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus criterios para esta rúbrica. Asigna, crea, edita y elimina."
                     : "Busca y navega por los criterios de esta rúbrica."}
-                primaryAction={{ label: "+ Nuevo Criterio", onClick: openCreate }}
+                primaryAction={{ label: "+ Nuevo Criterio", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
             >
             </PageHeader>
 
@@ -264,8 +268,11 @@ const CriteriaByRubricPage: React.FC = () => {
 
             {/* CRUD modal using ModalLauncher */}
             {editable && crudMode && (
-                <ModalLauncher isOpen={true} onClose={closeCrud}>
-                    {(close) => (
+                <ModalLauncher
+                    isOpen={isCrudModalOpen}
+                    onClose={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                >
+                    {() => (
                         <VerticalTextFormCard
                             title={getFormTitle()}
                             description={getFormDescription()}
@@ -273,7 +280,7 @@ const CriteriaByRubricPage: React.FC = () => {
                             saveLabel={getFormSaveLabel()}
                             cancelLabel="Cancelar"
                             onSave={handleFormSave}
-                            onCancel={close}
+                            onCancel={() => { setIsCrudModalOpen(false); resetCrud(); }}
                         />
                     )}
                 </ModalLauncher>

@@ -206,7 +206,7 @@ const CalificationPage: React.FC = () => {
 
             {/* Grading modal */}
             {editable && gradingStudent && (
-                <ModalLauncher isOpen={true} onClose={() => setGradingStudent(null)}>
+                <ModalLauncher isOpen={!!gradingStudent} onClose={() => setGradingStudent(null)}>
                     {() => (
                         <div>
                             <div className="mb-6 border-b border-stroke pb-4 dark:border-strokedark">

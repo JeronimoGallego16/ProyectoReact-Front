@@ -51,15 +51,16 @@ const ScalesByCriterionPage: React.FC = () => {
     const [criterion, setCriterion] = useState<Criterion | null>(null);
     const [scales, setScales] = useState<Scale[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
 
     const {
         crudMode,
         selectedItem: selectedScale, // Renombramos para mantener consistencia con tu código
         form,
         setForm,
-        closeCrud,
-        openCreate,
-        openEdit,
+        resetCrud,
+        startCreate,
+        startEdit,
     } = useCrudModal<Scale>(emptyForm());
 
     //const user = securityService.getUser();
@@ -109,7 +110,8 @@ const ScalesByCriterionPage: React.FC = () => {
         const scale = item as Scale;
 
         if (actionName === "edit") {
-            openEdit(scale);
+            startEdit(scale);
+            setIsCrudModalOpen(true);
         }
 
         if (actionName === "delete") {
@@ -195,7 +197,8 @@ const ScalesByCriterionPage: React.FC = () => {
             const response = await rubricService.createScale(nextForm);
             if (response.data) {
                 showToast("Éxito", "Escala creada exitosamente.", 0);
-                closeCrud();
+                    setIsCrudModalOpen(false);
+                    resetCrud();
                 await loadData();
             } else {
                 showToast("Error", "No se pudo crear la escala.", 2);
@@ -211,7 +214,8 @@ const ScalesByCriterionPage: React.FC = () => {
             });
             if (response.data) {
                 showToast("Éxito", "Escala actualizada exitosamente.", 0);
-                closeCrud();
+                    setIsCrudModalOpen(false);
+                    resetCrud();
                 await loadData();
             } else {
                 showToast("Error", "No se pudo actualizar la escala.", 2);
@@ -241,8 +245,8 @@ const ScalesByCriterionPage: React.FC = () => {
 
             {/* Copy scale modal */}
             {isCopyModalOpen && (
-                <ModalLauncher isOpen={true} onClose={closeCopyModal}>
-                    {(close) => (
+                <ModalLauncher isOpen={isCopyModalOpen} onClose={closeCopyModal}>
+                    {() => (
                         <div>
                             <div className="mb-4">
                                 <h3 className="text-lg font-semibold text-black dark:text-white">
@@ -280,7 +284,7 @@ const ScalesByCriterionPage: React.FC = () => {
                             <div className="mt-5 flex items-center justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={close}
+                                    onClick={closeCopyModal}
                                     className="rounded-md border border-stroke px-4 py-2 text-sm font-medium text-body hover:bg-gray-2 dark:border-strokedark dark:text-bodydark"
                                 >
                                     Cancelar
@@ -305,7 +309,7 @@ const ScalesByCriterionPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus escalas para este criterio. Selecciona una para asignarla."
                     : "Explora las escalas para este criterio."}
-                primaryAction={{ label: "+ Nueva Escala", onClick: openCreate }}
+                primaryAction={{ label: "+ Nueva Escala", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
             >
             </PageHeader>
 
@@ -331,19 +335,21 @@ const ScalesByCriterionPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* CRUD panel using VerticalTextFormCard */}
+            {/* CRUD modal using ModalLauncher */}
             {editable && crudMode && (
-                <div className="mt-6">
-                    <VerticalTextFormCard
-                        title={getFormTitle()}
-                        description={getFormDescription()}
-                        fields={getFormFields()}
-                        saveLabel={getFormSaveLabel()}
-                        cancelLabel="Cancelar"
-                        onSave={handleFormSave}
-                        onCancel={closeCrud}
-                    />
-                </div>
+                <ModalLauncher isOpen={isCrudModalOpen} onClose={() => { setIsCrudModalOpen(false); resetCrud(); }}>
+                    {() => (
+                        <VerticalTextFormCard
+                            title={getFormTitle()}
+                            description={getFormDescription()}
+                            fields={getFormFields()}
+                            saveLabel={getFormSaveLabel()}
+                            cancelLabel="Cancelar"
+                            onSave={handleFormSave}
+                            onCancel={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                        />
+                    )}
+                </ModalLauncher>
             )}
 
         </div>

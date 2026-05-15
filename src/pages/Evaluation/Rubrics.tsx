@@ -41,14 +41,15 @@ const emptyForm = (): Omit<Rubric, "id"> => ({
 const RubricsPage: React.FC = () => {
     const [rubrics, setRubrics] = useState<Rubric[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
     const {
         crudMode,
         selectedItem: selectedRubric,
         form,
         setForm,
-        closeCrud,
-        openCreate,
-        openEdit,
+        resetCrud,
+        startCreate,
+        startEdit,
     } = useCrudModal<Rubric>(emptyForm());
     
     const navigate = useNavigate();
@@ -84,7 +85,8 @@ const RubricsPage: React.FC = () => {
         }
 
         if (actionName === "edit") {
-            openEdit(rubric);
+            startEdit(rubric);
+            setIsCrudModalOpen(true);
         }
 
         if (actionName === "delete") {
@@ -194,7 +196,8 @@ const RubricsPage: React.FC = () => {
             const response = await rubricService.createRubric(nextForm);
             if (response.data) {
                 showToast("Éxito", "Rúbrica creada exitosamente.", 0);
-                closeCrud();
+                setIsCrudModalOpen(false);
+                resetCrud();
                 await loadRubrics();
             } else {
                 showToast("Error", "No se pudo crear la rúbrica.", 2);
@@ -206,7 +209,8 @@ const RubricsPage: React.FC = () => {
             const response = await rubricService.updateRubric(selectedRubric.id, nextForm);
             if (response.data) {
                 showToast("Éxito", "Rúbrica actualizada exitosamente.", 0);
-                closeCrud();
+                setIsCrudModalOpen(false);
+                resetCrud();
                 await loadRubrics();
             } else {
                 showToast("Error", "No se pudo actualizar la rúbrica.", 2);
@@ -231,7 +235,7 @@ const RubricsPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus rúbricas: crea, edita, archiva o elimina"
                     : "Busca y navega por las rúbricas disponibles."}
-                primaryAction={{ label: "+ Nueva Rúbrica", onClick: openCreate }}
+                primaryAction={{ label: "+ Nueva Rúbrica", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
             />
 
             {/* Table — full height */}
@@ -254,8 +258,11 @@ const RubricsPage: React.FC = () => {
 
             {/* CRUD modal using ModalLauncher */}
             {editable && crudMode && (
-                <ModalLauncher isOpen={true} onClose={closeCrud}>
-                    {(close) => (
+                <ModalLauncher
+                    isOpen={isCrudModalOpen}
+                    onClose={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                >
+                    {() => (
                         <VerticalTextFormCard
                             title={getFormTitle()}
                             description={getFormDescription()}
@@ -263,7 +270,7 @@ const RubricsPage: React.FC = () => {
                             saveLabel={getFormSaveLabel()}
                             cancelLabel="Cancelar"
                             onSave={handleFormSave}
-                            onCancel={close}
+                            onCancel={() => { setIsCrudModalOpen(false); resetCrud(); }}
                         />
                     )}
                 </ModalLauncher>

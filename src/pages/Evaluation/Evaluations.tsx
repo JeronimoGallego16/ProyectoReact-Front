@@ -51,15 +51,16 @@ const EvaluationsPage: React.FC = () => {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
 
     const {
             crudMode,
             selectedItem: selectedEvaluation,
             form,
             setForm,
-            closeCrud,
-            openCreate,
-            openEdit,
+            resetCrud,
+            startCreate,
+            startEdit,
         } = useCrudModal<Evaluation>(emptyForm());
 
     //const user = securityService.getUser();
@@ -103,7 +104,8 @@ const EvaluationsPage: React.FC = () => {
         }
 
         if (actionName === "edit") {
-            openEdit(evaluation);
+            startEdit(evaluation);
+            setIsCrudModalOpen(true);
         }
 
         if (actionName === "delete") {
@@ -204,7 +206,8 @@ const EvaluationsPage: React.FC = () => {
             const created = await evaluationService.createEvaluation(nextForm);
             if (created) {
                 showToast("Éxito", "Evaluación creada exitosamente.", 0);
-                closeCrud();
+                setIsCrudModalOpen(false);
+                resetCrud();
                 await loadData();
             } else {
                 showToast("Error", "No se pudo crear la evaluación.", 2);
@@ -216,7 +219,8 @@ const EvaluationsPage: React.FC = () => {
             const updated = await evaluationService.updateEvaluation(selectedEvaluation.id, nextForm);
             if (updated) {
                 showToast("Éxito", "Evaluación actualizada exitosamente.", 0);
-                closeCrud();
+                setIsCrudModalOpen(false);
+                resetCrud();
                 await loadData();
             } else {
                 showToast("Error", "No se pudo actualizar la evaluación.", 2);
@@ -243,7 +247,13 @@ const EvaluationsPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus evaluaciones: crea, edita y elimina."
                     : "Busca y navega por las evaluaciones disponibles."}
-                primaryAction={editable ? { label: "+ Nueva Evaluación", onClick: openCreate } : undefined}
+                primaryAction={editable ? {
+                    label: "+ Nueva Evaluación",
+                    onClick: () => {
+                        startCreate();
+                        setIsCrudModalOpen(true);
+                    },
+                } : undefined}
             />
 
             {/* Table — full height */}
@@ -266,8 +276,14 @@ const EvaluationsPage: React.FC = () => {
 
             {/* CRUD modal using ModalLauncher */}
             {editable && crudMode && (
-                <ModalLauncher isOpen={true} onClose={closeCrud}>
-                    {(close) => (
+                <ModalLauncher
+                    isOpen={isCrudModalOpen}
+                    onClose={() => {
+                        setIsCrudModalOpen(false);
+                        resetCrud();
+                    }}
+                >
+                    {() => (
                         <VerticalTextFormCard
                             title={getFormTitle()}
                             description={getFormDescription()}
@@ -275,7 +291,10 @@ const EvaluationsPage: React.FC = () => {
                             saveLabel={getFormSaveLabel()}
                             cancelLabel="Cancelar"
                             onSave={handleFormSave}
-                            onCancel={close}
+                            onCancel={() => {
+                                setIsCrudModalOpen(false);
+                                resetCrud();
+                            }}
                         />
                     )}
                 </ModalLauncher>

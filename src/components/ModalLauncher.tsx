@@ -1,28 +1,19 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 
 type ModalLauncherProps = {
-  trigger?: (open: () => void) => ReactNode; // Optional: for external trigger buttons
   children: (close: () => void) => ReactNode;
-  isOpen?: boolean; // Optional: control from parent
-  onClose?: () => void; // Optional: callback when modal closes
+  isOpen: boolean;
+  onClose: () => void;
 };
 
-// Reusable modal launcher with built-in backdrop and structure
-export default function ModalLauncher({ trigger, children, isOpen: externalOpen, onClose }: ModalLauncherProps) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  
-  // Support both internal and external state
-  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
-  
-  const openModal = () => setInternalOpen(true);
+// Reusable controlled modal launcher with built-in backdrop and structure
+export default function ModalLauncher({ children, isOpen, onClose }: ModalLauncherProps) {
   const closeModal = () => {
-    setInternalOpen(false);
-    onClose?.();
+    onClose();
   };
 
   return (
     <>
-      {trigger && trigger(openModal)}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="relative w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg dark:bg-boxdark">

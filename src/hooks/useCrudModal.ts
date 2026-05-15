@@ -11,30 +11,37 @@ export function useCrudModal<T extends { id?: string }>(emptyForm: Omit<T, 'id'>
   const [selectedItem, setSelectedItem] = useState<T | null>(null);
   const [form, setForm] = useState<Omit<T, 'id'>>(emptyForm);
 
-  const closeCrud = () => {
+  const resetCrud = () => {
     setCrudMode(null);
     setSelectedItem(null);
     setForm(emptyForm);
   };
 
-  const openCreate = () => {
+  const startCreate = () => {
     setSelectedItem(null);
     setForm(emptyForm);
     setCrudMode('create');
   };
 
-  const openEdit = (item: T) => {
+  const startEdit = (item: T) => {
     setSelectedItem(item);
     const { id, ...itemWithoutId } = item;
     setForm(itemWithoutId as Omit<T, 'id'>);
     setCrudMode('edit');
   };
 
+  const closeCrud = resetCrud;
+  const openCreate = startCreate;
+  const openEdit = startEdit;
+
   return {
     crudMode,
     selectedItem,
     form,
     setForm,
+    resetCrud,
+    startCreate,
+    startEdit,
     closeCrud,
     openCreate,
     openEdit,
