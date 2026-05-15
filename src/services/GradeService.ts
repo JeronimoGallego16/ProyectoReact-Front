@@ -7,8 +7,7 @@ const API_URL_GRADES = '/evaluation/grades';
 class GradeService {
 	private _validateSavePayload(payload: {
 		enrollment_id: string;
-		evaluation_id?: string;
-		rubric_id?: string;
+		rubric_id: string;
 		details: Array<{ scale_id: string; comment?: string }>;
 		status?: string;
 		observations?: string;
@@ -17,8 +16,8 @@ class GradeService {
 			return 'enrollment_id is required';
 		}
 
-		if (!payload.evaluation_id && !payload.rubric_id) {
-			return 'evaluation_id or rubric_id is required';
+		if (!payload?.rubric_id) {
+			return 'rubric_id is required';
 		}
 
 		if (!Array.isArray(payload.details) || payload.details.length === 0) {
@@ -65,8 +64,7 @@ class GradeService {
 	// Método centralizado para crear la nota y sus detalles en una sola llamada.
 	async saveGrade(payload: {
 		enrollment_id: string;
-		evaluation_id?: string;
-		rubric_id?: string;
+		rubric_id: string;
 		details: Array<{ scale_id: string; comment?: string }>;
 		status?: string;
 		observations?: string;

@@ -13,8 +13,6 @@ import { useCrudModal } from "../../hooks/useCrudModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-
-
 const COLUMNS = ["title", "description", "is_public", "is_archived"];
 
 const ADMIN_TEACHER_ACTIONS = [
@@ -78,7 +76,7 @@ const RubricsPage: React.FC = () => {
     // ── CRUD handlers ─────────────────────────────────────────────────────────
 
     const handleAction = (actionName: string, item: Record<string, any>) => {
-        const rubric = item as Rubric;
+        const rubric = rubrics.find((currentRubric) => currentRubric.id === item.id) ?? (item as Rubric);
 
         if (actionName === "view") {
             navigate(`/rubrics/${rubric.id}/criteria`);
@@ -186,9 +184,8 @@ const RubricsPage: React.FC = () => {
 
     const handleFormSave = async (values: Record<string, string>) => {
         const nextForm: Omit<Rubric, "id"> = {
-            ...form,
             title: values.title ?? form.title,
-            description: values.description ?? form.description
+            description: values.description ?? form.description,
         };
 
         setForm(nextForm);

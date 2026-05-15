@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import SelectableTable from "../../components/SelectableTable";
+import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import EntityHeader from "../../components/EntityHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
@@ -41,14 +41,12 @@ const emptyForm = (): Omit<Criterion, "id"> => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CriteriaByRubricPage: React.FC = () => {
-    
     const { rubricId } = useParams<{ rubricId: string }>();
     const navigate = useNavigate();
-    const onBack = () => navigate("/rubrics");
+    const onBack = () => navigate(-1);
 
     const [rubric, setRubric] = useState<Rubric | null>(null);
     const [criteria, setCriteria] = useState<Criterion[]>([]);
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     
     const {
@@ -85,43 +83,7 @@ const CriteriaByRubricPage: React.FC = () => {
         loadData();
     }, [rubricId]);
 
-    // ── Selection ─────────────────────────────────────────────────────────────
-
-    const toggleSelection = (criterionId: string) => {
-        setSelectedIds((prev) => {
-            const next = new Set(prev);
-            next.has(criterionId) ? next.delete(criterionId) : next.add(criterionId);
-            return next;
-        });
-    };
-
-    const handleAssignSelected = async () => {
-        if (selectedIds.size === 0) {
-            showToast("Error", "No hay un criterio seleccionado.", 2);
-            return;
-        }
-
-        let successCount = 0;
-        let failCount = 0;
-
-        for (const id of selectedIds) {
-            const response = await rubricService.updateCriterion(id, { rubric_id: rubricId });
-            const updated = response.data;
-            updated ? successCount++ : failCount++;
-        }
-
-        if (successCount > 0) {
-            showToast(
-                failCount === 0 ? "Éxito" : "Error",
-                `${successCount} criterio(s) asignado(s).${failCount > 0 ? ` ${failCount} error.` : ""}`,
-                failCount === 0 ? 0 : 2
-            );
-            setSelectedIds(new Set());
-            await loadData();
-        } else {
-            showToast("Error", "No se pudo asignar ningún criterio a esta rúbrica.", 2);
-        }
-    };
+    // (Selection removed — using GenericTable for consistency with Rubrics)
 
     // ── CRUD handlers ─────────────────────────────────────────────────────────
 
@@ -266,7 +228,7 @@ const CriteriaByRubricPage: React.FC = () => {
             {rubric && (
                 <EntityHeader
                     onBack={onBack}
-                    backLabel="← Volver a Rúbricas"
+                    backLabel="← Volver"
                     title={rubric.title ?? rubric.id}
                     description={rubric.description}
                 />
@@ -280,14 +242,6 @@ const CriteriaByRubricPage: React.FC = () => {
                     : "Busca y navega por los criterios de esta rúbrica."}
                 primaryAction={{ label: "+ Nuevo Criterio", onClick: openCreate }}
             >
-                {editable && selectedIds.size > 0 && (
-                    <button
-                        onClick={handleAssignSelected}
-                        className="inline-flex items-center gap-2 rounded-md bg-meta-3 px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
-                    >
-                        Asignar seleccionados ({selectedIds.size})
-                    </button>
-                )}
             </PageHeader>
 
             {/* Table — full height */}
@@ -298,18 +252,11 @@ const CriteriaByRubricPage: React.FC = () => {
                     ) : criteria.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron criterios para esta rúbrica.</p>
                     ) : (
-                        <SelectableTable
+                        <GenericTable
                             data={criteria}
                             columns={COLUMNS}
                             actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
-                            onAction={(actionName, item) => {
-                                if (actionName === "select") {
-                                    toggleSelection((item as Criterion).id);
-                                    return;
-                                }
-                                handleAction(actionName, item);
-                            }}
-                            selectionMode={2}
+                            onAction={handleAction}
                         />
                     )}
                 </div>

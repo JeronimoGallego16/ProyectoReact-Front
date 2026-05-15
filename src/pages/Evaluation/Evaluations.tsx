@@ -4,20 +4,24 @@ import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
 import { evaluationService } from "../../services/EvaluationService";
+import { groupService } from "../../services/GroupService";
 import { subjectService } from "../../services/SubjectService";
 import { Evaluation } from "../../models/Evaluation";
+import { Group } from "../../models/Group";
 import { Subject } from "../../models/Subject";
 //import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
 import { showToast } from "../../hooks/fireToast";
 import { useCrudModal } from "../../hooks/useCrudModal";
+import { useNavigate } from "react-router";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-const COLUMNS = ["name", "description", "weight", "subject_id"];
+const COLUMNS = ["name", "description", "weight", "subject_id", "group_id"];
 
 const ADMIN_TEACHER_ACTIONS = [
     { name: "view", label: "Ver" },
+    { name: "grade", label: "Calificar" },
     { name: "edit", label: "Editar" },
     { name: "delete", label: "Eliminar" },
 ];
@@ -35,13 +39,17 @@ const emptyForm = (): Omit<Evaluation, "id"> => ({
     description: "",
     weight: 0,
     subject_id: "",
+    group_id: "",
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const EvaluationsPage: React.FC = () => {
+    const navigate = useNavigate();
+
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [groups, setGroups] = useState<Group[]>([]);
     const [loading, setLoading] = useState(true);
 
     const {
@@ -64,10 +72,14 @@ const EvaluationsPage: React.FC = () => {
 
     const loadData = async () => {
         setLoading(true);
-        const evaluationsResponse = await evaluationService.getEvaluations();
-        const subjectsData = await subjectService.getActiveSubjects();
+        const [evaluationsResponse, subjectsData, groupsData] = await Promise.all([
+            evaluationService.getEvaluations(),
+            subjectService.getActiveSubjects(),
+            groupService.getGroups(),
+        ]);
         setEvaluations(Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : []);
         setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
+        setGroups(Array.isArray(groupsData) ? groupsData : []);
         setLoading(false);
     };
 
@@ -81,9 +93,12 @@ const EvaluationsPage: React.FC = () => {
         const evaluation = item as Evaluation;
 
         if (actionName === "view") {
-            // TODO: Navigate to evaluation detail page when available.
-            // navigate(`/evaluations/${evaluation.id}`);
-            showToast("Info", `Evaluación: ${evaluation.name ?? evaluation.id}`, 1);
+            navigate(`/evaluations/${evaluation.id}/rubric`);
+            return;
+        }
+
+        if (actionName === "grade") {
+            navigate(`/evaluations/${evaluation.id}/califications`);
             return;
         }
 
@@ -149,13 +164,13 @@ const EvaluationsPage: React.FC = () => {
                 value: String(form.weight),
             },
             {
-                name: "subject_id",
-                label: "Asignatura",
+                name: "group_id",
+                label: "Grupo",
                 kind: "select",
-                value: form.subject_id,
-                options: subjects.map((s) => ({
-                    label: `${s.name} (${s.code})`,
-                    value: s.id,
+                value: form.group_id,
+                options: groups.map((group) => ({
+                    label: `${group.name} - ${group.group_code} (${subjects.find((subject) => subject.id === group.subject_id)?.name ?? group.subject_id})`,
+                    value: group.id,
                 })),
             },
         ];
@@ -168,12 +183,19 @@ const EvaluationsPage: React.FC = () => {
     };
 
     const handleFormSave = async (values: Record<string, string>) => {
+        const selectedGroup = groups.find((group) => group.id === values.group_id);
+        if (!selectedGroup) {
+            showToast("Error", "Debes seleccionar un grupo válido para crear la evaluación.", 2);
+            return;
+        }
+
         const nextForm: Omit<Evaluation, "id"> = {
             ...form,
             name: values.name ?? form.name,
             description: values.description ?? form.description,
             weight: Number(values.weight) || 0,
-            subject_id: values.subject_id ?? form.subject_id,
+            subject_id: selectedGroup.subject_id,
+            group_id: selectedGroup.id,
         };
 
         setForm(nextForm);
@@ -207,6 +229,7 @@ const EvaluationsPage: React.FC = () => {
     const tableData = evaluations.map((e) => ({
         ...e,
         subject_id: subjects.find((s) => s.id === e.subject_id)?.name ?? e.subject_id ?? "—",
+        group_id: groups.find((g) => g.id === e.group_id)?.group_code ?? e.group_id ?? "—",
     }));
 
     // ── Render ────────────────────────────────────────────────────────────────
