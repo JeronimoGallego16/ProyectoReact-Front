@@ -1,4 +1,4 @@
-import apiClient from '../interceptor/apiClient';
+import apiService from './api';
 import { Group, GroupCreateInput, GroupUpdateInput } from '../models/Group';
 
 const API_URL = '/academic/groups';
@@ -7,8 +7,9 @@ class GroupService {
   // Método para obtener todos los grupos.
   async getGroups(): Promise<Group[]> {
     try {
-      const response = await apiClient.get(API_URL);
-      const data = this._extractData(response);
+      const res = await apiService.get<Group[]>(API_URL);
+      if (!res || !res.success) return [];
+      const data = res.data ?? [];
       return Array.isArray(data) ? data : [];
     } catch (error) {
       return this._handleError(error) || [];
@@ -48,8 +49,9 @@ class GroupService {
   // Método para obtener un grupo por ID.
   async getGroupById(id: string): Promise<Group | null> {
     try {
-      const response = await apiClient.get(`${API_URL}/${id}`);
-      return this._extractData(response) as Group || null;
+      const res = await apiService.get<Group>(`${API_URL}/${id}`);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Group) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -81,8 +83,9 @@ class GroupService {
         throw new Error(`Group code "${payload.group_code}" already exists`);
       }
 
-      const response = await apiClient.post(API_URL, payload);
-      return this._extractData(response) as Group || null;
+      const res = await apiService.post<Group>(API_URL, payload);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Group) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -91,8 +94,9 @@ class GroupService {
   // Método para actualizar un grupo.
   async updateGroup(id: string, payload: GroupUpdateInput): Promise<Group | null> {
     try {
-      const response = await apiClient.put(`${API_URL}/${id}`, payload);
-      return this._extractData(response) as Group || null;
+      const res = await apiService.put<Group>(`${API_URL}/${id}`, payload);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Group) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -120,8 +124,9 @@ class GroupService {
         );
       }
 
-      const response = await apiClient.patch(`${API_URL}/${groupId}/assign-teacher/${teacherId}`);
-      return this._extractData(response) as Group || null;
+      const res = await apiService.patch<Group>(`${API_URL}/${groupId}/assign-teacher/${teacherId}`, {});
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Group) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -139,14 +144,6 @@ class GroupService {
     } catch (error) {
       return this._handleError(error) || 0;
     }
-  }
-
-  // Helpers
-  private _extractData(response: any): any {
-    if (!response) return null;
-    if (response.data && response.data.data !== undefined) return response.data.data;
-    if (response.data !== undefined) return response.data;
-    return null;
   }
 
   private _handleError(error: any): any {

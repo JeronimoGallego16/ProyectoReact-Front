@@ -1,4 +1,4 @@
-import apiClient from '../interceptor/apiClient';
+import apiService from './api';
 import { Semester, SemesterCreateInput, SemesterUpdateInput } from '../models/Semester';
 
 const API_URL = '/academic/semesters';
@@ -7,9 +7,19 @@ class SemesterService {
   // Método para obtener todos los semestres.
   async getSemesters(): Promise<Semester[]> {
     try {
-      const response = await apiClient.get(API_URL);
-      const data = this._extractData(response);
+      const res = await apiService.get<Semester[]>(API_URL);
+      if (!res || !res.success) return [];
+      const data = res.data ?? [];
       return Array.isArray(data) ? data : [];
+    } catch (error) {
+      return this._handleError(error) || [];
+    }
+  }
+
+  async getActiveSemesters(): Promise<Semester[]> {
+    try {
+      const semesters = await this.getSemesters();
+      return semesters.filter(semester => semester.is_active);
     } catch (error) {
       return this._handleError(error) || [];
     }
@@ -28,8 +38,9 @@ class SemesterService {
   // Método para obtener un semestre por ID.
   async getSemesterById(id: string): Promise<Semester | null> {
     try {
-      const response = await apiClient.get(`${API_URL}/${id}`);
-      return this._extractData(response) as Semester || null;
+      const res = await apiService.get<Semester>(`${API_URL}/${id}`);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Semester) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -40,6 +51,10 @@ class SemesterService {
   // Si is_active=true, desactiva otros semestres.
   async createSemester(payload: SemesterCreateInput): Promise<Semester | null> {
     try {
+      if (!payload.name || !payload.code) {
+        throw new Error('Name and code are required');
+      }
+
       // Validar fechas
       const startDate = new Date(payload.start_date);
       const endDate = new Date(payload.end_date);
@@ -47,8 +62,17 @@ class SemesterService {
         throw new Error('start_date must be before end_date');
       }
 
-      const response = await apiClient.post(API_URL, payload);
-      return this._extractData(response) as Semester || null;
+      const res = await apiService.post<Semester>(API_URL, payload);
+      const createdSemester = res && res.success ? (res.data as Semester | null) : null;
+      if (!createdSemester) {
+        return null;
+      }
+
+      if (payload.is_active) {
+        return await this.activateSemester(createdSemester.id);
+      }
+
+      return createdSemester;
     } catch (error) {
       return this._handleError(error);
     }
@@ -66,8 +90,9 @@ class SemesterService {
         }
       }
 
-      const response = await apiClient.put(`${API_URL}/${id}`, payload);
-      return this._extractData(response) as Semester || null;
+      const res = await apiService.put<Semester>(`${API_URL}/${id}`, payload);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Semester) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -77,6 +102,13 @@ class SemesterService {
   // Solo puede haber un semestre activo a la vez.
   async activateSemester(id: string): Promise<Semester | null> {
     try {
+      const semesters = await this.getSemesters();
+      await Promise.all(
+        semesters
+          .filter(semester => semester.id !== id && semester.is_active)
+          .map(semester => this.updateSemester(semester.id, { is_active: false }))
+      );
+
       return await this.updateSemester(id, { is_active: true });
     } catch (error) {
       return this._handleError(error);
@@ -93,13 +125,6 @@ class SemesterService {
   }
 
   // Helpers
-  private _extractData(response: any): any {
-    if (!response) return null;
-    if (response.data && response.data.data !== undefined) return response.data.data;
-    if (response.data !== undefined) return response.data;
-    return null;
-  }
-
   private _handleError(error: any): any {
     if (error.response?.data?.error) {
       console.error('Semester error:', error.response.data.error);

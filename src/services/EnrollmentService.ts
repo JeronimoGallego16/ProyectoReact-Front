@@ -1,6 +1,10 @@
-import apiClient from '../interceptor/apiClient';
+import apiService from './api';
 import { Enrollment, EnrollmentCreateInput, EnrollmentUpdateInput } from '../models/Enrollment';
 import { groupService } from './GroupService';
+import { registrationService } from './RegistrationService';
+import { semesterService } from './SemesterService';
+import { studyPlanService } from './StudyPlanService';
+import { studyPlanSubjectService } from './StudyPlanSubjectService';
 import { subjectService } from './SubjectService';
 
 const API_URL = '/academic/enrollments';
@@ -11,8 +15,9 @@ class EnrollmentService {
   // Método para obtener todas las inscripciones.
   async getEnrollments(): Promise<Enrollment[]> {
     try {
-      const response = await apiClient.get(API_URL);
-      const data = this._extractData(response);
+      const res = await apiService.get<Enrollment[]>(API_URL);
+      if (!res || !res.success) return [];
+      const data = res.data ?? [];
       return Array.isArray(data) ? data : [];
     } catch (error) {
       return this._handleError(error) || [];
@@ -52,10 +57,36 @@ class EnrollmentService {
   // Método para obtener una inscripción por ID.
   async getEnrollmentById(id: string): Promise<Enrollment | null> {
     try {
-      const response = await apiClient.get(`${API_URL}/${id}`);
-      return this._extractData(response) as Enrollment || null;
+      const res = await apiService.get<Enrollment>(`${API_URL}/${id}`);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Enrollment) || null;
     } catch (error) {
       return this._handleError(error);
+    }
+  }
+
+  private async getCareerRegistrationForGroup(studentId: string, subjectId: string): Promise<{ careerId: string; registrationId: string } | null> {
+    try {
+      const activeRegistrations = await registrationService.getActiveRegistrationsByStudent(studentId);
+
+      for (const registration of activeRegistrations) {
+        const activeStudyPlan = await studyPlanService.getActiveStudyPlan(registration.career_id);
+        if (!activeStudyPlan) {
+          continue;
+        }
+
+        const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activeStudyPlan.id);
+        if (subjects.some(subject => subject.id === subjectId)) {
+          return {
+            careerId: registration.career_id,
+            registrationId: registration.id,
+          };
+        }
+      }
+
+      return null;
+    } catch (error) {
+      return null;
     }
   }
 
@@ -77,6 +108,11 @@ class EnrollmentService {
         throw new Error('Group not found');
       }
 
+      const activeSemester = await semesterService.getActiveSemester();
+      if (!activeSemester || group.semester_id !== activeSemester.id) {
+        throw new Error('Group does not belong to the active semester');
+      }
+
       // Obtener semestre del grupo para buscar matrícula en esa carrera
       // (En un escenario real, necesitaríamos hacer una llamada extra para obtener
       // la relación semestre->carrera o esta información desde el backend)
@@ -88,6 +124,11 @@ class EnrollmentService {
       const subject = await subjectService.getSubjectById(group.subject_id);
       if (!subject) {
         throw new Error('Subject not found');
+      }
+
+      const careerRegistration = await this.getCareerRegistrationForGroup(payload.student_id, group.subject_id);
+      if (!careerRegistration) {
+        throw new Error('Student does not have an active registration for a career whose study plan includes this subject');
       }
 
       // 3. Validar límite de créditos
@@ -122,8 +163,9 @@ class EnrollmentService {
         throw new Error('Group is at full capacity');
       }
 
-      const response = await apiClient.post(API_URL, payload);
-      return this._extractData(response) as Enrollment || null;
+      const res = await apiService.post<Enrollment>(API_URL, payload);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Enrollment) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -132,8 +174,9 @@ class EnrollmentService {
   // Método para actualizar una inscripción.
   async updateEnrollment(id: string, payload: EnrollmentUpdateInput): Promise<Enrollment | null> {
     try {
-      const response = await apiClient.put(`${API_URL}/${id}`, payload);
-      return this._extractData(response) as Enrollment || null;
+      const res = await apiService.put<Enrollment>(`${API_URL}/${id}`, payload);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Enrollment) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -237,22 +280,13 @@ class EnrollmentService {
   // Método para eliminar una inscripción.
   async deleteEnrollment(id: string): Promise<boolean> {
     try {
-      await apiClient.delete(`${API_URL}/${id}`);
-      return true;
+      const res = await apiService.delete(`${API_URL}/${id}`);
+      return !!(res && res.success);
     } catch (error) {
       this._handleError(error);
       return false;
     }
   }
-
-  // Helpers
-  private _extractData(response: any): any {
-    if (!response) return null;
-    if (response.data && response.data.data !== undefined) return response.data.data;
-    if (response.data !== undefined) return response.data;
-    return null;
-  }
-
   private _handleError(error: any): any {
     if (error.response?.data?.error) {
       console.error('Enrollment error:', error.response.data.error);
