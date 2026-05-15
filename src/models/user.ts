@@ -73,4 +73,43 @@ export interface User {
   created_at: string;
   updated_at: string;
   profile?: UserProfile;
+  career?: {
+    name?: string;
+  };
+}
+
+/**
+ * Datos de Usuario para formularios
+ */
+export interface UserData {
+  id: string;
+  email: string;
+  code: string;
+  profile?: {
+    first_name?: string;
+    last_name?: string;
+  };
+  role?: string;
+}
+
+/**
+ * Usuario transformado para tabla
+ */
+export interface TableUser extends Record<string, any> {
+  id: string;
+  Código: string;
+  Nombre: string;
+  Email: string;
+  Rol: string;
+  Carrera: string;
+  Estado: string;
+  'Fecha creación': string;
+}
+
+/**
+ * Credenciales para login
+ */
+export interface LoginCredentials {
+  email: string;
+  password: string;
 }

@@ -9,8 +9,7 @@ const GroupsPage = lazy(() => import('../pages/GroupsPage'));
 const CareersPage = lazy(() => import('../pages/CareersPage'));
 const EnrollmentPage = lazy(() => import('../pages/EnrollmentPage'));
 const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
-const PruebaMatricula = lazy(() => import('../pages/PruebaMatricula'));
-const PruebaDocenteGrupo = lazy(() => import('../pages/PruebaDocenteGrupo'));
+
 
 const coreRoutes = [
   {
@@ -52,16 +51,6 @@ const coreRoutes = [
     path: '/matricula',
     title: 'Matricular Estudiante',
     component: EnrollmentPage,
-  },
-  {
-    path: '/prueba-matricula',
-    title: 'Prueba Matrícula',
-    component: PruebaMatricula,
-  },
-  {
-    path: '/prueba-docente-grupo',
-    title: 'Prueba Docente a Grupo',
-    component: PruebaDocenteGrupo,
   },
   {
     path: '/evaluations',

@@ -2,11 +2,7 @@ import { useState, useEffect } from 'react';
 import FilterTable from '../components/FilterTable';
 import { careerService } from '../services/CareerService';
 import { toast } from 'react-hot-toast';
-import { Career, CareerCreateInput, CareerUpdateInput } from '../models/Career';
-
-interface CareerWithDetails extends Career {
-    created_at?: string;
-}
+import { Career, CareerWithDetails, CareerCreateInput, CareerUpdateInput } from '../models/Career';
 
 export default function CareersPage() {
     const [careersData, setCareersData] = useState<CareerWithDetails[]>([]);

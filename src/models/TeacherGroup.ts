@@ -19,3 +19,16 @@ export interface TeacherGroupResponse {
     groupId?: string;
   };
 }
+
+export interface AssignTeacherPayload {
+  semesterId: string;
+  groupId: string;
+  teacherId: string;
+}
+
+export interface AssignTeacherResponse {
+  success: boolean;
+  group?: Group;
+  error?: string;
+  message?: string;
+}

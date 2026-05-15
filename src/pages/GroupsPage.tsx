@@ -6,35 +6,13 @@ import teacherService from '../services/teacher.service';
 import TeacherAGroupService from '../services/TeacherAGroupService';
 import DeactivateUserModal from '../components/DeactivateUserModal';
 import { toast } from 'react-hot-toast';
-import { Group } from '../models/Group';
-
-interface GroupWithDetails extends Group {
-    group_code?: string;
-    code?: string;
-    created_at?: string;
-}
-
-interface Subject {
-    id: string;
-    name: string;
-    code: string;
-}
-
-interface Teacher {
-    id: string;
-    name: string;
-}
-
-interface FilterOptionType {
-    id: string;
-    label: string;
-    placeholder?: string;
-}
+import { Group, GroupWithDetails, FilterOptionType } from '../models/Group';
+import { Subject, TeacherData } from '../models/Subject';
 
 export default function GroupsPage() {
     const [groupsData, setGroupsData] = useState<GroupWithDetails[]>([]);
     const [subjectsData, setSubjectsData] = useState<Subject[]>([]);
-    const [teachersData, setTeachersData] = useState<Teacher[]>([]);
+    const [teachersData, setTeachersData] = useState<TeacherData[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<Record<string, string>>({});
     const [showAssignModal, setShowAssignModal] = useState(false);

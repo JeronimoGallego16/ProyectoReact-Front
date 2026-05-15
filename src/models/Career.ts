@@ -8,5 +8,9 @@ export interface Career {
   updated_at?: string;
 }
 
+export interface CareerWithDetails extends Career {
+  created_at?: string;
+}
+
 export type CareerCreateInput = Omit<Career, 'id' | 'created_at' | 'updated_at'>;
 export type CareerUpdateInput = Partial<CareerCreateInput>;

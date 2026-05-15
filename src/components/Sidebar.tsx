@@ -238,7 +238,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       fill=""
                     />
                   </svg>
-                  👥 Usuarios
+                  Usuarios
                 </NavLink>
               </li>
               {/* <!-- Menu Item Usuarios --> */}
@@ -276,7 +276,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       fill=""
                     />
                   </svg>
-                  📚 Grupos
+                   Grupos
                 </NavLink>
               </li>
               {/* <!-- Menu Item Grupos --> */}
@@ -314,7 +314,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       fill=""
                     />
                   </svg>
-                  🎓 Carreras
+                   Carreras
                 </NavLink>
               </li>
               {/* <!-- Menu Item Carreras --> */}
@@ -352,7 +352,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       fill=""
                     />
                   </svg>
-                  📝 Matricular Estudiante
+                   Matricular Estudiante
                 </NavLink>
               </li>
               {/* <!-- Menu Item Matricula --> */}

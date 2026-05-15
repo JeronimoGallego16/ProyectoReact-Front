@@ -50,27 +50,40 @@ class SecurityService extends EventTarget {
     }
 
     async login(credentials: { email: string; password: string }) {
-        console.log("llamando api " + `${this.API_URL}/auth/login`);
         const response = await this.axios.post(`/auth/login`, credentials);
+
         if (response.status !== 200) {
             throw new Error(`Login failed with status ${response.status}`);
         }
 
-        const data = response.data;
+        const loginData = response.data.data ?? response.data;
 
-        this.user = data.user;
-
-        // Ajusta esto según la estructura real de la respuesta
-        this.storage.setItem(this.userKey, JSON.stringify(this.user));
-
-        if (data?.token) {
-            this.storage.setItem(this.keyToken, data.token);
+        if (loginData?.access_token) {
+            localStorage.setItem("token", loginData.access_token);
         }
+
+        const fullUserResponse = await this.fetchUserProfile(loginData.user.id);
+
+        this.user = fullUserResponse.data ?? fullUserResponse;
+
+        this.storage.setItem(this.userKey, JSON.stringify(this.user));
 
         store.dispatch(setUser(this.user));
         this.dispatchEvent(new CustomEvent("userChange", { detail: this.user }));
 
         return this.user;
+    }
+
+    async fetchUserProfile(userId: string) {
+        const token = this.getToken();
+
+        const response = await this.axios.get(`/users/${userId}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        return response.data;
     }
 
     getUser() {

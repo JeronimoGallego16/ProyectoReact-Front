@@ -78,7 +78,7 @@ class GroupService {
   }
 
   // Método para desactivar un grupo
-  async deactivateGroup(groupId: string): Promise<Group | null> {
+  async desactivateGroup(groupId: string): Promise<Group | null> {
     try {
       const response = await apiClient.patch(`${API_URL}/${groupId}`, { is_active: false });
       return this._extractData(response) as Group || null;
@@ -140,15 +140,6 @@ class GroupService {
     }
   }
 
-  // Método para desactivar un grupo.
-  async deactivateGroup(groupId: string): Promise<Group | null> {
-    try {
-      const response = await apiClient.patch(`${API_URL}/${groupId}`, { is_active: false });
-      return this._extractData(response) as Group || null;
-    } catch (error) {
-      return this._handleError(error);
-    }
-  }
 
   // Helpers
   private _extractData(response: any): any {

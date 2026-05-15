@@ -7,13 +7,7 @@ import student from '../services/student.service';
 import { toast } from 'react-hot-toast';
 import { Career } from '../models/Career';
 import { Student } from '../models/Student';
-
-interface EnrollmentFormData {
-    studentId: string;
-    careerId: string;
-    admissionPeriod: string;
-    academicStatus: string;
-}
+import { EnrollmentFormData } from '../models/Enrollment';
 
 export default function EnrollmentPage() {
     const [studentsData, setStudentsData] = useState<Student[]>([]);

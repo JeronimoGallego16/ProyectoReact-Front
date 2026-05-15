@@ -1,3 +1,4 @@
+import axios from "axios";
 import { auth } from "../config/firebase";
 import {
   GoogleAuthProvider,
@@ -11,6 +12,41 @@ import { setUser } from "../store/userSlice";
 import { User } from "../models/User";
 
 class SocialAuthService {
+  private axios: any;
+
+  constructor() {
+    this.axios = axios.create({
+      baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  }
+
+  private async verifyUserInBackend(email: string): Promise<User> {
+    try {
+      // Obtiene la lista de todos los usuarios registrados
+      const response = await this.axios.get('/users');
+      
+      if (!response.data?.data || !Array.isArray(response.data.data)) {
+        throw new Error('Error al obtener usuarios');
+      }
+      
+      // Busca el usuario por email localmente
+      const user = response.data.data.find((u: any) => u.email === email);
+      
+      if (!user) {
+        throw new Error(`Usuario con email ${email} no registrado en el sistema`);
+      }
+      
+      return user;
+    } catch (error: any) {
+      if (error.message?.includes('no registrado')) {
+        throw error;
+      }
+      throw new Error(`Error al verificar usuario: ${error.message}`);
+    }
+  }
   // Google
   async loginWithGoogle() {
     const provider = new GoogleAuthProvider();
@@ -18,22 +54,16 @@ class SocialAuthService {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      const firebaseToken = await user.getIdToken();
 
-      const userData: User = {
-        id: user.uid,
-        email: user.email || "",
-        code: user.uid,
-        role: "STUDENT",
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      // Verificar que el usuario existe en el backend (solo por email)
+      const backendUser = await this.verifyUserInBackend(user.email || "");
 
-      store.dispatch(setUser(userData));
-      localStorage.setItem("token", await user.getIdToken());
-      localStorage.setItem("user", JSON.stringify(userData));
+      store.dispatch(setUser(backendUser));
+      localStorage.setItem("token", firebaseToken);
+      localStorage.setItem("user", JSON.stringify(backendUser));
 
-      return user;
+      return backendUser;
     } catch (error) {
       console.error("Error en Google login:", error);
       throw error;
@@ -47,22 +77,16 @@ class SocialAuthService {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      const firebaseToken = await user.getIdToken();
 
-      const userData: User = {
-        id: user.uid,
-        email: user.email || "",
-        code: user.uid,
-        role: "STUDENT",
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      // Verificar que el usuario existe en el backend (solo por email)
+      const backendUser = await this.verifyUserInBackend(user.email || "");
 
-      store.dispatch(setUser(userData));
-      localStorage.setItem("token", await user.getIdToken());
-      localStorage.setItem("user", JSON.stringify(userData));
+      store.dispatch(setUser(backendUser));
+      localStorage.setItem("token", firebaseToken);
+      localStorage.setItem("user", JSON.stringify(backendUser));
 
-      return user;
+      return backendUser;
     } catch (error) {
       console.error("Error en GitHub login:", error);
       throw error;
@@ -84,23 +108,16 @@ class SocialAuthService {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      const firebaseToken = await user.getIdToken();
 
-      const userData: User = {
-        id: user.uid,
-        email: user.email || "",
-        code: user.uid,
-        role: "STUDENT",
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      // Verificar que el usuario existe en el backend (solo por email)
+      const backendUser = await this.verifyUserInBackend(user.email || "");
 
-      store.dispatch(setUser(userData));
+      store.dispatch(setUser(backendUser));
+      localStorage.setItem("token", firebaseToken);
+      localStorage.setItem("user", JSON.stringify(backendUser));
 
-      localStorage.setItem("token", await user.getIdToken());
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      return user;
+      return backendUser;
     } catch (error) {
       console.error("Error en Microsoft login:", error);
       throw error;
