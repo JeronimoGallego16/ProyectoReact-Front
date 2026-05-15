@@ -125,15 +125,63 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                               fill=""
                           />
                       </svg>
-                      Rubrics
+                      Rúbricas
                   </NavLink>
               </li>
-              {/* <!-- Menu Item Rubrics --> */}
 
-              {/* Calendar removed */}
+              {/* <!-- Menu Item Evaluations --> */}  
+              <li>
+                  <NavLink
+                      to="/evaluations"
+                      className={({ isActive }) =>
+                          `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
+                              isActive && 'bg-graydark dark:bg-meta-4'
+                          }`
+                      }
+                  >
+                      <svg
+                          className="fill-current"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 18 18"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                      >
+                          <path
+                              d="M16.5 2.25H1.5C0.675 2.25 0 2.925 0 3.75V14.25C0 15.075 0.675 15.75 1.5 15.75H16.5C17.325 15.75 18 15.075 18 14.25V3.75C18 2.925 17.325 2.25 16.5 2.25ZM16.5 14.25H1.5V3.75H16.5V14.25ZM3 6.75H15V8.25H3V6.75ZM3 9.75H11.25V11.25H3V9.75Z"
+                              fill=""
+                          />
+                      </svg>
+                      Evaluaciones
+                  </NavLink>
+              </li>
 
-              {/* Profile removed */}
-
+              {/* <!-- Menu Item Califications --> */}
+              <li>
+                  <NavLink
+                      to="/evaluations/:evaluationId/califications"
+                      className={({ isActive }) =>
+                          `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
+                              isActive && 'bg-graydark dark:bg-meta-4'
+                          }`
+                      }
+                  >
+                      <svg
+                          className="fill-current"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 18 18"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                      >
+                          <path
+                              d="M16.5 2.25H1.5C0.675 2.25 0 2.925 0 3.75V14.25C0 15.075 0.675 15.75 1.5 15.75H16.5C17.325 15.75 18 15.075 18 14.25V3.75C18 2.925 17.325 2.25 16.5 2.25ZM16.5 14.25H1.5V3.75H16.5V14.25ZM3 6.75H15V8.25H3V6.75ZM3 9.75H11.25V11.25H3V9.75Z"
+                              fill=""
+                          />
+                      </svg>
+                      Calificaciones
+                  </NavLink>
+              </li>
               {/* <!-- Menu Item Forms --> */}
               <SidebarLinkGroup
                 activeCondition={

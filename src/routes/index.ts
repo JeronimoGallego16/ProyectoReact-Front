@@ -4,11 +4,13 @@ const FormElements = lazy(() => import('../pages/Form/FormElements'));
 const FormLayout = lazy(() => import('../pages/Form/FormLayout'));
 const Profile = lazy(() => import('../pages/Profile'));
 const TestUsers = lazy(() => import('../pages/TestUsers'));
-const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
+const EvaluationsPage = lazy(() => import('../pages/Evaluation/Evaluations'));
 const TableTest = lazy(() => import('../pages/TableTest'));
 const RubricsPage = lazy(() => import('../pages/Evaluation/Rubrics'));
 const CriteriaByRubricPage = lazy(() => import('../pages/Evaluation/CriteriaByRubric'));
 const ScalesByCriterionPage = lazy(() => import('../pages/Evaluation/ScalesByCriterion'));
+const RubricForEvaluationPage = lazy(() => import('../pages/Evaluation/RubricForEvaluation'));
+const CalificationPage = lazy(() => import('../pages/Evaluation/Calification'));
 
 const coreRoutes = [
   {
@@ -32,11 +34,6 @@ const coreRoutes = [
     component: TestUsers,
   },
   {
-    path: '/evaluations',
-    title: 'Evaluations',
-    component: EvaluationPage,
-  },
-  {
     path: '/table-test',
     title: 'Table Test',
     component: TableTest,
@@ -55,6 +52,21 @@ const coreRoutes = [
     path: '/criteria/:criterionId/scales',
     title: 'Scales by Criterion Page',
     component: ScalesByCriterionPage,
+  },
+  {
+    path: '/evaluations',
+    title: 'Evaluations',
+    component: EvaluationsPage,
+  },
+  {
+    path: '/evaluations/:evaluationId/rubric',
+    title: 'Rubric for Evaluation',
+    component: RubricForEvaluationPage,
+  },
+  {
+    path: '/evaluations/:evaluationId/califications',
+    title: 'Calification',
+    component: CalificationPage,
   }
 ];
 

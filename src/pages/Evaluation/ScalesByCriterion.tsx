@@ -1,27 +1,34 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import GenericTable from "../../components/GenericTable";
 import SelectableTable from "../../components/SelectableTable";
+import EntityHeader from "../../components/EntityHeader";
+import ModalLauncher from "../../components/ModalLauncher";
+import PageHeader from "../../components/PageHeader";
+import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import { rubricService } from "../../services/RubricService";
 import { Criterion } from "../../models/Criterion";
 import { Scale } from "../../models/Scale";
-import securityService from "../../services/segurity.service";
+//import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
-// TODO: Import ScaleCrudPanel when available
-// import ScaleCrudPanel from "../components/ScaleCrudPanel";
+import { showToast } from "../../hooks/fireToast";
+import { useCrudModal } from "../../hooks/useCrudModal";
+import { useCopyScaleModal } from "../../hooks/useCopyScaleModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type CrudMode = "create" | "edit" | "delete" | null;
 
 const COLUMNS = ["name", "description", "value"];
 
 const ADMIN_TEACHER_ACTIONS = [
     { name: "edit", label: "Edit" },
     { name: "delete", label: "Delete" },
+    { name: "copy", label: "Copiar a..." },
 ];
 
 // Students have no actions — table is read-only, radio is visual only
 const STUDENT_ACTIONS: { name: string; label: string }[] = [];
+
+const TARGET_CRITERIA_COLUMNS = ["name", "description", "weight"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,19 +46,27 @@ const emptyForm = (): Omit<Scale, "id"> => ({
 const ScalesByCriterionPage: React.FC = () => {
     const { criterionId } = useParams<{ criterionId: string }>();
     const navigate = useNavigate();
+    const onBack = () => navigate(-1);
 
     const [criterion, setCriterion] = useState<Criterion | null>(null);
     const [scales, setScales] = useState<Scale[]>([]);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [crudMode, setCrudMode] = useState<CrudMode>(null);
-    const [selectedScale, setSelectedScale] = useState<Scale | null>(null);
-    const [form, setForm] = useState<Omit<Scale, "id">>(emptyForm());
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
 
-    const user = securityService.getUser();
-    const role: UserRole = user?.role ?? "STUDENT";
-    //const role: UserRole = "ADMIN";
+    const {
+        crudMode,
+        selectedItem: selectedScale, // Renombramos para mantener consistencia con tu código
+        form,
+        setForm,
+        resetCrud,
+        startCreate,
+        startEdit,
+    } = useCrudModal<Scale>(emptyForm());
+
+    //const user = securityService.getUser();
+    //const role: UserRole = user?.role ?? "STUDENT";
+    
+    const role: UserRole = "ADMIN";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
@@ -68,192 +83,235 @@ const ScalesByCriterionPage: React.FC = () => {
         setLoading(false);
     };
 
+    const {
+        isCopyModalOpen,
+        sourceScale,
+        targetCriteria,
+        selectedTargetIds,
+        loadingTargets,
+        isCopying,
+        openCopyModal,
+        closeCopyModal,
+        toggleTargetSelection,
+        handleCopyToSelectedCriteria,
+    } = useCopyScaleModal({
+        criterionId,
+        rubricId: criterion?.rubric_id,
+        onCopySuccess: loadData,
+    });
+
     useEffect(() => {
         loadData();
     }, [criterionId]);
-
-    // ── Feedback ──────────────────────────────────────────────────────────────
-
-    const showFeedback = (type: "success" | "error", message: string) => {
-        setFeedback({ type, message });
-        setTimeout(() => setFeedback(null), 3000);
-    };
-
-    // ── Selection (radio — single) ────────────────────────────────────────────
-
-    const handleAssignSelected = async () => {
-        if (!selectedId || !criterionId) {
-            showFeedback("error", "No scale selected.");
-            return;
-        }
-
-        const response = await rubricService.updateScale(selectedId, { criterion_id: criterionId });
-        const updated = response.data;
-        if (updated) {
-            showFeedback("success", "Scale assigned to criterion successfully.");
-            setSelectedId(null);
-            await loadData();
-        } else {
-            showFeedback("error", "Could not assign scale to criterion.");
-        }
-    };
 
     // ── CRUD handlers ─────────────────────────────────────────────────────────
 
     const handleAction = (actionName: string, item: Record<string, any>) => {
         const scale = item as Scale;
 
-        if (actionName === "select") {
-            setSelectedId((prev) => (prev === scale.id ? null : scale.id));
-            return;
-        }
-
         if (actionName === "edit") {
-            setSelectedScale(scale);
-            setForm({
-                criterion_id: scale.criterion_id ?? criterionId ?? "",
-                name: scale.name ?? "",
-                description: scale.description ?? "",
-                value: scale.value ?? 0,
-            });
-            setCrudMode("edit");
+            startEdit(scale);
+            setIsCrudModalOpen(true);
         }
 
         if (actionName === "delete") {
-            setSelectedScale(scale);
-            setCrudMode("delete");
+             void handleDelete(scale);
+        }
+
+        if (actionName === "copy") {
+            void openCopyModal(scale);
         }
     };
 
-    const handleSubmit = async () => {
+    const handleDelete = async (scale: Scale) => {
+        const ok = window.confirm(`Eliminar escala "${scale.name}" de este criterio?`);
+        if (!ok) return;
+
+        const response = await rubricService.updateScale(scale.id, { criterion_id: undefined });
+        if (response.data) {
+            showToast("Éxito", "Escala desvinculada del criterio.", 0);
+            await loadData();
+        } else {
+            showToast("Error", "No se pudo desvincular la escala.", 2);
+        }
+    };
+
+    const getFormTitle = (): string => {
+        if (crudMode === "create") return "Crear Escala";
+        if (crudMode === "edit") return `Editar Escala: ${selectedScale?.name ?? selectedScale?.id}`;
+        return "";
+    };
+
+    const getFormDescription = (): string => {
+        if (selectedScale && crudMode === "edit") {
+            return `ID: ${selectedScale.id} • Value: ${selectedScale.value ?? "—"}`;
+        }
+        return "";
+    };
+
+    const getFormFields = (): VerticalTextFormField[] => {
+        return [
+            {
+                name: "name",
+                label: "Name",
+                placeholder: "Enter scale name",
+                type: "text",
+                value: form.name,
+            },
+            {
+                name: "description",
+                label: "Description",
+                placeholder: "Enter scale description",
+                kind: "textarea",
+                rows: 3,
+                value: form.description,
+            },
+            {
+                name: "value",
+                label: "Value",
+                placeholder: "Enter scale value",
+                type: "number",
+                value: String(form.value),
+            },
+        ];
+    };
+
+    const getFormSaveLabel = (): string => {
+        if (crudMode === "create") return "Create";
+        if (crudMode === "edit") return "Save Changes";
+        return "Save";
+    };
+
+    const handleFormSave = async (values: Record<string, string>) => {
+        const nextForm: Omit<Scale, "id"> = {
+            ...form,
+            name: values.name ?? form.name,
+            description: values.description ?? form.description,
+            value: Number(values.value) ?? form.value,
+            criterion_id: criterionId ?? "",
+        };
+
+        setForm(nextForm);
+
         if (crudMode === "create") {
-            const response = await rubricService.createScale({ ...form, criterion_id: criterionId ?? "" });
-            const created = response.data;
-            if (created) {
-                showFeedback("success", "Scale created successfully.");
-                closeCrud();
+            const response = await rubricService.createScale(nextForm);
+            if (response.data) {
+                showToast("Éxito", "Escala creada exitosamente.", 0);
+                    setIsCrudModalOpen(false);
+                    resetCrud();
                 await loadData();
             } else {
-                showFeedback("error", "Could not create scale.");
+                showToast("Error", "No se pudo crear la escala.", 2);
             }
+            return;
         }
 
         if (crudMode === "edit" && selectedScale) {
-            const response = await rubricService.updateScale(selectedScale.id, form);
-            const updated = response.data;
-            if (updated) {
-                showFeedback("success", "Scale updated successfully.");
-                closeCrud();
+            const response = await rubricService.updateScale(selectedScale.id, {
+                name: nextForm.name,
+                description: nextForm.description,
+                value: nextForm.value,
+            });
+            if (response.data) {
+                showToast("Éxito", "Escala actualizada exitosamente.", 0);
+                    setIsCrudModalOpen(false);
+                    resetCrud();
                 await loadData();
             } else {
-                showFeedback("error", "Could not update scale.");
-            }
-        }
-
-        if (crudMode === "delete" && selectedScale) {
-            // RubricService does not expose deleteScale yet.
-            // TODO: Call rubricService.deleteScale(selectedScale.id) when available.
-            // For now we unassign the scale from the criterion by clearing criterion_id.
-            const response = await rubricService.updateScale(selectedScale.id, { criterion_id: undefined });
-            const updated = response.data;
-            if (updated) {
-                showFeedback("success", "Scale removed from criterion.");
-                closeCrud();
-                await loadData();
-            } else {
-                showFeedback("error", "Could not remove scale.");
+                showToast("Error", "No se pudo actualizar la escala.", 2);
             }
         }
     };
-
-    const closeCrud = () => {
-        setCrudMode(null);
-        setSelectedScale(null);
-        setForm(emptyForm());
-    };
-
-    const openCreate = () => {
-        setSelectedScale(null);
-        setForm({ ...emptyForm(), criterion_id: criterionId ?? "" });
-        setCrudMode("create");
-    };
-
-    // ── Table data ────────────────────────────────────────────────────────────
-
-    const tableData = scales.map((s) => ({ ...s }));
 
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
-            {/* Back button */}
-            <button
-                onClick={() => navigate(-1)}
-                className="mb-4 inline-flex items-center gap-1 text-sm text-body hover:text-black dark:text-bodydark dark:hover:text-white"
-            >
-                ← Back to Criteria
-            </button>
-
-            {/* Criterion info header */}
+            {/* Entity header with back button and criterion info */}
             {criterion && (
-                <div className="mb-6 rounded-sm border border-stroke bg-white px-6 py-4 shadow-default dark:border-strokedark dark:bg-boxdark">
-                    <p className="text-xs font-medium uppercase text-body dark:text-bodydark">Criterion</p>
-                    <h2 className="mt-1 text-title-md2 font-semibold text-black dark:text-white">
-                        {criterion.name ?? criterion.id}
-                    </h2>
-                    {criterion.description && (
-                        <p className="mt-1 text-sm text-body dark:text-bodydark">{criterion.description}</p>
-                    )}
+                <EntityHeader
+                    onBack={onBack}
+                    backLabel="← Volver"
+                    title={criterion.name ?? criterion.id}
+                    description={criterion.description}
+                    entityType="Criterio"
+                >
                     {criterion.weight !== undefined && (
-                        <p className="mt-1 text-sm text-body dark:text-bodydark">Weight: {criterion.weight}</p>
+                        <p className="text-sm text-body dark:text-bodydark">Peso: {criterion.weight}</p>
                     )}
-                </div>
+                </EntityHeader>
+            )}
+
+            {/* Copy scale modal */}
+            {isCopyModalOpen && (
+                <ModalLauncher isOpen={isCopyModalOpen} onClose={closeCopyModal}>
+                    {() => (
+                        <div>
+                            <div className="mb-4">
+                                <h3 className="text-lg font-semibold text-black dark:text-white">
+                                    Copiar escala a otros criterios
+                                </h3>
+                                <p className="mt-2 text-sm text-body dark:text-bodydark">
+                                    Escala origen: <span className="font-medium text-black dark:text-white">{sourceScale?.name ?? sourceScale?.id}</span>
+                                </p>
+                            </div>
+
+                            <p className="mb-4 text-sm text-body dark:text-bodydark">
+                                Selecciona uno o varios criterios destino para copiar la escala sin perder la original.
+                            </p>
+
+                            <div className="max-h-[50vh] overflow-y-auto">
+                                {loadingTargets ? (
+                                    <p className="p-4 text-sm text-body dark:text-bodydark">Cargando criterios destino…</p>
+                                ) : targetCriteria.length === 0 ? (
+                                    <p className="p-4 text-sm text-body dark:text-bodydark">No hay criterios disponibles para copiar esta escala.</p>
+                                ) : (
+                                    <SelectableTable
+                                        data={targetCriteria}
+                                        columns={TARGET_CRITERIA_COLUMNS}
+                                        actions={[]}
+                                        onAction={(actionName, item) => {
+                                            if (actionName === "select") {
+                                                toggleTargetSelection((item as Criterion).id);
+                                            }
+                                        }}
+                                        selectionMode={2}
+                                    />
+                                )}
+                            </div>
+
+                            <div className="mt-5 flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={closeCopyModal}
+                                    className="rounded-md border border-stroke px-4 py-2 text-sm font-medium text-body hover:bg-gray-2 dark:border-strokedark dark:text-bodydark"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleCopyToSelectedCriteria()}
+                                    disabled={loadingTargets || isCopying || targetCriteria.length === 0}
+                                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {isCopying ? "Copiando..." : `Copiar a seleccionados (${selectedTargetIds.size})`}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </ModalLauncher>
             )}
 
             {/* Page header */}
-            <div className="mb-6 flex items-center justify-between">
-                <div>
-                    <h3 className="text-lg font-semibold text-black dark:text-white">Scales</h3>
-                    <p className="text-sm text-body dark:text-bodydark">
-                        {editable
-                            ? "Manage scales for this criterion. Select one to assign it."
-                            : "Browse scales for this criterion."}
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    {editable && selectedId && (
-                        <button
-                            onClick={handleAssignSelected}
-                            className="inline-flex items-center gap-2 rounded-md bg-meta-3 px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
-                        >
-                            Assign selected
-                        </button>
-                    )}
-                    {editable && (
-                        <button
-                            onClick={openCreate}
-                            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
-                        >
-                            + New Scale
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* Feedback */}
-            {feedback && (
-                <div
-                    className={`mb-4 rounded-md px-4 py-3 text-sm font-medium ${
-                        feedback.type === "success"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                    }`}
-                >
-                    {feedback.message}
-                </div>
-            )}
+            <PageHeader
+                title="Escalas"
+                description={editable
+                    ? "Gestiona tus escalas para este criterio. Selecciona una para asignarla."
+                    : "Explora las escalas para este criterio."}
+                primaryAction={{ label: "+ Nueva Escala", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
+            >
+            </PageHeader>
 
             {/* Table */}
             <div
@@ -263,181 +321,35 @@ const ScalesByCriterionPage: React.FC = () => {
             >
                 <div className="h-full overflow-y-auto">
                     {loading ? (
-                        <p className="p-6 text-sm text-body dark:text-bodydark">Loading scales…</p>
+                        <p className="p-6 text-sm text-body dark:text-bodydark">Cargando escalas…</p>
                     ) : scales.length === 0 ? (
-                        <p className="p-6 text-sm text-body dark:text-bodydark">No scales found for this criterion.</p>
+                        <p className="p-6 text-sm text-body dark:text-bodydark">No se econtraron escalas para este criterio.</p>
                     ) : (
-                        <SelectableTable
-                            data={tableData}
+                        <GenericTable
+                            data={scales}
                             columns={COLUMNS}
                             actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
-                            onAction={(actionName, item) => {
-                                if (actionName === "select") {
-                                    handleAction("select", item);
-                                    return;
-                                }
-                                handleAction(actionName, item);
-                            }}
-                            selectionMode={1}
+                            onAction={handleAction}
                         />
                     )}
                 </div>
             </div>
 
-            {/* CRUD panel — only visible for ADMIN / TEACHER, action on existing scale */}
-            {editable && crudMode && selectedScale && (
-                <div className="mt-6 rounded-sm border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
-
-                    {/*
-                     * TODO: Replace the placeholder below with <ScaleCrudPanel /> when available.
-                     *
-                     * Suggested props:
-                     *   <ScaleCrudPanel
-                     *       mode={crudMode}              // "create" | "edit" | "delete"
-                     *       scale={selectedScale}        // Scale | null (null for create)
-                     *       criterionId={criterionId}    // to pre-fill criterion_id on create
-                     *       form={form}
-                     *       onFormChange={setForm}
-                     *       onSubmit={handleSubmit}
-                     *       onClose={closeCrud}
-                     *   />
-                     */}
-
-                    <div className="mb-4 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-black dark:text-white">
-                            {crudMode === "edit" && `Edit Scale: ${selectedScale?.name ?? selectedScale?.id}`}
-                            {crudMode === "delete" && `Remove Scale: ${selectedScale?.name ?? selectedScale?.id}`}
-                        </h3>
-                        <button
-                            onClick={closeCrud}
-                            className="text-sm text-body hover:text-black dark:text-bodydark dark:hover:text-white"
-                        >
-                            ✕ Close
-                        </button>
-                    </div>
-
-                    {/* Scale info */}
-                    <div className="mb-4 rounded-md border border-stroke bg-gray-2 px-4 py-3 text-sm dark:border-strokedark dark:bg-meta-4">
-                        <p className="text-black dark:text-white"><span className="font-medium">ID:</span> {selectedScale.id}</p>
-                        <p className="text-black dark:text-white"><span className="font-medium">Name:</span> {selectedScale.name ?? "—"}</p>
-                        <p className="text-black dark:text-white"><span className="font-medium">Description:</span> {selectedScale.description ?? "—"}</p>
-                        <p className="text-black dark:text-white"><span className="font-medium">Value:</span> {selectedScale.value ?? "—"}</p>
-                    </div>
-
-                    {/* Edit form */}
-                    {crudMode === "edit" && (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-black dark:text-white">Name</label>
-                                <input
-                                    type="text"
-                                    value={form.name ?? ""}
-                                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                    className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-black dark:text-white">Description</label>
-                                <input
-                                    type="text"
-                                    value={form.description ?? ""}
-                                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                    className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-black dark:text-white">Value</label>
-                                <input
-                                    type="number"
-                                    value={form.value ?? 0}
-                                    onChange={(e) => setForm({ ...form, value: Number(e.target.value) })}
-                                    className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                                />
-                            </div>
-                        </div>
+            {/* CRUD modal using ModalLauncher */}
+            {editable && crudMode && (
+                <ModalLauncher isOpen={isCrudModalOpen} onClose={() => { setIsCrudModalOpen(false); resetCrud(); }}>
+                    {() => (
+                        <VerticalTextFormCard
+                            title={getFormTitle()}
+                            description={getFormDescription()}
+                            fields={getFormFields()}
+                            saveLabel={getFormSaveLabel()}
+                            cancelLabel="Cancelar"
+                            onSave={handleFormSave}
+                            onCancel={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                        />
                     )}
-
-                    {/* Delete confirmation */}
-                    {crudMode === "delete" && (
-                        <p className="text-sm text-red-500">
-                            Are you sure you want to remove this scale from the criterion?
-                        </p>
-                    )}
-
-                    {/* Actions */}
-                    <div className="mt-6 flex gap-3">
-                        <button
-                            onClick={handleSubmit}
-                            className={`rounded-md px-5 py-2 text-sm font-medium text-white hover:bg-opacity-90 ${
-                                crudMode === "delete" ? "bg-red-500" : "bg-primary"
-                            }`}
-                        >
-                            {crudMode === "edit" && "Save Changes"}
-                            {crudMode === "delete" && "Confirm Remove"}
-                        </button>
-                        <button
-                            onClick={closeCrud}
-                            className="rounded-md border border-stroke px-5 py-2 text-sm font-medium text-black hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Create panel — no scale selected */}
-            {editable && crudMode === "create" && !selectedScale && (
-                <div className="mt-6 rounded-sm border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
-                    <div className="mb-4 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-black dark:text-white">Create Scale</h3>
-                        <button onClick={closeCrud} className="text-sm text-body hover:text-black dark:text-bodydark dark:hover:text-white">
-                            ✕ Close
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-black dark:text-white">Name</label>
-                            <input
-                                type="text"
-                                value={form.name ?? ""}
-                                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                            />
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-black dark:text-white">Description</label>
-                            <input
-                                type="text"
-                                value={form.description ?? ""}
-                                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                            />
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-black dark:text-white">Value</label>
-                            <input
-                                type="number"
-                                value={form.value ?? 0}
-                                onChange={(e) => setForm({ ...form, value: Number(e.target.value) })}
-                                className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-sm text-black outline-none focus:border-primary dark:border-strokedark dark:text-white"
-                            />
-                        </div>
-                    </div>
-                    <div className="mt-6 flex gap-3">
-                        <button
-                            onClick={handleSubmit}
-                            className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-white hover:bg-opacity-90"
-                        >
-                            Create
-                        </button>
-                        <button
-                            onClick={closeCrud}
-                            className="rounded-md border border-stroke px-5 py-2 text-sm font-medium text-black hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
+                </ModalLauncher>
             )}
 
         </div>

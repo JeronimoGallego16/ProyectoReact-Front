@@ -158,6 +158,21 @@ class RubricService {
         return apiService.put<Criterion>(`${API_URL_CRITERIA}/${id}`, criterion);
     }
 
+    // Método para eliminar un criterio.
+    async deleteCriterion(id: string): Promise<ApiResponse<any>> {
+        const criterionResponse = await this.getCriterionById(id);
+        const criterion = criterionResponse.data;
+        if (!criterion) {
+            console.error(`No existe el criterio con id ${id}`);
+            return {
+                success: false,
+                error: `No existe el criterio con id ${id}`,
+            };
+        }
+
+        return apiService.delete<any>(`${API_URL_CRITERIA}/${id}`);
+    }
+
 
     // Escalas
     // Método para obtener las escalas de un criterio específico.
