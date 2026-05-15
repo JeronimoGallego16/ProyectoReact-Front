@@ -11,7 +11,7 @@ import { User } from "../models/user";
 
 class SocialAuthService {
   // Google
-  async loginWithGoogle() {
+  async loginWithGoogle() {git 
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
