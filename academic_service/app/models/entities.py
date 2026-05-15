@@ -4,6 +4,14 @@ from enum import Enum
 from . import db
 
 
+# Association table for StudyPlan <-> Subject many-to-many
+study_plan_subjects = db.Table(
+    'study_plan_subjects',
+    db.Column('study_plan_id', db.String(36), db.ForeignKey('study_plans.id'), primary_key=True),
+    db.Column('subject_id', db.String(36), db.ForeignKey('subjects.id'), primary_key=True)
+)
+
+
 def generate_uuid():
     return str(uuid.uuid4())
 
@@ -94,23 +102,21 @@ class Subject(TimestampMixin, db.Model):
     is_active = db.Column(db.Boolean, nullable=False, default=True)
 
     groups = db.relationship('Group', back_populates='subject')
-    study_plans = db.relationship('StudyPlan', back_populates='subject')
+    study_plans = db.relationship('StudyPlan', secondary=study_plan_subjects, back_populates='subjects')
     evaluations = db.relationship('Evaluation', back_populates='subject')
-    rubrics = db.relationship('Rubric', back_populates='subject')
 
 
 class StudyPlan(TimestampMixin, db.Model):
     __tablename__ = 'study_plans'
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     career_id = db.Column(db.String(36), db.ForeignKey('careers.id'), nullable=False)
-    subject_id = db.Column(db.String(36), db.ForeignKey('subjects.id'), nullable=False)
     name = db.Column(db.String(120), nullable=False)
     year = db.Column(db.Integer, nullable=False)
     suggested_semester = db.Column(db.Integer, nullable=False)
     is_published = db.Column(db.Boolean, nullable=False, default=False)
 
     career = db.relationship('Career', back_populates='study_plans')
-    subject = db.relationship('Subject', back_populates='study_plans')
+    subjects = db.relationship('Subject', secondary=study_plan_subjects, back_populates='study_plans')
 
 
 class Group(TimestampMixin, db.Model):
@@ -161,13 +167,10 @@ class Registration(TimestampMixin, db.Model):
 class Rubric(TimestampMixin, db.Model):
     __tablename__ = 'rubrics'
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
-    subject_id = db.Column(db.String(36), db.ForeignKey('subjects.id'), nullable=False)
     title = db.Column(db.String(120), nullable=False)
     description = db.Column(db.Text)
     is_public = db.Column(db.Boolean, nullable=False, default=False)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
-
-    subject = db.relationship('Subject', back_populates='rubrics')
     criteria = db.relationship('Criterion', back_populates='rubric', cascade='all, delete-orphan')
     grades = db.relationship('Grade', back_populates='rubric')
     evaluations = db.relationship('Evaluation', back_populates='rubric')

@@ -155,8 +155,42 @@ class AcademicService:
         return model_to_dict(self.subject_repository.create(entity))
 
     def create_study_plan(self, payload):
+        # ensure subject_id is not expected in payload (managed via associations)
+        payload.pop('subject_id', None)
         entity = StudyPlan(**payload)
         return model_to_dict(self.study_plan_repository.create(entity))
+
+    def add_subject_to_study_plan(self, study_plan_id, subject_id):
+        study_plan = self.study_plan_repository.get_by_id(study_plan_id)
+        subject = self.subject_repository.get_by_id(subject_id)
+        if not study_plan:
+            raise ValueError('study plan not found')
+        if not subject:
+            raise ValueError('subject not found')
+        if subject in study_plan.subjects:
+            raise ValueError('subject already linked to study plan')
+        study_plan.subjects.append(subject)
+        db.session.commit()
+        return model_to_dict(study_plan)
+
+    def remove_subject_from_study_plan(self, study_plan_id, subject_id):
+        study_plan = self.study_plan_repository.get_by_id(study_plan_id)
+        if not study_plan:
+            raise ValueError('study plan not found')
+        subject = self.subject_repository.get_by_id(subject_id)
+        if not subject:
+            raise ValueError('subject not found')
+        if subject not in study_plan.subjects:
+            raise ValueError('subject not linked to study plan')
+        study_plan.subjects.remove(subject)
+        db.session.commit()
+        return model_to_dict(study_plan)
+
+    def list_subjects_of_study_plan(self, study_plan_id):
+        study_plan = self.study_plan_repository.get_by_id(study_plan_id)
+        if not study_plan:
+            raise ValueError('study plan not found')
+        return [model_to_dict(s) for s in study_plan.subjects]
 
     def create_group(self, payload):
         if self.group_repository.find_one_by(group_code=payload['group_code']):

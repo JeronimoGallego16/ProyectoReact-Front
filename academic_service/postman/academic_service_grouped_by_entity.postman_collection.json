@@ -1003,7 +1003,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"career_id\": \"{{career_id}}\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"name\": \"Plan 2026\",\n  \"year\": 2026,\n  \"suggested_semester\": 1,\n  \"is_published\": false\n}",
+              "raw": "{\n  \"career_id\": \"{{career_id}}\",\n  \"name\": \"Plan 2026\",\n  \"year\": 2026,\n  \"suggested_semester\": 1,\n  \"is_published\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1101,7 +1101,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"career_id\": \"{{career_id}}\",\n  \"subject_id\": \"{{subject_id}}\",\n  \"name\": \"Plan 2026 Updated\",\n  \"year\": 2026,\n  \"suggested_semester\": 2,\n  \"is_published\": true\n}",
+              "raw": "{\n  \"career_id\": \"{{career_id}}\",\n  \"name\": \"Plan 2026 Updated\",\n  \"year\": 2026,\n  \"suggested_semester\": 2,\n  \"is_published\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1165,7 +1165,102 @@
                 "api",
                 "academic",
                 "study-plans",
-                "{{study_plan_id}}"
+                  "{{study_plan_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Link Subject To Study Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/academic/study-plans/{{study_plan_id}}/subjects/{{subject_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "academic",
+                "study-plans",
+                "{{study_plan_id}}",
+                "subjects",
+                "{{subject_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Unlink Subject From Study Plan",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/academic/study-plans/{{study_plan_id}}/subjects/{{subject_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "academic",
+                "study-plans",
+                "{{study_plan_id}}",
+                "subjects",
+                "{{subject_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Study Plan Subjects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/academic/study-plans/{{study_plan_id}}/subjects",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "academic",
+                "study-plans",
+                "{{study_plan_id}}",
+                "subjects"
               ]
             }
           }
@@ -1940,7 +2035,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subject_id\": \"{{subject_id}}\",\n  \"title\": \"Rubric 1\",\n  \"description\": \"Main rubric\",\n  \"is_public\": false,\n  \"is_archived\": false\n}",
+              "raw": "{\n  \"title\": \"Rubric 1\",\n  \"description\": \"Main rubric\",\n  \"is_public\": false,\n  \"is_archived\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2038,7 +2133,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subject_id\": \"{{subject_id}}\",\n  \"title\": \"Rubric 1 Updated\",\n  \"description\": \"Updated rubric\",\n  \"is_public\": false,\n  \"is_archived\": false\n}",
+              "raw": "{\n  \"title\": \"Rubric 1 Updated\",\n  \"description\": \"Updated rubric\",\n  \"is_public\": false,\n  \"is_archived\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"

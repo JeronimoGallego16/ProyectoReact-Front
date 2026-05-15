@@ -1,13 +1,48 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 import PlaceholderAvatar from '../images/placeholder.svg';
+import { RootState } from '../store/store';
+import SecurityService from '../services/segurity.service';
+
+const getRoleLabel = (role?: string) => {
+  switch (role) {
+    case 'ADMIN':
+      return 'Administrador';
+    case 'TEACHER':
+      return 'Docente';
+    case 'STUDENT':
+      return 'Estudiante';
+    default:
+      return 'Usuario';
+  }
+};
+
+const getUserDisplayName = (user: any) => {
+  if (user?.profile?.first_name && user?.profile?.last_name) {
+    return `${user.profile.first_name} ${user.profile.last_name}`;
+  }
+  return user?.email || 'Usuario';
+};
 
 const DropdownUser = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const navigate = useNavigate();
+  const user = useSelector((state: RootState) => state.user.user);
 
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
+
+  const displayName = getUserDisplayName(user);
+  const roleLabel = getRoleLabel(user?.role);
+
+  const handleLogout = () => {
+    SecurityService.logout();
+    toast.success('Sesión cerrada correctamente');
+    navigate('/auth/signin');
+  };
 
   // close on click outside
   useEffect(() => {
@@ -45,9 +80,9 @@ const DropdownUser = () => {
       >
         <span className="hidden text-right lg:block">
           <span className="block text-sm font-medium text-black dark:text-white">
-            Thomas Anree
+            {displayName}
           </span>
-          <span className="block text-xs">UX Designer</span>
+          <span className="block text-xs">{roleLabel}</span>
         </span>
 
         <span className="h-12 w-12 rounded-full">
@@ -155,7 +190,10 @@ const DropdownUser = () => {
             </Link>
           </li>
         </ul>
-        <button className="flex items-center gap-3.5 py-4 px-6 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3.5 py-4 px-6 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
+        >
           <svg
             className="fill-current"
             width="22"

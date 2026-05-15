@@ -39,6 +39,30 @@ def create_study_plan():
         return error_response(str(exc), 400)
 
 
+@academic_bp.post('/study-plans/<study_plan_id>/subjects/<subject_id>')
+def add_subject_to_study_plan(study_plan_id, subject_id):
+    try:
+        return success_response(academic_service.add_subject_to_study_plan(study_plan_id, subject_id), 'Subject linked to study plan', 200)
+    except ValueError as exc:
+        return error_response(str(exc), 400)
+
+
+@academic_bp.delete('/study-plans/<study_plan_id>/subjects/<subject_id>')
+def remove_subject_from_study_plan(study_plan_id, subject_id):
+    try:
+        return success_response(academic_service.remove_subject_from_study_plan(study_plan_id, subject_id), 'Subject unlinked from study plan', 200)
+    except ValueError as exc:
+        return error_response(str(exc), 400)
+
+
+@academic_bp.get('/study-plans/<study_plan_id>/subjects')
+def list_subjects_of_study_plan(study_plan_id):
+    try:
+        return success_response(academic_service.list_subjects_of_study_plan(study_plan_id))
+    except ValueError as exc:
+        return error_response(str(exc), 404)
+
+
 @academic_bp.post('/groups')
 def create_group():
     try:
