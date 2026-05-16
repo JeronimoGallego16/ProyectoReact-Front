@@ -1,95 +1,98 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import CriterionCommentBox from "../../components/CriterionCommentBox";
-import { gradeService } from "../../services/GradeService";
-import { enrollmentService } from "../../services/EnrollmentService";
-import studentService from "../../services/student.service";
-import { Grade } from "../../models/Grade";
-//import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/User"; 
 import { showToast } from "../../hooks/fireToast";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { gradeService } from "../../services/GradeService";
+import securityService from "../../services/segurity.service";
+import { evaluationAuthorizationService } from "../../services/EvalationAuthorizationService";
+import studentService from "../../services/student.service";
 
+import { Grade } from "../../models/Grade";
+import { UserRole } from "../../models/User"; 
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["final_score", "student_code", "observations", "is_locked"];
 
-const TEACHER_ACTIONS = (_grade: Grade) => [
-    { name: "view", label: "Ver" },
+const TEACHER_ACTIONS = () => [
+    { name: "view", label: "Ver Detalles" },
     { name: "observations", label: "Observaciones" },
 ];
 
 const STUDENT_ACTIONS = [
-    { name: "view", label: "Ver" },
+    { name: "view", label: "Ver Detalles" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const getActionsForRole = (isEditable: boolean) => (isEditable ? TEACHER_ACTIONS() : STUDENT_ACTIONS);
 
+const getStudentCode = async (studentDetailId?: string): Promise<string> => {
+    if (!studentDetailId) return "-";
+
+    const academicStudentResponse = await studentService.getAcademicStudentById(studentDetailId);
+    const academicStudent = academicStudentResponse.data;
+    if (!academicStudent?.user_id) return "-";
+
+    const studentResponse = await studentService.getStudentById(academicStudent.user_id);
+    return studentResponse.data?.code ?? studentResponse.data?.id ?? "-";
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 const GradesPage: React.FC = () => {
-    const [grades, setGrades] = useState<Grade[]>([]);
-    const [students, setStudents] = useState<{ student_code: string; email: string; enrollment_id: string }[]>([]);
     const [loading, setLoading] = useState(true);
+    const [tableData, setTableData] = useState<Record<string, any>[]>([]);
     const navigate = useNavigate();
 
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
+    const [grades, setGrades] = useState<Grade[]>([]);
 
-    const role: UserRole = "ADMIN";
+    // Observations state
+    const [obsModalOpen, setObsModalOpen] = useState(false);
+    const [obsGrade, setObsGrade] = useState<Grade | null>(null);
+    const [obsValue, setObsValue] = useState<string>("");
+    const [savingObs, setSavingObs] = useState(false);
+
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
-
     const loadGrades = async () => {
         setLoading(true);
-        const resp = await gradeService.getGrades();
+        try {
+            const resp = await gradeService.getGrades();
 
-        // Resp puede ser:
-        // - Un array (backend devuelve payload crudo)
-        // - Un ApiResponse { success, data }
-        // Aceptamos ambos formatos sin cambiar el cliente global.
-        let data: Grade[] = [];
-        if (Array.isArray(resp)) {
-            data = resp as Grade[];
-        } else if (resp && Array.isArray((resp as any).data)) {
-            data = (resp as any).data as Grade[];
-        } else if (resp && (resp as any).success === false) {
-            showToast('Error', (resp as any).error ?? 'No se pudo cargar las notas', 2);
-        }
-        setGrades(data);
+            if (!resp.success) {
+                showToast("Error", resp.error ?? "No se pudo cargar las notas", 2);
+            }
 
-        // Build a small lookup of enrollment_id -> student_code by fetching enrollments/students for each grade
-        const rows = await Promise.all(
-            data.map(async (g) => {
-                try {
-                    const enrollment = await enrollmentService.getEnrollmentById(g.enrollment_id);
-                    if (!enrollment) return { student_code: "N/A", email: "N/A", enrollment_id: g.enrollment_id };
+            const data: Grade[] = Array.isArray(resp.data) ? resp.data : [];
 
-                    const academicStudentResp = await studentService.getAcademicStudentById(enrollment.student_id);
-                    const academicStudent = (academicStudentResp?.data ?? {}) as any;
+            const filteredGrades = await evaluationAuthorizationService.filterGradesByUser(user, data);
 
-                    const userResp = academicStudent?.user_id
-                        ? await studentService.getStudentById(academicStudent.user_id)
-                        : null;
-                    const student = (userResp as any)?.data ?? userResp;
+            setGrades(filteredGrades);
+
+            const nextTableData = await Promise.all(
+                filteredGrades.map(async (grade) => {
+                    const studentDetailId = grade.details?.[0]?.student_id;
+                    const studentCode = await getStudentCode(studentDetailId);
 
                     return {
-                        student_code: student?.code ?? academicStudent?.identification ?? "N/A",
-                        email: student?.email ?? "N/A",
-                        enrollment_id: enrollment.id,
+                        ...grade,
+                        student_code: studentCode,
+                        observations: grade.observations ? grade.observations : "-",
+                        is_locked: grade.is_locked ? "Bloqueada" : "No publicada",
                     };
-                } catch (e) {
-                    return { student_code: "N/A", email: "N/A", enrollment_id: g.enrollment_id };
-                }
-            })
-        );
-
-        setStudents(rows);
-        setLoading(false);
+                })
+            );
+            setTableData(nextTableData);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -97,7 +100,6 @@ const GradesPage: React.FC = () => {
     }, []);
 
     // ── Handlers ──────────────────────────────────────────────────────────────
-
     const handleAction = (actionName: string, item: Record<string, any>) => {
         const grade = item as Grade;
 
@@ -153,19 +155,10 @@ const GradesPage: React.FC = () => {
         await loadGrades();
     };
 
-
-
-    // ── Table data ────────────────────────────────────────────────────────────
-
-    // Observations state
-    const [obsModalOpen, setObsModalOpen] = useState(false);
-    const [obsGrade, setObsGrade] = useState<Grade | null>(null);
-    const [obsValue, setObsValue] = useState<string>("");
-    const [savingObs, setSavingObs] = useState(false);
-
     const saveObservations = async () => {
         if (!obsGrade) return;
         setSavingObs(true);
+
         try {
             const resp = await gradeService.updateGrade(obsGrade.id, { observations: obsValue });
             if (resp && (resp as any).data) {
@@ -188,16 +181,8 @@ const GradesPage: React.FC = () => {
         }
     };
 
-
-    const tableData = grades.map((g) => ({
-        ...g,
-        student_code: students.find((s) => s.enrollment_id === g.enrollment_id)?.student_code ?? "",
-        observations: g.observations ? g.observations : "-",
-        is_locked: g.is_locked ? "Bloqueada" : "Editable",
-    }));
-
+    // ── Table data ────────────────────────────────────────────────────────────
     // ── Render ────────────────────────────────────────────────────────────────
-
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
@@ -220,24 +205,14 @@ const GradesPage: React.FC = () => {
                         <GenericTable
                             data={tableData}
                             columns={COLUMNS}
-                            actions={editable ? TEACHER_ACTIONS(grades[0]) : STUDENT_ACTIONS}
-                            onAction={(actionName, item) => {
-                                const grade = grades.find((g) => g.id === (item as Grade).id);
-                                if (!grade) return;
-                                if (actionName === "view") {
-                                    handleAction("view", grade);
-                                    return;
-                                }
-                                if (actionName === "observations") {
-                                    handleAction("observations", grade);
-                                }
-                            }}
+                            actions={getActionsForRole(editable)}
+                            onAction={(actionName, item) => handleAction(actionName, item as Grade)}
                         />
                     )}
                 </div>
             </div>
 
-            {/* Publish button — publishes all unlocked grades at once */}
+            {/* Observations box */}
             {obsModalOpen && (
                 <div className="p-4">
                     <CriterionCommentBox
@@ -251,18 +226,17 @@ const GradesPage: React.FC = () => {
                 </div>
             )}
 
+            {/* Publish button — publishes all unlocked grades at once */}
             {editable && (
                 <div className="mt-4 flex flex-wrap gap-2">
                     <button
                         onClick={() => void handlePublishAll()}
-                        disabled={!grades.some((g) => !g.is_locked)}
                         className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         Publicar todas las notas pendientes
                     </button>
                 </div>
             )}
-
         </div>
     );
 };

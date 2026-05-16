@@ -1,22 +1,25 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+
 import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
+import { showToast } from "../../hooks/fireToast";
+import { useCrudModal } from "../../hooks/useCrudModal";
+
 import { evaluationService } from "../../services/EvaluationService";
 import { groupService } from "../../services/GroupService";
 import { subjectService } from "../../services/SubjectService";
+import securityService from "../../services/segurity.service";
+import { evaluationAuthorizationService } from "../../services/EvalationAuthorizationService";
+
 import { Evaluation } from "../../models/Evaluation";
 import { Group } from "../../models/Group";
 import { Subject } from "../../models/Subject";
-import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/User";
-import { showToast } from "../../hooks/fireToast";
-import { useCrudModal } from "../../hooks/useCrudModal";
-import { useNavigate } from "react-router";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 const COLUMNS = ["name", "description", "weight", "subject_id", "group_id"];
 
 const ADMIN_TEACHER_ACTIONS = [
@@ -31,7 +34,6 @@ const STUDENT_ACTIONS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
 const emptyForm = (): Omit<Evaluation, "id"> => ({
@@ -43,7 +45,6 @@ const emptyForm = (): Omit<Evaluation, "id"> => ({
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
-
 const EvaluationsPage: React.FC = () => {
     const navigate = useNavigate();
 
@@ -63,25 +64,38 @@ const EvaluationsPage: React.FC = () => {
             startEdit,
         } = useCrudModal<Evaluation>(emptyForm());
 
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
-
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
-
     const loadData = async () => {
         setLoading(true);
-        const [evaluationsResponse, subjectsData, groupsData] = await Promise.all([
+        try {
+            const user = securityService.getUser();
+
+            const [evaluationsResponse, subjectsData, groupsData] = await Promise.all([
             evaluationService.getEvaluations(),
             subjectService.getActiveSubjects(),
             groupService.getGroups(),
-        ]);
-        setEvaluations(Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : []);
-        setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
-        setGroups(Array.isArray(groupsData) ? groupsData : []);
-        setLoading(false);
+            ]);
+
+            const allEvaluations = Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : [];
+            const accessibleSubjects = await evaluationAuthorizationService.getAccessibleSubjectIds(user);
+
+            const filteredEvaluations =
+            user?.role === "ADMIN"
+                ? allEvaluations
+                : allEvaluations.filter((evaluation) =>
+                    accessibleSubjects.includes(evaluation.subject_id ?? "")
+                );
+
+            setEvaluations(filteredEvaluations);
+            setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
+            setGroups(Array.isArray(groupsData) ? groupsData : []);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -89,7 +103,6 @@ const EvaluationsPage: React.FC = () => {
     }, []);
 
     // ── CRUD handlers ─────────────────────────────────────────────────────────
-
     const handleAction = (actionName: string, item: Record<string, any>) => {
         const evaluation = item as Evaluation;
 
@@ -140,7 +153,6 @@ const EvaluationsPage: React.FC = () => {
     };
 
     // ── Helper functions for VerticalTextFormCard ─────────────────────────────
-
     const getFormTitle = (): string => {
         if (crudMode === "create") return "Crear Evaluación";
         if (crudMode === "edit") return "Editar Evaluación";
@@ -243,7 +255,6 @@ const EvaluationsPage: React.FC = () => {
     };
 
     // ── Table data ────────────────────────────────────────────────────────────
-
     const tableData = evaluations.map((e) => ({
         ...e,
         subject_id: subjects.find((s) => s.id === e.subject_id)?.name ?? e.subject_id ?? "—",
@@ -251,7 +262,6 @@ const EvaluationsPage: React.FC = () => {
     }));
 
     // ── Render ────────────────────────────────────────────────────────────────
-
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 

@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+
 import SelectableTable from "../../components/SelectableTable";
 import PageHeader from "../../components/PageHeader";
-import { rubricService } from "../../services/RubricService";
-import { evaluationService } from "../../services/EvaluationService";
-import { Rubric } from "../../models/Rubric";
-import { Evaluation } from "../../models/Evaluation";
 import EntityHeader from "../../components/EntityHeader";
-//import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/User";
 import { showToast } from "../../hooks/fireToast";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { rubricService } from "../../services/RubricService";
+import securityService from "../../services/segurity.service";
+import { evaluationService } from "../../services/EvaluationService";
 
+import { Rubric } from "../../models/Rubric";
+import { Evaluation } from "../../models/Evaluation";
+import { UserRole } from "../../models/User";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["title", "description"];
 
 const ADMIN_TEACHER_ACTIONS = [{ name: "view", label: "Ver" }];
@@ -22,7 +24,6 @@ const STUDENT_ACTIONS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
 const RubricForEvaluationPage: React.FC = () => {
@@ -35,14 +36,11 @@ const RubricForEvaluationPage: React.FC = () => {
     const [selectedRubric, setSelectedRubric] = useState<Rubric | null>(null);
     const [loading, setLoading] = useState(true);
 
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
-    
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
-
     const loadData = async () => {
         if (!evaluationId) return;
         setLoading(true);
@@ -71,7 +69,6 @@ const RubricForEvaluationPage: React.FC = () => {
     }, [evaluationId]);
 
     // ── CRUD handlers ─────────────────────────────────────────────────────────
-
     const handleAction = (actionName: string, item: Record<string, any>) => {
         const rubric = item as Rubric;
 

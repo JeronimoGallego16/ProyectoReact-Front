@@ -1,21 +1,25 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+
 import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import EntityHeader from "../../components/EntityHeader";
-import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
-import { rubricService } from "../../services/RubricService";
-import { criterionService } from "../../services/CriterionService";
-import { Rubric } from "../../models/Rubric";
-import { Criterion } from "../../models/Criterion";
-import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/User";
-import { useNavigate, useParams } from "react-router-dom";
+import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import { showToast } from "../../hooks/fireToast";
 import { useCrudModal } from "../../hooks/useCrudModal";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { rubricService } from "../../services/RubricService";
+import { criterionService } from "../../services/CriterionService";
+import { evaluationService } from "../../services/EvaluationService";
+import securityService from "../../services/segurity.service";
+import { evaluationAuthorizationService } from "../../services/EvalationAuthorizationService";
 
+import { Rubric } from "../../models/Rubric";
+import { Criterion } from "../../models/Criterion";
+import { UserRole } from "../../models/User";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["name", "description", "weight"];
 
 const ADMIN_TEACHER_ACTIONS = [
@@ -29,7 +33,6 @@ const STUDENT_ACTIONS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
 const emptyForm = (): Omit<Criterion, "id"> => ({
@@ -40,7 +43,6 @@ const emptyForm = (): Omit<Criterion, "id"> => ({
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
-
 const CriteriaByRubricPage: React.FC = () => {
     const { rubricId } = useParams<{ rubricId: string }>();
     const navigate = useNavigate();
@@ -61,34 +63,49 @@ const CriteriaByRubricPage: React.FC = () => {
             startEdit,
         } = useCrudModal<Criterion>(emptyForm());
 
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
-
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
-
-    // ── Data loading ──────────────────────────────────────────────────────────
 
     const loadData = async () => {
         if (!rubricId) return;
         setLoading(true);
-        const [rubricResponse, criteriaResponse] = await Promise.all([
-            rubricService.getRubricById(rubricId),
-            criterionService.getCriteriaByRubricId(rubricId),
-        ]);
-        setRubric(rubricResponse.data || null);
-        setCriteria(Array.isArray(criteriaResponse.data) ? criteriaResponse.data : []);
-        setLoading(false);
+
+        try {
+            const [rubricResponse, criteriaResponse, evaluationsResponse] = await Promise.all([
+                rubricService.getRubricById(rubricId),
+                criterionService.getCriteriaByRubricId(rubricId),
+                evaluationService.getEvaluations(),
+            ]);
+
+            const allEvaluations = Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : [];
+            const accessibleSubjects = await evaluationAuthorizationService.getAccessibleSubjectIds(user);
+            const currentEvaluation = allEvaluations.find((evaluation) => evaluation.rubric_id === rubricId);
+
+            const canAccess =
+                role === "ADMIN" ||
+                (currentEvaluation?.subject_id
+                    ? accessibleSubjects.includes(currentEvaluation.subject_id)
+                    : false);
+
+            if (!canAccess) {
+                showToast("Error", "No tienes permisos para ver esta rúbrica.", 2);
+                navigate(-1);
+                return;
+            }
+
+            setRubric(rubricResponse.data || null);
+            setCriteria(Array.isArray(criteriaResponse.data) ? criteriaResponse.data : []);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
         loadData();
     }, [rubricId]);
 
-    // (Selection removed — using GenericTable for consistency with Rubrics)
-
     // ── CRUD handlers ─────────────────────────────────────────────────────────
-
     const handleAction = (actionName: string, item: Record<string, any>) => {
         const criterion = item as Criterion;
 
@@ -170,7 +187,6 @@ const CriteriaByRubricPage: React.FC = () => {
     };
 
     // ── Helper functions for VerticalTextFormCard ──────────────────────────────
-
     const getFormTitle = (): string => {
         if (crudMode === "create") return "Crear Criterio";
         if (crudMode === "edit") return `Editar Criterio`;
@@ -254,7 +270,6 @@ const CriteriaByRubricPage: React.FC = () => {
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
-
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
@@ -274,7 +289,7 @@ const CriteriaByRubricPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus criterios para esta rúbrica. Asigna, crea, edita y elimina."
                     : "Busca y navega por los criterios de esta rúbrica."}
-                primaryAction={{ label: "+ Nuevo Criterio", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
+                primaryAction={editable ? { label: "+ Nuevo Criterio", onClick: () => { startCreate(); setIsCrudModalOpen(true); } } : undefined}
             >
             </PageHeader>
 

@@ -1,23 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+
 import GenericTable from "../../components/GenericTable";
 import SelectableTable from "../../components/SelectableTable";
 import EntityHeader from "../../components/EntityHeader";
 import ModalLauncher from "../../components/ModalLauncher";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
-import { criterionService } from "../../services/CriterionService";
-import { scaleService } from "../../services/ScaleService";
-import { Criterion } from "../../models/Criterion";
-import { Scale } from "../../models/Scale";
-//import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/User";
 import { showToast } from "../../hooks/fireToast";
 import { useCrudModal } from "../../hooks/useCrudModal";
 import { useCopyScaleModal } from "../../hooks/useCopyScaleModal";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { criterionService } from "../../services/CriterionService";
+import { scaleService } from "../../services/ScaleService";
+import securityService from "../../services/segurity.service";
 
+import { Criterion } from "../../models/Criterion";
+import { Scale } from "../../models/Scale";
+import { UserRole } from "../../models/User";
+
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["name", "description", "value"];
 
 const ADMIN_TEACHER_ACTIONS = [
@@ -32,7 +35,6 @@ const STUDENT_ACTIONS: { name: string; label: string }[] = [];
 const TARGET_CRITERIA_COLUMNS = ["name", "description", "weight"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
 const emptyForm = (): Omit<Scale, "id"> => ({
@@ -43,7 +45,6 @@ const emptyForm = (): Omit<Scale, "id"> => ({
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
-
 const ScalesByCriterionPage: React.FC = () => {
     const { criterionId } = useParams<{ criterionId: string }>();
     const navigate = useNavigate();
@@ -56,7 +57,7 @@ const ScalesByCriterionPage: React.FC = () => {
 
     const {
         crudMode,
-        selectedItem: selectedScale, // Renombramos para mantener consistencia con tu código
+        selectedItem: selectedScale,
         form,
         setForm,
         resetCrud,
@@ -64,14 +65,11 @@ const ScalesByCriterionPage: React.FC = () => {
         startEdit,
     } = useCrudModal<Scale>(emptyForm());
 
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
-    
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
-
     const loadData = async () => {
         if (!criterionId) return;
         setLoading(true);
@@ -106,7 +104,6 @@ const ScalesByCriterionPage: React.FC = () => {
     }, [criterionId]);
 
     // ── CRUD handlers ─────────────────────────────────────────────────────────
-
     const handleAction = (actionName: string, item: Record<string, any>) => {
         const scale = item as Scale;
 
@@ -229,7 +226,6 @@ const ScalesByCriterionPage: React.FC = () => {
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
-
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
@@ -314,7 +310,7 @@ const ScalesByCriterionPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus escalas para este criterio. Selecciona una para asignarla."
                     : "Explora las escalas para este criterio."}
-                primaryAction={{ label: "+ Nueva Escala", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
+                primaryAction={editable ? { label: "+ Nueva Escala", onClick: () => { startCreate(); setIsCrudModalOpen(true); } } : undefined}
             >
             </PageHeader>
 

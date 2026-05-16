@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import GenericTable from "../../components/GenericTable";
 import CriterionCommentBox from "../../components/CriterionCommentBox";
 import EntityHeader from "../../components/EntityHeader";
 import ModalLauncher from "../../components/ModalLauncher";
 import PageHeader from "../../components/PageHeader";
 import SelectableTable from "../../components/SelectableTable";
+import { showToast } from "../../hooks/fireToast";
 
 import { Evaluation } from "../../models/Evaluation";
 import { Criterion } from "../../models/Criterion";
@@ -24,8 +26,7 @@ import { rubricService } from "../../services/RubricService";
 import { criterionService } from "../../services/CriterionService";
 import { scaleService } from "../../services/ScaleService";
 
-import { showToast } from "../../hooks/fireToast";
-
+// ─── Types ────────────────────────────────────────────────────────────────────
 type StudentRow = {
     student_code: string;
     email: string;
@@ -34,6 +35,7 @@ type StudentRow = {
 
 const STUDENT_COLUMNS = ["student_code", "email"];
 
+// ─── Component ────────────────────────────────────────────────────────────────
 const CalificationPage: React.FC = () => {
     const { evaluationId } = useParams<{ evaluationId: string }>();
     const navigate = useNavigate();
@@ -53,6 +55,7 @@ const CalificationPage: React.FC = () => {
     const [openCommentCriterionId, setOpenCommentCriterionId] = useState<string | null>(null);
     const [savingGrade, setSavingGrade] = useState(false);
 
+    // ── Data loading ──────────────────────────────────────────────────────────
     const loadData = async () => {
         if (!evaluationId) return;
 
@@ -134,6 +137,7 @@ const CalificationPage: React.FC = () => {
         void loadData();
     }, [evaluationId]);
 
+    // ── Handlers ─────────────────────────────────────────────────────────
     const getSubtitle = (): string => {
         const pieces: string[] = [];
 
@@ -251,6 +255,7 @@ const CalificationPage: React.FC = () => {
     const SCALE_COLUMNS = ["name", "description", "value"];
     const canSaveGrade = criteria.length > 0 && selectedCriteriaCount === criteria.length && !savingGrade;
 
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
             {evaluation && (

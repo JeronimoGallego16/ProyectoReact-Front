@@ -1,15 +1,20 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
-import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
-import { rubricService } from "../../services/RubricService";
-import { Rubric } from "../../models/Rubric";
-//import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/User";
-import { useNavigate } from "react-router-dom";
+import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import { showToast } from "../../hooks/fireToast";
 import { useCrudModal } from "../../hooks/useCrudModal";
+
+import { rubricService } from "../../services/RubricService";
+import { evaluationService } from "../../services/EvaluationService";
+import { evaluationAuthorizationService } from "../../services/EvalationAuthorizationService";
+import securityService from "../../services/segurity.service";
+
+import { UserRole } from "../../models/User";
+import { Rubric } from "../../models/Rubric";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,7 +33,6 @@ const STUDENT_ACTIONS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
 const emptyForm = (): Omit<Rubric, "id"> => ({
@@ -37,10 +41,12 @@ const emptyForm = (): Omit<Rubric, "id"> => ({
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
-
 const RubricsPage: React.FC = () => {
-    const [rubrics, setRubrics] = useState<Rubric[]>([]);
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
+
+    const [rubrics, setRubrics] = useState<Rubric[]>([]);
+   
     const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
     const {
         crudMode,
@@ -52,22 +58,41 @@ const RubricsPage: React.FC = () => {
         startEdit,
     } = useCrudModal<Rubric>(emptyForm());
     
-    const navigate = useNavigate();
-
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
-
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
-
     const loadRubrics = async () => {
         setLoading(true);
-        const response = await rubricService.getRubrics();
-        const data = Array.isArray(response.data) ? response.data : [];
-        setRubrics(data);
-        setLoading(false);
+        try {
+            const [rubricsResponse, evaluationsResponse] = await Promise.all([
+                rubricService.getRubrics(),
+                evaluationService.getEvaluations(),
+            ]);
+
+            const allRubrics = Array.isArray(rubricsResponse.data) ? rubricsResponse.data : [];
+            const allEvaluations = Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : [];
+
+            const filteredRubrics = await Promise.all(
+                allRubrics.map(async (rubric) => {
+                    const relatedEvaluation = allEvaluations.find((evaluation) => evaluation.rubric_id === rubric.id);
+
+                    const canView = await evaluationAuthorizationService.canViewRubric(
+                        user,
+                        relatedEvaluation ? relatedEvaluation.id : undefined,
+                        allEvaluations,
+                        rubric
+                    );
+
+                    return canView ? rubric : null;
+                })
+            );
+
+            setRubrics(filteredRubrics.filter((rubric): rubric is Rubric => rubric !== null));
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -75,7 +100,6 @@ const RubricsPage: React.FC = () => {
     }, []);
 
     // ── CRUD handlers ─────────────────────────────────────────────────────────
-
     const handleAction = (actionName: string, item: Record<string, any>) => {
         const rubric = rubrics.find((currentRubric) => currentRubric.id === item.id) ?? (item as Rubric);
 
@@ -142,7 +166,6 @@ const RubricsPage: React.FC = () => {
     };
 
     // ── Helper functions for VerticalTextFormCard ──────────────────────────────
-
     const getFormTitle = (): string => {
         if (crudMode === "create") return "Crear Rúbrica";
         if (crudMode === "edit") return `Editar Rúbrica`;
@@ -193,7 +216,7 @@ const RubricsPage: React.FC = () => {
         setForm(nextForm);
 
         if (crudMode === "create") {
-            /* const user = securityService.getUser();
+            const user = securityService.getUser();
             const teacherId = user?.id;
 
            const groups = await groupService.getGroupsByTeacher(teacherId as string);
@@ -201,7 +224,6 @@ const RubricsPage: React.FC = () => {
                 showToast("Error", "No puedes crear una rúbrica: debes tener al menos un grupo asignado.", 3);
                 return;
             }
-            */
 
             const response = await rubricService.createRubric(nextForm);
             if (response.data) {
@@ -229,7 +251,6 @@ const RubricsPage: React.FC = () => {
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
-
     const tableData = rubrics.map((r) => ({
         ...r,
         created_at: r.created_at ? new Date(r.created_at).toLocaleDateString() : "",
@@ -246,7 +267,7 @@ const RubricsPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus rúbricas: crea, edita, archiva o elimina"
                     : "Busca y navega por las rúbricas disponibles."}
-                primaryAction={{ label: "+ Nueva Rúbrica", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
+                primaryAction={editable ? { label: "+ Nueva Rúbrica", onClick: () => { startCreate(); setIsCrudModalOpen(true); } } : undefined}
             />
 
             {/* Table — full height */}
