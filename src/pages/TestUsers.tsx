@@ -1,197 +1,218 @@
 import { useState } from 'react';
-import adminService from '../services/admin.service';
-import studentService from '../services/student.service';
-import teacherService from '../services/teacher.service';
-import toast from 'react-hot-toast';
+import { UserData } from '../models/User';
+import ModalLauncher from '../components/ModalLauncher';
+import UserModal from '../components/UserModal';
+import SearchUserModal from '../components/SearchUserModal';
+import DeactivateUserModal from '../components/DeactivateUserModal';
 
 export default function TestUsers() {
-    const [adminData, setAdminData] = useState({
-        email: 'admin.test@example.com',
-        password: 'Password123!',
-        code: 'ADM-TEST-001'
-    });
+    const [editMode, setEditMode] = useState<'create' | 'edit'>('create');
+    const [editUserId, setEditUserId] = useState<string>('');
+    const [deactivateUserId, setDeactivateUserId] = useState<string>('');
+    const [searchAction, setSearchAction] = useState<'edit' | 'deactivate'>('edit');
 
-    const [studentData, setStudentData] = useState({
-        email: 'student.test@example.com',
-        password: 'Password123!',
-        code: 'STD-TEST-001',
-        first_name: 'Test',
-        last_name: 'Student',
-        identification: '9999999999'
-    });
-
-    const [teacherData, setTeacherData] = useState({
-        email: 'teacher.test@example.com',
-        password: 'Password123!',
-        code: 'TCH-TEST-001',
-        first_name: 'Test',
-        last_name: 'Teacher',
-        identification: '8888888888',
-        phone: '3001234567',
-        specialty: 'Programación'
-    });
-
-    const [loading, setLoading] = useState(false);
-    const [response, setResponse] = useState<any>(null);
-
-    const createAdmin = async () => {
-        setLoading(true);
-        try {
-            const result = await adminService.createAdmin(adminData);
-            setResponse(result);
-            toast.success('Admin creado exitosamente');
-        } catch (error) {
-            toast.error('Error al crear admin');
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const createStudent = async () => {
-        setLoading(true);
-        try {
-            const result = await studentService.createStudent(studentData);
-            setResponse(result);
-            toast.success('Student creado exitosamente');
-        } catch (error) {
-            toast.error('Error al crear student');
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const createTeacher = async () => {
-        setLoading(true);
-        try {
-            const result = await teacherService.createTeacher(teacherData);
-            setResponse(result);
-            toast.success('Teacher creado exitosamente');
-        } catch (error) {
-            toast.error('Error al crear teacher');
-            console.error(error);
-        } finally {
-            setLoading(false);
+    const handleUserFound = (userId: string, _userData: UserData) => {
+        if (searchAction === 'edit') {
+            setEditMode('edit');
+            setEditUserId(userId);
+        } else if (searchAction === 'deactivate') {
+            setDeactivateUserId(userId);
         }
     };
 
     return (
-        <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-            <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '2rem' }}>Pruebas de Usuarios</h1>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
-                {/* ADMIN */}
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#3b82f6' }}>Admin</h2>
-                    <input
-                        type="email"
-                        placeholder="Email"
-                        value={adminData.email}
-                        onChange={(e) => setAdminData({ ...adminData, email: e.target.value })}
-                        style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }}
-                    />
-                    <input
-                        type="password"
-                        placeholder="Password"
-                        value={adminData.password}
-                        onChange={(e) => setAdminData({ ...adminData, password: e.target.value })}
-                        style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }}
-                    />
-                    <input
-                        type="text"
-                        placeholder="Code"
-                        value={adminData.code}
-                        onChange={(e) => setAdminData({ ...adminData, code: e.target.value })}
-                        style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }}
-                    />
-                    <button
-                        onClick={createAdmin}
-                        disabled={loading}
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            background: loading ? '#9ca3af' : '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            fontSize: '1rem',
-                            fontWeight: 'bold'
-                        }}
-                    >
-                        {loading ? 'Creando...' : 'Crear Admin'}
-                    </button>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+            <div className="mx-auto max-w-5xl">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-5xl font-bold text-gray-900">Gestión de Usuarios</h1>
+                    <p className="mt-3 text-lg text-gray-700">Crea y edita administradores, estudiantes y docentes</p>
                 </div>
 
-                {/* STUDENT */}
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#10b981' }}>Student</h2>
-                    <input type="email" placeholder="Email" value={studentData.email} onChange={(e) => setStudentData({ ...studentData, email: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="password" placeholder="Password" value={studentData.password} onChange={(e) => setStudentData({ ...studentData, password: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="text" placeholder="Code" value={studentData.code} onChange={(e) => setStudentData({ ...studentData, code: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="text" placeholder="First Name" value={studentData.first_name} onChange={(e) => setStudentData({ ...studentData, first_name: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="text" placeholder="Last Name" value={studentData.last_name} onChange={(e) => setStudentData({ ...studentData, last_name: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="text" placeholder="Identification" value={studentData.identification} onChange={(e) => setStudentData({ ...studentData, identification: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <button
-                        onClick={createStudent}
-                        disabled={loading}
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            background: loading ? '#9ca3af' : '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            fontSize: '1rem',
-                            fontWeight: 'bold'
-                        }}
+                {/* Botones principales */}
+                <div className="mb-8 flex flex-col gap-4 sm:flex-row">
+                    <ModalLauncher
+                        trigger={(open) => (
+                            <button
+                                onClick={open}
+                                className="flex-1 rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-green-600 hover:to-green-700 transition-all"
+                            >
+                                ➕ Crear Usuario
+                            </button>
+                        )}
                     >
-                        {loading ? 'Creando...' : 'Crear Student'}
-                    </button>
+                        {(close) => (
+                            <UserModal
+                                isOpen={true}
+                                onClose={close}
+                                onSuccess={() => close()}
+                                mode="create"
+                            />
+                        )}
+                    </ModalLauncher>
+
+                    <ModalLauncher
+                        trigger={(open) => (
+                            <button
+                                onClick={() => {
+                                    setSearchAction('edit');
+                                    open();
+                                }}
+                                className="flex-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-blue-600 hover:to-blue-700 transition-all"
+                            >
+                                ✏️ Editar Usuario
+                            </button>
+                        )}
+                    >
+                        {(close) => (
+                            <SearchUserModal
+                                isOpen={true}
+                                onClose={close}
+                                onUserFound={(userId, userData) => {
+                                    close();
+                                    handleUserFound(userId, userData);
+                                }}
+                                action={searchAction}
+                            />
+                        )}
+                    </ModalLauncher>
+
+                    <ModalLauncher
+                        trigger={(open) => (
+                            <button
+                                onClick={() => {
+                                    setSearchAction('deactivate');
+                                    open();
+                                }}
+                                className="flex-1 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-red-600 hover:to-red-700 transition-all"
+                            >
+                                🚫 Desactivar Usuario
+                            </button>
+                        )}
+                    >
+                        {(close) => (
+                            <SearchUserModal
+                                isOpen={true}
+                                onClose={close}
+                                onUserFound={(userId, userData) => {
+                                    close();
+                                    handleUserFound(userId, userData);
+                                }}
+                                action={searchAction}
+                            />
+                        )}
+                    </ModalLauncher>
                 </div>
 
-                {/* TEACHER */}
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#8b5cf6' }}>Teacher</h2>
-                    <input type="email" placeholder="Email" value={teacherData.email} onChange={(e) => setTeacherData({ ...teacherData, email: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="password" placeholder="Password" value={teacherData.password} onChange={(e) => setTeacherData({ ...teacherData, password: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="text" placeholder="Code" value={teacherData.code} onChange={(e) => setTeacherData({ ...teacherData, code: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="text" placeholder="First Name" value={teacherData.first_name} onChange={(e) => setTeacherData({ ...teacherData, first_name: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="text" placeholder="Last Name" value={teacherData.last_name} onChange={(e) => setTeacherData({ ...teacherData, last_name: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="text" placeholder="Identification" value={teacherData.identification} onChange={(e) => setTeacherData({ ...teacherData, identification: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="tel" placeholder="Phone" value={teacherData.phone} onChange={(e) => setTeacherData({ ...teacherData, phone: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <input type="text" placeholder="Specialty" value={teacherData.specialty} onChange={(e) => setTeacherData({ ...teacherData, specialty: e.target.value })} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem' }} />
-                    <button
-                        onClick={createTeacher}
-                        disabled={loading}
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            background: loading ? '#9ca3af' : '#8b5cf6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            fontSize: '1rem',
-                            fontWeight: 'bold'
-                        }}
-                    >
-                        {loading ? 'Creando...' : 'Crear Teacher'}
-                    </button>
+                {/* Información sobre el componente */}
+                <div className="space-y-6 rounded-xl border-2 border-indigo-300 bg-white p-8 shadow-lg">
+                    <h2 className="text-2xl font-bold text-gray-900">📋 Características del Modal</h2>
+
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <div className="rounded-lg bg-blue-50 p-4">
+                            <h3 className="mb-2 flex items-center text-lg font-semibold text-blue-900">
+                                <span className="mr-2">📑</span> Dos Pestañas
+                            </h3>
+                            <p className="text-sm text-blue-800">
+                                <strong>Pestaña 1:</strong> Datos de usuario<br />
+                                (Email, Contraseña, Código, Rol)<br />
+                                <strong>Pestaña 2:</strong> Datos de perfil<br />
+                                (varía según el rol)
+                            </p>
+                        </div>
+
+                        <div className="rounded-lg bg-green-50 p-4">
+                            <h3 className="mb-2 flex items-center text-lg font-semibold text-green-900">
+                                <span className="mr-2">👥</span> Roles Diferenciados
+                            </h3>
+                            <ul className="space-y-1 text-sm text-green-800">
+                                <li>• <strong>Admin:</strong> Solo datos básicos</li>
+                                <li>• <strong>Student:</strong> + Nombre, Apellido, ID</li>
+                                <li>• <strong>Teacher:</strong> + Teléfono, Especialidad</li>
+                            </ul>
+                        </div>
+
+                        <div className="rounded-lg bg-purple-50 p-4">
+                            <h3 className="mb-2 flex items-center text-lg font-semibold text-purple-900">
+                                <span className="mr-2">⚙️</span> Validaciones
+                            </h3>
+                            <ul className="space-y-1 text-sm text-purple-800">
+                                <li>✓ Email válido</li>
+                                <li>✓ Campos requeridos</li>
+                                <li>✓ Contraseña mín. 8 caracteres</li>
+                            </ul>
+                        </div>
+
+                        <div className="rounded-lg bg-red-50 p-4">
+                            <h3 className="mb-2 flex items-center text-lg font-semibold text-red-900">
+                                <span className="mr-2">🚫</span> Desactivación
+                            </h3>
+                            <ul className="space-y-1 text-sm text-red-800">
+                                <li>✓ Busca por ID de usuario</li>
+                                <li>✓ Muestra datos antes de confirmar</li>
+                                <li>✓ Desactiva usuario sin eliminar datos</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="border-t-2 border-gray-200 pt-4">
+                        <p className="text-sm text-gray-600">
+                            <strong>💡 Instrucciones:</strong><br />
+                            1. Haz clic en "<strong>➕ Crear Usuario</strong>" para crear un nuevo usuario<br />
+                            2. Haz clic en "<strong>✏️ Editar Usuario</strong>" e ingresa un ID para editar<br />
+                            3. Haz clic en "<strong>🚫 Desactivar Usuario</strong>" para desactivar un usuario<br />
+                            4. Completa los datos en el modal (2 pestañas para algunos roles)<br />
+                            5. Haz clic en "Guardar" o "Desactivar usuario" para completar la acción
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            {/* Response */}
-            {response && (
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Respuesta del Backend:</h2>
-                    <pre style={{ background: '#f3f4f6', padding: '1rem', borderRadius: '4px', overflow: 'auto', maxHeight: '400px', fontSize: '0.875rem' }}>
-                        {JSON.stringify(response, null, 2)}
-                    </pre>
-                </div>
+            {/* Modal Editar/Crear Usuario */}
+            {(editMode === 'edit' && editUserId) && (
+                <ModalLauncher
+                    trigger={(open) => {
+                        open();
+                        return null;
+                    }}
+                >
+                    {(close) => (
+                        <UserModal
+                            isOpen={true}
+                            onClose={close}
+                            onSuccess={() => {
+                                setEditUserId('');
+                                close();
+                            }}
+                            mode="edit"
+                            userId={editUserId}
+                        />
+                    )}
+                </ModalLauncher>
+            )}
+
+            {/* Modal Desactivación */}
+            {deactivateUserId && (
+                <ModalLauncher
+                    trigger={(open) => {
+                        open();
+                        return null;
+                    }}
+                >
+                    {(close) => (
+                        <DeactivateUserModal
+                            isOpen={true}
+                            onClose={close}
+                            onSuccess={() => {
+                                setDeactivateUserId('');
+                                close();
+                            }}
+                            userId={deactivateUserId}
+                        />
+                    )}
+                </ModalLauncher>
             )}
         </div>
     );
 }
+

@@ -1,4 +1,4 @@
-import { GradeDetail } from './GradeDetail';
+import { GradeDetail } from "./GradeDetail";
 
 export interface Grade {
     id: string;

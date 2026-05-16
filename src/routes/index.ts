@@ -13,6 +13,12 @@ const ScalesByCriterionPage = lazy(() => import('../pages/Evaluation/ScalesByCri
 const RubricForEvaluationPage = lazy(() => import('../pages/Evaluation/RubricForEvaluation'));
 const CalificationPage = lazy(() => import('../pages/Evaluation/Calification'));
 const AcademicPage = lazy(() => import('../pages/Academic/AcademicPage'));
+const UsersPage = lazy(() => import('../pages/UsersPage'));
+const GroupsPage = lazy(() => import('../pages/GroupsPage'));
+const CareersPage = lazy(() => import('../pages/CareersPage'));
+const EnrollmentPage = lazy(() => import('../pages/EnrollmentPage'));
+const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
+
 
 const coreRoutes = [
   {
@@ -64,6 +70,24 @@ const coreRoutes = [
     path: '/criteria/:criterionId/scales',
     title: 'Scales by Criterion Page',
     component: ScalesByCriterionPage,
+    path: '/usuarios',
+    title: 'Usuarios',
+    component: UsersPage,
+  },
+  {
+    path: '/grupos',
+    title: 'Grupos',
+    component: GroupsPage,
+  },
+  {
+    path: '/carreras',
+    title: 'Carreras',
+    component: CareersPage,
+  },
+  {
+    path: '/matricula',
+    title: 'Matricular Estudiante',
+    component: EnrollmentPage,
   },
   {
     path: '/evaluations',
@@ -84,3 +108,5 @@ const coreRoutes = [
 
 const routes = [...coreRoutes];
 export default routes;
+
+

@@ -149,7 +149,9 @@ class ApiService {
     let errorMessage = 'Error desconocido';
 
     if (axios.isAxiosError(error)) {
-      if (error.response?.data?.error) {
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;

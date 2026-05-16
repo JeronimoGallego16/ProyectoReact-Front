@@ -12,3 +12,10 @@ export interface Enrollment {
 
 export type EnrollmentCreateInput = Omit<Enrollment, 'id' | 'created_at' | 'updated_at'>;
 export type EnrollmentUpdateInput = Partial<EnrollmentCreateInput>;
+
+export interface EnrollmentFormData {
+  studentId: string;
+  careerId: string;
+  admissionPeriod: string;
+  academicStatus: string;
+}

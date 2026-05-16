@@ -1,38 +1,35 @@
-import React from "react";
-
-
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import Breadcrumb from '../../components/Breadcrumb';
 import SecurityService from '../../services/segurity.service';
 import SocialAuthService from '../../services/socialAuth.service';
-
-import Breadcrumb from "../../components/Breadcrumb";
-import { useNavigate } from "react-router-dom";
-
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
+import { LoginCredentials } from '../../models/User';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
 
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
 
   const handleLogin = async (credentials: LoginCredentials) => {
-    console.log("aqui " + JSON.stringify(credentials))
     try {
       const response = await SecurityService.login(credentials);
-      console.log('Usuario autenticado:', response);
+      toast.success(`¡Bienvenido, ${response?.profile?.first_name || response?.email}!`);
       navigate("/");
-    } catch (error) {
-      console.error('Error al iniciar sesión', error);
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Email o contraseña inválidos';
+      toast.error(errorMessage);
+      console.error('Error al iniciar sesión:', error);
     }
   }
 
   const handleGoogleLogin = async () => {
     try {
       await SocialAuthService.loginWithGoogle();
+      toast.success('¡Bienvenido!');
       navigate("/");
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Error en Google login';
+      toast.error(errorMessage);
       console.error('Error en Google login:', error);
     }
   };
@@ -40,8 +37,11 @@ const SignIn: React.FC = () => {
   const handleGithubLogin = async () => {
     try {
       await SocialAuthService.loginWithGithub();
+      toast.success('¡Bienvenido!');
       navigate("/");
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Error en GitHub login';
+      toast.error(errorMessage);
       console.error('Error en GitHub login:', error);
     }
   };
@@ -49,8 +49,11 @@ const SignIn: React.FC = () => {
   const handleMicrosoftLogin = async () => {
     try {
       await SocialAuthService.loginWithMicrosoft();
+      toast.success('¡Bienvenido!');
       navigate("/");
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Error en Microsoft login';
+      toast.error(errorMessage);
       console.error('Error en Microsoft login:', error);
     }
   };

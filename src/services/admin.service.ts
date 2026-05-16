@@ -1,21 +1,6 @@
 import apiService, { ApiResponse } from './api';
-import { Admin } from '../models/admin';
-
-/**
- * Payload para crear un administrador
- */
-export interface CreateAdminPayload {
-  email: string;
-  password: string;
-  code: string;
-}
-
-/**
- * Payload para actualizar un administrador
- */
-export interface UpdateAdminPayload {
-  email?: string;
-}
+import { Admin } from '../models/Admin';
+import { CreateAdminPayload, UpdateAdminPayload } from '../models/AdminPayload';
 
 /**
  * Servicio específico para Administradores

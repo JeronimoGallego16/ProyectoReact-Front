@@ -138,11 +138,8 @@ class RegistrationService {
 
   // Helpers
   private _handleError(error: any): any {
-    if (error.response?.data?.error) {
-      console.error('Registration error:', error.response.data.error);
-    } else {
-      console.error('Registration error:', error.message);
-    }
+    const errorMessage = error.response?.data?.error || error.message || 'Error desconocido';
+    console.error('Registration error:', errorMessage);
     return null;
   }
 }
