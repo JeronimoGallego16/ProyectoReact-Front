@@ -16,6 +16,7 @@ export type VerticalTextFormField = {
   value?: string;
   options?: VerticalTextFormOption[];
   required?: boolean;
+  showEmptyOption?: boolean;
 };
 
 type VerticalTextFormCardProps = {
@@ -99,7 +100,6 @@ const VerticalTextFormCard = ({
                   onChange={(event) => handleChange(field.name, event.target.value)}
                   className="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 >
-                  <option value="">{field.placeholder ?? field.label}</option>
                   {field.options?.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}

@@ -11,13 +11,14 @@ import { careerService } from "../../services/CareerService";
 import { semesterService } from "../../services/SemesterService";
 import { useAcademicEntityCrud } from "../../hooks/useAcademicEntityCrud";
 
-const CAREER_COLUMNS = ["code", "name", "description", "is_active"];
-const SEMESTER_COLUMNS = ["code", "name", "start_date", "end_date", "is_active"];
+const CAREER_COLUMNS = ["code", "name", "description", "is_active_label"];
+const SEMESTER_COLUMNS = ["code", "name", "start_date", "end_date", "is_active_label"];
 
-const ADMIN_ACTIONS = [
+const CAREER_ACTIONS = [
     { name: "view", label: "Ver" },
     { name: "edit", label: "Editar" },
-    { name: "archive", label: "Archivar" },
+    { name: "archive", label: "Archivar", visible: (item: Record<string, any>) => item.is_active },
+    { name: "reactivate", label: "Reactivar", visible: (item: Record<string, any>) => !item.is_active },
 ];
 
 const SEMESTER_ACTIONS = [
@@ -47,9 +48,24 @@ const AcademicPage: React.FC = () => {
     const [semesters, setSemesters] = useState<Semester[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<"careers" | "semesters">("careers");
+    const [detailItem, setDetailItem] = useState<Career | Semester | null>(null);
+    const [detailType, setDetailType] = useState<"career" | "semester" | null>(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
 
     const role: UserRole = "ADMIN";
     const editable = canEdit(role);
+
+    const openDetail = (item: Career | Semester, type: "career" | "semester") => {
+        setDetailItem(item);
+        setDetailType(type);
+        setIsDetailOpen(true);
+    };
+
+    const closeDetail = () => {
+        setIsDetailOpen(false);
+        setDetailItem(null);
+        setDetailType(null);
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -72,6 +88,8 @@ const AcademicPage: React.FC = () => {
         createItem: careerService.createCareer.bind(careerService),
         updateItem: careerService.updateCareer.bind(careerService),
         archiveItem: careerService.archiveCareer.bind(careerService),
+        reactivateItem: careerService.reactivateCareer.bind(careerService),
+        onView: (career) => openDetail(career, 'career'),
         buildFields: (form) => [
             {
                 name: "code",
@@ -102,6 +120,12 @@ const AcademicPage: React.FC = () => {
             description: values.description ?? form.description,
             is_active: form.is_active,
         }),
+        validateSave: (values) => {
+            if (!values.code || !values.name) {
+                return "El código y el nombre son obligatorios.";
+            }
+            return null;
+        },
         getFormTitle: (mode) => {
             if (mode === "create") return "Nueva carrera";
             if (mode === "edit") return "Editar carrera";
@@ -113,18 +137,21 @@ const AcademicPage: React.FC = () => {
             }
             return "";
         },
-        getArchiveConfirm: (career) => `¿Archivar la carrera "${career.name}"? Esta acción no se puede deshacer.`,
+        getArchiveConfirm: (career) => `¿Archivar la carrera "${career.name}'?`,
         getViewMessage: (career) => `Carrera: ${career.name} (${career.code})`,
         successMessages: {
             create: "Carrera creada exitosamente.",
             update: "Carrera actualizada exitosamente.",
             archive: "Carrera archivada exitosamente.",
+            reactivate: "Carrera reactivada exitosamente.",
         },
         errorMessages: {
             create: "No se pudo crear la carrera.",
             update: "No se pudo actualizar la carrera.",
             archive: "No se pudo archivar la carrera.",
+            reactivate: "No se pudo reactivar la carrera.",
         },
+        getReactivateConfirm: (career) => `¿Reactivar la carrera "${career.name}"?`,
     });
 
     const semesterCrud = useAcademicEntityCrud<Semester>({
@@ -159,15 +186,29 @@ const AcademicPage: React.FC = () => {
                 type: "date",
                 value: form.end_date,
             },
+            {
+                name: "is_active",
+                label: "Estado",
+                kind: "select",
+                value: String(form.is_active),
+                options: [
+                    { value: "true", label: "Activo" },
+                    { value: "false", label: "Inactivo" },
+                ],
+            },
         ],
         mapSaveValues: (values, form) => ({
             code: values.code ?? form.code,
             name: values.name ?? form.name,
             start_date: values.start_date ?? form.start_date,
             end_date: values.end_date ?? form.end_date,
-            is_active: form.is_active,
+            is_active: values.is_active ? values.is_active === "true" : form.is_active,
         }),
         validateSave: (values) => {
+            if (!values.code || !values.name) {
+                return "El código y el nombre son obligatorios.";
+            }
+
             if (!values.start_date || !values.end_date) {
                 return "Las fechas de inicio y fin son requeridas.";
             }
@@ -189,6 +230,7 @@ const AcademicPage: React.FC = () => {
             }
             return "";
         },
+        onView: (semester) => openDetail(semester, 'semester'),
         getViewMessage: (semester) => `Semestre: ${semester.name} (${semester.code})`,
         successMessages: {
             create: "Semestre creado exitosamente.",
@@ -255,10 +297,10 @@ const AcademicPage: React.FC = () => {
                                 <GenericTable
                                     data={careers.map((career) => ({
                                         ...career,
-                                        is_active: career.is_active ? "Activa" : "Inactiva",
+                                        is_active_label: career.is_active ? "Activa" : "Inactiva",
                                     }))}
                                     columns={CAREER_COLUMNS}
-                                    actions={ADMIN_ACTIONS}
+                                    actions={CAREER_ACTIONS}
                                     onAction={careerCrud.handleAction}
                                 />
                             </TableScroll>
@@ -267,10 +309,10 @@ const AcademicPage: React.FC = () => {
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron semestres.</p>
                         ) : (
                         <TableScroll maxHeight="55vh">
-                            <GenericTable
+                                <GenericTable
                                 data={semesters.map((semester) => ({
                                     ...semester,
-                                    is_active: semester.is_active ? "Activo" : "Inactivo",
+                                    is_active_label: semester.is_active ? "Activo" : "Inactivo",
                                 }))}
                                 columns={SEMESTER_COLUMNS}
                                 actions={SEMESTER_ACTIONS}
@@ -315,6 +357,78 @@ const AcademicPage: React.FC = () => {
                             onSave={semesterCrud.handleSave}
                             onCancel={semesterCrud.close}
                         />
+                    )}
+                </ModalLauncher>
+            )}
+
+            {isDetailOpen && detailItem && (
+                <ModalLauncher isOpen={isDetailOpen} onClose={closeDetail}>
+                    {() => (
+                        <div className="space-y-5 p-4">
+                            <div>
+                                <h3 className="text-xl font-semibold text-black dark:text-white">
+                                    {detailType === 'career' ? 'Detalles de la carrera' : 'Detalles del semestre'}
+                                </h3>
+                                <p className="mt-1 text-sm text-body dark:text-bodydark">
+                                    {detailType === 'career'
+                                        ? 'Revisa la información completa de la carrera y su estado.'
+                                        : 'Revisa los datos del semestre y su estado activo.'}
+                                </p>
+                            </div>
+
+                            {detailType === 'career' ? (
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Código</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{(detailItem as Career).code}</p>
+                                    </div>
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Nombre</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{(detailItem as Career).name}</p>
+                                    </div>
+                                    <div className="sm:col-span-2 rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Descripción</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{(detailItem as Career).description || 'Sin descripción'}</p>
+                                    </div>
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Estado</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{(detailItem as Career).is_active ? 'Activa' : 'Inactiva'}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Código</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{(detailItem as Semester).code}</p>
+                                    </div>
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Nombre</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{(detailItem as Semester).name}</p>
+                                    </div>
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Inicio</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{(detailItem as Semester).start_date}</p>
+                                    </div>
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Fin</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{(detailItem as Semester).end_date}</p>
+                                    </div>
+                                    <div className="sm:col-span-2 rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Estado</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{(detailItem as Semester).is_active ? 'Activo' : 'Inactivo'}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={closeDetail}
+                                    className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-opacity-90"
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </ModalLauncher>
             )}

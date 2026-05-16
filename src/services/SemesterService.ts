@@ -52,20 +52,23 @@ class SemesterService {
   async createSemester(payload: SemesterCreateInput): Promise<Semester | null> {
     try {
       if (!payload.name || !payload.code) {
-        throw new Error('Name and code are required');
+        throw new Error('El nombre y el código son obligatorios.');
       }
 
       // Validar fechas
       const startDate = new Date(payload.start_date);
       const endDate = new Date(payload.end_date);
       if (startDate >= endDate) {
-        throw new Error('start_date must be before end_date');
+        throw new Error('La fecha de inicio debe ser anterior a la fecha de fin.');
       }
 
       const res = await apiService.post<Semester>(API_URL, payload);
-      const createdSemester = res && res.success ? (res.data as Semester | null) : null;
+      if (!res || !res.success) {
+        throw new Error(res?.error || 'No se pudo crear el semestre.');
+      }
+      const createdSemester = res.data as Semester | null;
       if (!createdSemester) {
-        return null;
+        throw new Error('No se recibió el semestre creado.');
       }
 
       if (payload.is_active) {
@@ -74,7 +77,7 @@ class SemesterService {
 
       return createdSemester;
     } catch (error) {
-      return this._handleError(error);
+      this._throwError(error);
     }
   }
 
@@ -86,15 +89,17 @@ class SemesterService {
         const startDate = new Date(payload.start_date);
         const endDate = new Date(payload.end_date);
         if (startDate >= endDate) {
-          throw new Error('start_date must be before end_date');
+          throw new Error('La fecha de inicio debe ser anterior a la fecha de fin.');
         }
       }
 
       const res = await apiService.put<Semester>(`${API_URL}/${id}`, payload);
-      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      if (!res || !res.success) {
+        throw new Error(res?.error || 'No se pudo actualizar el semestre.');
+      }
       return (res.data as Semester) || null;
     } catch (error) {
-      return this._handleError(error);
+      this._throwError(error);
     }
   }
 
@@ -125,13 +130,23 @@ class SemesterService {
   }
 
   // Helpers
+  private _getErrorMessage(error: any): string {
+    if (error.response?.data?.error) return error.response.data.error;
+    if (error.response?.data?.message) return error.response.data.message;
+    if (error.message) return error.message;
+    return 'Error desconocido';
+  }
+
   private _handleError(error: any): any {
-    if (error.response?.data?.error) {
-      console.error('Semester error:', error.response.data.error);
-    } else {
-      console.error('Semester error:', error.message);
-    }
+    const message = this._getErrorMessage(error);
+    console.error('Semester error:', message);
     return null;
+  }
+
+  private _throwError(error: any): never {
+    const message = this._getErrorMessage(error);
+    console.error('Semester error:', message);
+    throw new Error(message);
   }
 }
 

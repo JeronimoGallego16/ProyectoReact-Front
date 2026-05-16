@@ -10,6 +10,7 @@ interface UseAcademicEntityCrudOptions<T extends { id: string }> {
     createItem: (payload: Omit<T, "id">) => Promise<T | null>;
     updateItem: (id: string, payload: Omit<T, "id">) => Promise<T | null>;
     archiveItem?: (id: string) => Promise<T | null>;
+    reactivateItem?: (id: string) => Promise<T | null>;
     buildFields: (form: Omit<T, "id">) => VerticalTextFormField[];
     mapSaveValues: (
         values: Record<string, string>,
@@ -23,19 +24,23 @@ interface UseAcademicEntityCrudOptions<T extends { id: string }> {
         mode: CrudMode,
         selectedItem: T | null
     ) => string | null;
+    onView?: (item: T) => void;
     getFormTitle: (mode: CrudMode, selectedItem: T | null) => string;
     getFormDescription?: (mode: CrudMode, selectedItem: T | null, form: Omit<T, "id">) => string;
     getArchiveConfirm?: (item: T) => string;
+    getReactivateConfirm?: (item: T) => string;
     getViewMessage?: (item: T) => string;
     successMessages: {
         create: string;
         update: string;
         archive?: string;
+        reactivate?: string;
     };
     errorMessages: {
         create: string;
         update: string;
         archive?: string;
+        reactivate?: string;
         validation?: string;
         invalidSelection?: string;
     };
@@ -68,6 +73,10 @@ export function useAcademicEntityCrud<T extends { id: string }>(
         const entity = item as T;
 
         if (actionName === "view") {
+            if (options.onView) {
+                options.onView(entity);
+                return;
+            }
             if (options.getViewMessage) {
                 showToast("Información", options.getViewMessage(entity), 1);
             }
@@ -81,6 +90,12 @@ export function useAcademicEntityCrud<T extends { id: string }>(
 
         if (actionName === "archive" && options.archiveItem && options.getArchiveConfirm) {
             void handleArchive(entity);
+            return;
+        }
+
+        if (actionName === "reactivate" && options.reactivateItem && options.getReactivateConfirm) {
+            void handleReactivate(entity);
+            return;
         }
     };
 
@@ -100,6 +115,22 @@ export function useAcademicEntityCrud<T extends { id: string }>(
         }
     };
 
+    const handleReactivate = async (entity: T) => {
+        if (!options.reactivateItem || !options.getReactivateConfirm) return;
+
+        const ok = window.confirm(options.getReactivateConfirm(entity));
+        if (!ok) return;
+
+        const success = await options.reactivateItem(entity.id);
+        if (success) {
+            showToast("Éxito", options.successMessages.reactivate ?? "Operación completada exitosamente.", 0);
+            close();
+            await options.loadData();
+        } else {
+            showToast("Error", options.errorMessages.reactivate ?? "No se pudo completar la operación.", 2);
+        }
+    };
+
     const handleSave = async (values: Record<string, string>) => {
         const validationError = options.validateSave?.(values, form, crudMode, selectedItem);
         if (validationError) {
@@ -110,36 +141,44 @@ export function useAcademicEntityCrud<T extends { id: string }>(
         const nextForm = options.mapSaveValues(values, form, crudMode, selectedItem);
         setForm(nextForm);
 
-        if (crudMode === "create") {
-            const created = await options.createItem(nextForm);
-            if (created) {
-                showToast("Éxito", options.successMessages.create, 0);
-                close();
-                await options.loadData();
-            } else {
-                showToast("Error", options.errorMessages.create, 2);
+        try {
+            if (crudMode === "create") {
+                const created = await options.createItem(nextForm);
+                if (created) {
+                    showToast("Éxito", options.successMessages.create, 0);
+                    close();
+                    await options.loadData();
+                } else {
+                    showToast("Error", options.errorMessages.create, 2);
+                }
+                return;
             }
-            return;
-        }
 
-        if (crudMode === "edit" && selectedItem) {
-            const updated = await options.updateItem(selectedItem.id, nextForm);
-            if (updated) {
-                showToast("Éxito", options.successMessages.update, 0);
-                close();
-                await options.loadData();
-            } else {
-                showToast("Error", options.errorMessages.update, 2);
+            if (crudMode === "edit" && selectedItem) {
+                const updated = await options.updateItem(selectedItem.id, nextForm);
+                if (updated) {
+                    showToast("Éxito", options.successMessages.update, 0);
+                    close();
+                    await options.loadData();
+                } else {
+                    showToast("Error", options.errorMessages.update, 2);
+                }
+                return;
             }
-            return;
-        }
 
-        if (crudMode === "edit" && !selectedItem) {
-            showToast(
-                "Error",
-                options.errorMessages.invalidSelection ?? "No se pudo identificar el elemento a editar.",
-                2
-            );
+            if (crudMode === "edit" && !selectedItem) {
+                showToast(
+                    "Error",
+                    options.errorMessages.invalidSelection ?? "No se pudo identificar el elemento a editar.",
+                    2
+                );
+            }
+        } catch (error: any) {
+            const message = error?.message || "Ocurrió un error inesperado.";
+            const toastMessage = crudMode === "create"
+                ? `${options.errorMessages.create} ${message}`
+                : `${options.errorMessages.update} ${message}`;
+            showToast("Error", toastMessage, 2);
         }
     };
 
