@@ -70,6 +70,8 @@ const coreRoutes = [
     path: '/criteria/:criterionId/scales',
     title: 'Scales by Criterion Page',
     component: ScalesByCriterionPage,
+  },
+  {
     path: '/usuarios',
     title: 'Usuarios',
     component: UsersPage,
