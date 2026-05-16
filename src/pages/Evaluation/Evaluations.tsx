@@ -12,7 +12,7 @@ import { evaluationService } from "../../services/EvaluationService";
 import { groupService } from "../../services/GroupService";
 import { subjectService } from "../../services/SubjectService";
 import securityService from "../../services/segurity.service";
-import { evaluationAuthorizationService } from "../../services/EvalationAuthorizationService";
+import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
 
 import { Evaluation } from "../../models/Evaluation";
 import { Group } from "../../models/Group";

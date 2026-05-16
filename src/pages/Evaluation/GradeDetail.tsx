@@ -9,11 +9,13 @@ import { gradeService } from "../../services/GradeService";
 import { scaleService } from "../../services/ScaleService";
 import { criterionService } from "../../services/CriterionService";
 
+import { exportStudentDetailPDF } from "../../utils/pdfExporter";
+
 import { Grade } from "../../models/Grade";
 import { GradeDetail } from "../../models/GradeDetail";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-const COLUMNS = ["score", "name", "criterion_description", "comment"];
+const COLUMNS = ["score", "name", "criterion_name", "criterion_description", "comment"];
 
 // GradeDetail is read-only — no actions needed
 const ACTIONS: { name: string; label: string }[] = [];
@@ -26,8 +28,10 @@ const GradeDetailPage: React.FC = () => {
     const [grade, setGrade] = useState<Grade | null>(null);
     const [details, setDetails] = useState<GradeDetail[]>([]);
     const [scaleNameMap, setScaleNameMap] = useState<Record<string, string>>({});
+    const [scaleCriterionNameMap, setScaleCriterionNameMap] = useState<Record<string, string>>({});
     const [scaleCriterionMap, setScaleCriterionMap] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
+    const [studentCode, setStudentCode] = useState<string>("Estudiante");
 
     // ── Data loading ──────────────────────────────────────────────────────────
     const loadData = async () => {
@@ -56,24 +60,37 @@ const GradeDetailPage: React.FC = () => {
                 const criterionResponses = await Promise.all(
                     criterionIds.map((id) => criterionService.getCriterionById(id))
                 );
-                const criterionMap: Record<string, string> = {};
+
+                const criterionNameMap: Record<string, string> = {};
+                const criterionDescMap: Record<string, string> = {};
                 criterionResponses.forEach((r) => {
-                    if (r.data) criterionMap[r.data.id] = r.data.description ?? "";
+                    if (r.data) {
+                        criterionNameMap[r.data.id] = r.data.name ?? "";
+                        criterionDescMap[r.data.id] = r.data.description ?? "";
+                    }
                 });
 
+                const scaleToCriterionName: Record<string, string> = {};
                 const scaleToCriterionDesc: Record<string, string> = {};
                 scaleResponses.forEach((r) => {
                     const s = r.data;
                     if (s) {
-                        scaleToCriterionDesc[s.id] = criterionMap[s.criterion_id ?? ""] ?? "";
+                        scaleToCriterionName[s.id] = criterionNameMap[s.criterion_id ?? ""] ?? "";
+                        scaleToCriterionDesc[s.id] = criterionDescMap[s.criterion_id ?? ""] ?? "";
                     }
                 });
 
                 setScaleNameMap(scaleMap);
+                setScaleCriterionNameMap(scaleToCriterionName);
                 setScaleCriterionMap(scaleToCriterionDesc);
             } else {
                 setScaleNameMap({});
                 setScaleCriterionMap({});
+            }
+
+            const firstStudentId = gradeData?.details?.[0]?.student_id;
+            if (firstStudentId) {
+                setStudentCode(firstStudentId);
             }
         } catch (err) {
             console.warn("No se pudieron resolver los nombres de escala o criterios:", err);
@@ -91,8 +108,20 @@ const GradeDetailPage: React.FC = () => {
         ...d,
         name: scaleNameMap[d.scale_id] ?? d.scale_id ?? "—",
         comment: d.comment ?? "—",
+        criterion_name: scaleCriterionNameMap[d.scale_id] ?? "—",
         criterion_description: scaleCriterionMap[d.scale_id] ?? "—",
     }));
+
+    // export the performance report for the student ────────────────
+    const handleExportPDF = () => {
+        exportStudentDetailPDF(
+            studentCode,
+            grade?.final_score,
+            grade?.observations ?? undefined,
+            COLUMNS,
+            tableData
+        );
+    };
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
@@ -130,6 +159,18 @@ const GradeDetailPage: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {/* PDF export button */}
+            {!loading && details.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                        onClick={handleExportPDF}
+                        className="inline-flex items-center gap-2 rounded-md border border-primary px-4 py-2 text-sm font-medium text-primary hover:bg-primary hover:text-white transition-colors"
+                    >
+                        Descargar reporte PDF
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

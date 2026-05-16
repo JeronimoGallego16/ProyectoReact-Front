@@ -8,8 +8,10 @@ import { showToast } from "../../hooks/fireToast";
 
 import { gradeService } from "../../services/GradeService";
 import securityService from "../../services/segurity.service";
-import { evaluationAuthorizationService } from "../../services/EvalationAuthorizationService";
+import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
 import studentService from "../../services/student.service";
+
+import { exportGroupGradesPDF } from "../../utils/pdfExporter";
 
 import { Grade } from "../../models/Grade";
 import { UserRole } from "../../models/User"; 
@@ -155,6 +157,15 @@ const GradesPage: React.FC = () => {
         await loadGrades();
     };
 
+     // Export pdf with the grades from the table ─────────────
+    const handleExportPDF = () => {
+        if (tableData.length === 0) {
+            showToast("Info", "No hay notas para exportar.", 1);
+            return;
+        }
+        exportGroupGradesPDF("Grupo", COLUMNS, tableData);
+    };
+
     const saveObservations = async () => {
         if (!obsGrade) return;
         setSavingObs(true);
@@ -237,6 +248,19 @@ const GradesPage: React.FC = () => {
                     </button>
                 </div>
             )}
+
+            {/*
+                ── PDF export button ─────────────────────────────
+                */}
+                {editable && (
+                    <button
+                        onClick={handleExportPDF}
+                        disabled={loading || tableData.length === 0}
+                        className="inline-flex items-center gap-2 rounded-md border border-primary px-4 py-2 text-sm font-medium text-primary hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                    >
+                        Descargar PDF
+                    </button>
+                )}
         </div>
     );
 };

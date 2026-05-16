@@ -1,8 +1,8 @@
 // src/services/AuthorizationService.ts
 import { User } from '../models/User';
 import { Grade } from '../models/Grade';
-import { enrollmentService } from './EnrollmentService';
-import { groupService } from './GroupService';
+import { enrollmentService } from '../services/EnrollmentService';
+import { groupService } from '../services/GroupService';
 
 class AuthorizationService {
   /**

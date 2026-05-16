@@ -9,8 +9,9 @@ import { showToast } from "../../hooks/fireToast";
 import { useCrudModal } from "../../hooks/useCrudModal";
 
 import { rubricService } from "../../services/RubricService";
+import { groupService } from "../../services/GroupService";
 import { evaluationService } from "../../services/EvaluationService";
-import { evaluationAuthorizationService } from "../../services/EvalationAuthorizationService";
+import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
 import securityService from "../../services/segurity.service";
 
 import { UserRole } from "../../models/User";

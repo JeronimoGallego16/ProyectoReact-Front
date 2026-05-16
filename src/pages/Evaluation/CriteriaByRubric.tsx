@@ -13,7 +13,7 @@ import { rubricService } from "../../services/RubricService";
 import { criterionService } from "../../services/CriterionService";
 import { evaluationService } from "../../services/EvaluationService";
 import securityService from "../../services/segurity.service";
-import { evaluationAuthorizationService } from "../../services/EvalationAuthorizationService";
+import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
 
 import { Rubric } from "../../models/Rubric";
 import { Criterion } from "../../models/Criterion";

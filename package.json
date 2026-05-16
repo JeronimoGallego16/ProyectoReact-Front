@@ -20,6 +20,8 @@
     "firebase": "^12.12.1",
     "formik": "^2.4.9",
     "headlessui": "^0.0.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "jsvectormap": "^1.5.3",
     "lucide-react": "^0.477.0",
     "match-sorter": "^6.3.1",
