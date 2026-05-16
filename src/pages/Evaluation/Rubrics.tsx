@@ -9,8 +9,7 @@ import { Rubric } from "../../models/Rubric";
 //import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
 import { useNavigate } from "react-router-dom";
-import { showToast } from "../../hooks/fireToast";
-import { useCrudModal } from "../../hooks/useCrudModal";
+import { useEntityCrud } from "../../hooks/useEntityCrud";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,17 +41,6 @@ const emptyForm = (): Omit<Rubric, "id"> => ({
 const RubricsPage: React.FC = () => {
     const [rubrics, setRubrics] = useState<Rubric[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
-    const {
-        crudMode,
-        selectedItem: selectedRubric,
-        form,
-        setForm,
-        resetCrud,
-        startCreate,
-        startEdit,
-    } = useCrudModal<Rubric>(emptyForm());
-    
     const navigate = useNavigate();
 
     //const user = securityService.getUser();
@@ -60,6 +48,28 @@ const RubricsPage: React.FC = () => {
 
     const role: UserRole = "ADMIN";
     const editable = canEdit(role);
+
+    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
+
+    const getFormFields = (f: Omit<Rubric, "id">): VerticalTextFormField[] => {
+        return [
+            {
+                name: "title",
+                label: "Título",
+                placeholder: "Ingrese el título de la rúbrica",
+                type: "text",
+                value: f.title,
+            },
+            {
+                name: "description",
+                label: "Descripción",
+                placeholder: "Ingrese la descripción de la rúbrica",
+                kind: "textarea",
+                rows: 3,
+                value: f.description,
+            },
+        ];
+    };
 
     // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -75,149 +85,86 @@ const RubricsPage: React.FC = () => {
         loadRubrics();
     }, []);
 
-    // ── CRUD handlers ─────────────────────────────────────────────────────────
+    // ── useEntityCrud hook ────────────────────────────────────────────────────
 
-    const handleAction = (actionName: string, item: Record<string, any>) => {
-        const rubric = rubrics.find((currentRubric) => currentRubric.id === item.id) ?? (item as Rubric);
-
-        if (actionName === "view") {
-            navigate(`/rubrics/${rubric.id}/criteria`);
-            return;
-        }
-
-        if (actionName === "edit") {
-            startEdit(rubric);
-            setIsCrudModalOpen(true);
-        }
-
-        if (actionName === "delete") {
-            void handleDelete(rubric);
-        }
-
-        if (actionName === "archive") {
-            void handleArchive(rubric);
-        }
-
-        if (actionName === "publish") {
-            void handlePublish(rubric);
-        }
-    };
-
-    const handleDelete = async (rubric: Rubric) => {
-        const ok = window.confirm(`Eliminar la rúbrica "${rubric.title ?? rubric.id}"? Esta acción no se puede deshacer.`);
-        if (!ok) return;
-
-        const response = await rubricService.deleteRubric(rubric.id);
-        if (!response.error) {
-            showToast("Éxito", "Rúbrica eliminada exitosamente.", 0);
-            await loadRubrics();
-        } else {
-            showToast("Error", response.error || "No se pudo eliminar la rúbrica. Puede que ya esté publicada.", 2);
-        }
-    };
-
-    const handleArchive = async (rubric: Rubric) => {
-        const ok = window.confirm(`Archivar la rúbrica "${rubric.title ?? rubric.id}"? Se despublicará y quedará archivada.`);
-        if (!ok) return;
-
-        const response = await rubricService.archiveRubric(rubric.id);
-        if (!response.error) {
-            showToast("Éxito", "Rúbrica archivada exitosamente.", 0);
-            await loadRubrics();
-        } else {
-            showToast("Error", response.error || "No se pudo archivar la rúbrica.", 2);
-        }
-    };
-
-    const handlePublish = async (rubric: Rubric) => {
-        const ok = window.confirm(`Publicar la rúbrica "${rubric.title ?? rubric.id}"? Verifica que tenga los criterios necesarios.`);
-        if (!ok) return;
-
-        const response = await rubricService.publishRubric(rubric.id);
-        if (!response.error) {
-            showToast("Éxito", "Rúbrica publicada exitosamente.", 0);
-            await loadRubrics();
-        } else {
-            showToast("Error", response.error || "No se pudo publicar la rúbrica.", 2);
-        }
-    };
-
-    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
-
-    const getFormTitle = (): string => {
-        if (crudMode === "create") return "Crear Rúbrica";
-        if (crudMode === "edit") return `Editar Rúbrica`;
-        return "";
-    };
-
-    const getFormDescription = (): string => {
-        if (selectedRubric && crudMode === "edit") {
-            return `Título: ${selectedRubric.title ?? "—"}`;
-        }
-        return "";
-    };
-
-    const getFormFields = (): VerticalTextFormField[] => {
-        const baseFields: VerticalTextFormField[] = [
-            {
-                name: "title",
-                label: "Título",
-                placeholder: "Ingrese el título de la rúbrica",
-                type: "text",
-                value: form.title,
-            },
-            {
-                name: "description",
-                label: "Descripción",
-                placeholder: "Ingrese la descripción de la rúbrica",
-                kind: "textarea",
-                rows: 3,
-                value: form.description,
-            },
-        ];
-
-        return baseFields;
-    };
-
-    const getFormSaveLabel = (): string => {
-        if (crudMode === "create") return "Crear";
-        if (crudMode === "edit") return "Guardar Cambios";
-        return "Guardar";
-    };
-
-    const handleFormSave = async (values: Record<string, string>) => {
-        const nextForm: Omit<Rubric, "id"> = {
-            title: values.title ?? form.title,
-            description: values.description ?? form.description,
-        };
-
-        setForm(nextForm);
-
-        if (crudMode === "create") {
-            const response = await rubricService.createRubric(nextForm);
-            if (response.data) {
-                showToast("Éxito", "Rúbrica creada exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
-                await loadRubrics();
-            } else {
-                showToast("Error", "No se pudo crear la rúbrica.", 2);
+    const {
+        isOpen: isCrudModalOpen,
+        close: closeCrudModal,
+        handleAction,
+        handleSave,
+        startCreate,
+        title: formTitle,
+        description: formDescription,
+        fields: formFields,
+        saveLabel,
+    } = useEntityCrud<Rubric>({
+        emptyForm: emptyForm(),
+        loadData: loadRubrics,
+        createItem: async (payload) => {
+            const response = await rubricService.createRubric(payload);
+            return response.data ?? null;
+        },
+        updateItem: async (id, payload) => {
+            const response = await rubricService.updateRubric(id, payload);
+            return response.data ?? null;
+        },
+        deleteOrArchive: async (id, type) => {
+            let response;
+            if (type === "delete") {
+                response = await rubricService.deleteRubric(id);
+            } else if (type === "archive") {
+                response = await rubricService.archiveRubric(id);
+            } else if (type === "publish") {
+                response = await rubricService.publishRubric(id);
             }
-            return;
-        }
-
-        if (crudMode === "edit" && selectedRubric) {
-            const response = await rubricService.updateRubric(selectedRubric.id, nextForm);
-            if (response.data) {
-                showToast("Éxito", "Rúbrica actualizada exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
-                await loadRubrics();
-            } else {
-                showToast("Error", "No se pudo actualizar la rúbrica.", 2);
+            return !response?.error;
+        },
+        buildFields: (f) => getFormFields(f),
+        mapSaveValues: (values) => ({
+            title: values.title,
+            description: values.description,
+        }),
+        getFormTitle: (mode) => {
+            if (mode === "create") return "Crear Rúbrica";
+            if (mode === "edit") return "Editar Rúbrica";
+            return "";
+        },
+        getFormDescription: (mode, item) => {
+            if (item && mode === "edit") {
+                return `Título: ${item.title ?? "—"}`;
             }
-        }
-    };
+            return "";
+        },
+        getConfirmMessage: (type, item) => {
+            if (type === "delete") {
+                return `Eliminar la rúbrica "${item.title ?? item.id}"? Esta acción no se puede deshacer.`;
+            } else if (type === "archive") {
+                return `Archivar la rúbrica "${item.title ?? item.id}"? Se despublicará y quedará archivada.`;
+            } else if (type === "publish") {
+                return `Publicar la rúbrica "${item.title ?? item.id}"? Verifica que tenga los criterios necesarios.`;
+            }
+            return "";
+        },
+        successMessages: {
+            create: "Rúbrica creada exitosamente.",
+            update: "Rúbrica actualizada exitosamente.",
+            delete: "Rúbrica eliminada exitosamente.",
+            archive: "Rúbrica archivada exitosamente.",
+            publish: "Rúbrica publicada exitosamente.",
+        },
+        errorMessages: {
+            create: "No se pudo crear la rúbrica.",
+            update: "No se pudo actualizar la rúbrica.",
+            delete: "No se pudo eliminar la rúbrica. Puede que ya esté publicada.",
+            archive: "No se pudo archivar la rúbrica.",
+            publish: "No se pudo publicar la rúbrica.",
+        },
+        onAction: async (actionName, item) => {
+            if (actionName === "view") {
+                navigate(`/rubrics/${item.id}/criteria`);
+            }
+        },
+    });
 
     // ── Render ────────────────────────────────────────────────────────────────
 
@@ -236,7 +183,10 @@ const RubricsPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus rúbricas: crea, edita, archiva o elimina"
                     : "Busca y navega por las rúbricas disponibles."}
-                primaryAction={{ label: "+ Nueva Rúbrica", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
+                primaryAction={editable ? {
+                    label: "+ Nueva Rúbrica",
+                    onClick: startCreate,
+                } : undefined}
             />
 
             {/* Table — full height */}
@@ -260,20 +210,20 @@ const RubricsPage: React.FC = () => {
             </div>
 
             {/* CRUD modal using ModalLauncher */}
-            {editable && crudMode && (
+            {editable && isCrudModalOpen && (
                 <ModalLauncher
                     isOpen={isCrudModalOpen}
-                    onClose={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                    onClose={closeCrudModal}
                 >
                     {() => (
                         <VerticalTextFormCard
-                            title={getFormTitle()}
-                            description={getFormDescription()}
-                            fields={getFormFields()}
-                            saveLabel={getFormSaveLabel()}
+                            title={formTitle}
+                            description={formDescription}
+                            fields={formFields}
+                            saveLabel={saveLabel}
                             cancelLabel="Cancelar"
-                            onSave={handleFormSave}
-                            onCancel={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                            onSave={handleSave}
+                            onCancel={closeCrudModal}
                         />
                     )}
                 </ModalLauncher>

@@ -12,9 +12,8 @@ import { Group } from "../../models/Group";
 import { Subject } from "../../models/Subject";
 //import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
-import { showToast } from "../../hooks/fireToast";
-import { useCrudModal } from "../../hooks/useCrudModal";
 import { useNavigate } from "react-router";
+import { useEntityCrud } from "../../hooks/useEntityCrud";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,23 +51,51 @@ const EvaluationsPage: React.FC = () => {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
-
-    const {
-            crudMode,
-            selectedItem: selectedEvaluation,
-            form,
-            setForm,
-            resetCrud,
-            startCreate,
-            startEdit,
-        } = useCrudModal<Evaluation>(emptyForm());
 
     //const user = securityService.getUser();
     //const role: UserRole = user?.role ?? "STUDENT";
 
     const role: UserRole = "ADMIN";
     const editable = canEdit(role);
+
+    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
+
+    const getFormFields = (f: Omit<Evaluation, "id">): VerticalTextFormField[] => {
+        return [
+            {
+                name: "name",
+                label: "Nombre",
+                placeholder: "Ingrese el nombre de la evaluación",
+                type: "text",
+                value: f.name,
+            },
+            {
+                name: "description",
+                label: "Descripción",
+                placeholder: "Ingrese la descripción de la evaluación",
+                kind: "textarea",
+                rows: 3,
+                value: f.description,
+            },
+            {
+                name: "weight",
+                label: "Peso",
+                placeholder: "Ingrese el peso de la evaluación (0-100)",
+                type: "number",
+                value: String(f.weight),
+            },
+            {
+                name: "group_id",
+                label: "Grupo",
+                kind: "select",
+                value: f.group_id,
+                options: groups.map((group) => ({
+                    label: `${group.name} - ${group.group_code} (${subjects.find((subject) => subject.id === group.subject_id)?.name ?? group.subject_id})`,
+                    value: group.id,
+                })),
+            },
+        ];
+    };
 
     // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -89,145 +116,86 @@ const EvaluationsPage: React.FC = () => {
         loadData();
     }, []);
 
-    // ── CRUD handlers ─────────────────────────────────────────────────────────
+    // ── useEntityCrud hook ────────────────────────────────────────────────────
 
-    const handleAction = (actionName: string, item: Record<string, any>) => {
-        const evaluation = item as Evaluation;
-
-        if (actionName === "view") {
-            navigate(`/evaluations/${evaluation.id}/rubric`);
-            return;
-        }
-
-        if (actionName === "grade") {
-            navigate(`/evaluations/${evaluation.id}/califications`);
-            return;
-        }
-
-        if (actionName === "edit") {
-            startEdit(evaluation);
-            setIsCrudModalOpen(true);
-        }
-
-        if (actionName === "delete") {
-            void handleDelete(evaluation);
-        }
-    };
-
-    const handleDelete = async (evaluation: Evaluation) => {
-        const ok = window.confirm(`¿Eliminar la evaluación "${evaluation.name ?? evaluation.id}"? Esta acción no se puede deshacer.`);
-        if (!ok) return;
-
-        const success = await evaluationService.deleteEvaluation(evaluation.id);
-        if (success) {
-            showToast("Éxito", "Evaluación eliminada exitosamente.", 0);
-            await loadData();
-        } else {
-            showToast("Error", "No se pudo eliminar la evaluación.", 2);
-        }
-    };
-
-    // ── Helper functions for VerticalTextFormCard ─────────────────────────────
-
-    const getFormTitle = (): string => {
-        if (crudMode === "create") return "Crear Evaluación";
-        if (crudMode === "edit") return "Editar Evaluación";
-        return "";
-    };
-
-    const getFormDescription = (): string => {
-        if (selectedEvaluation && crudMode === "edit") {
-            return `Nombre: ${selectedEvaluation.name ?? "—"} - Peso: ${selectedEvaluation.weight ?? "—"}`;
-        }
-        return "";
-    };
-
-    const getFormFields = (): VerticalTextFormField[] => {
-        return [
-            {
-                name: "name",
-                label: "Nombre",
-                placeholder: "Ingrese el nombre de la evaluación",
-                type: "text",
-                value: form.name,
-            },
-            {
-                name: "description",
-                label: "Descripción",
-                placeholder: "Ingrese la descripción de la evaluación",
-                kind: "textarea",
-                rows: 3,
-                value: form.description,
-            },
-            {
-                name: "weight",
-                label: "Peso",
-                placeholder: "Ingrese el peso de la evaluación (0-100)",
-                type: "number",
-                value: String(form.weight),
-            },
-            {
-                name: "group_id",
-                label: "Grupo",
-                kind: "select",
-                value: form.group_id,
-                options: groups.map((group) => ({
-                    label: `${group.name} - ${group.group_code} (${subjects.find((subject) => subject.id === group.subject_id)?.name ?? group.subject_id})`,
-                    value: group.id,
-                })),
-            },
-        ];
-    };
-
-    const getFormSaveLabel = (): string => {
-        if (crudMode === "create") return "Crear";
-        if (crudMode === "edit") return "Guardar Cambios";
-        return "Guardar";
-    };
-
-    const handleFormSave = async (values: Record<string, string>) => {
-        const selectedGroup = groups.find((group) => group.id === values.group_id);
-        if (!selectedGroup) {
-            showToast("Error", "Debes seleccionar un grupo válido para crear la evaluación.", 2);
-            return;
-        }
-
-        const nextForm: Omit<Evaluation, "id"> = {
-            ...form,
-            name: values.name ?? form.name,
-            description: values.description ?? form.description,
-            weight: Number(values.weight) || 0,
-            subject_id: selectedGroup.subject_id,
-            group_id: selectedGroup.id,
-        };
-
-        setForm(nextForm);
-
-        if (crudMode === "create") {
-            const created = await evaluationService.createEvaluation(nextForm);
-            if (created) {
-                showToast("Éxito", "Evaluación creada exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
-                await loadData();
-            } else {
-                showToast("Error", "No se pudo crear la evaluación.", 2);
+    const {
+        isOpen: isCrudModalOpen,
+        close: closeCrudModal,
+        handleAction,
+        handleSave,
+        startCreate,
+        title: formTitle,
+        description: formDescription,
+        fields: formFields,
+        saveLabel,
+    } = useEntityCrud<Evaluation>({
+        emptyForm: emptyForm(),
+        loadData,
+        createItem: async (payload) => {
+            const response = await evaluationService.createEvaluation(payload);
+            return response.data ?? null;
+        },
+        updateItem: async (id, payload) => {
+            const response = await evaluationService.updateEvaluation(id, payload);
+            return response.data ?? null;
+        },
+        deleteOrArchive: async (id) => {
+            const result = await evaluationService.deleteEvaluation(id);
+            return result.success === true;
+        },
+        buildFields: (f) => getFormFields(f),
+        mapSaveValues: (values, f) => {
+            const selectedGroup = groups.find((group) => group.id === values.group_id);
+            return {
+                ...f,
+                name: values.name ?? f.name,
+                description: values.description ?? f.description,
+                weight: Number(values.weight) || 0,
+                subject_id: selectedGroup?.subject_id ?? f.subject_id,
+                group_id: selectedGroup?.id ?? f.group_id,
+            };
+        },
+        validateSave: (values) => {
+            if (!groups.find((group) => group.id === values.group_id)) {
+                return "Debes seleccionar un grupo válido para crear la evaluación.";
             }
-            return;
-        }
-
-        if (crudMode === "edit" && selectedEvaluation) {
-            const updated = await evaluationService.updateEvaluation(selectedEvaluation.id, nextForm);
-            if (updated) {
-                showToast("Éxito", "Evaluación actualizada exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
-                await loadData();
-            } else {
-                showToast("Error", "No se pudo actualizar la evaluación.", 2);
+            return null;
+        },
+        getFormTitle: (mode) => {
+            if (mode === "create") return "Crear Evaluación";
+            if (mode === "edit") return "Editar Evaluación";
+            return "";
+        },
+        getFormDescription: (mode, item) => {
+            if (item && mode === "edit") {
+                return `Nombre: ${item.name ?? "—"} - Peso: ${item.weight ?? "—"}`;
             }
-        }
-    };
+            return "";
+        },
+        getConfirmMessage: (type, item) => {
+            if (type === "delete") {
+                return `¿Eliminar la evaluación "${item.name ?? item.id}"? Esta acción no se puede deshacer.`;
+            }
+            return "";
+        },
+        successMessages: {
+            create: "Evaluación creada exitosamente.",
+            update: "Evaluación actualizada exitosamente.",
+            delete: "Evaluación eliminada exitosamente.",
+        },
+        errorMessages: {
+            create: "No se pudo crear la evaluación.",
+            update: "No se pudo actualizar la evaluación.",
+            delete: "No se pudo eliminar la evaluación.",
+        },
+        onAction: async (actionName, item) => {
+            if (actionName === "view") {
+                navigate(`/evaluations/${item.id}/rubric`);
+            } else if (actionName === "grade") {
+                navigate(`/evaluations/${item.id}/califications`);
+            }
+        },
+    });
 
     // ── Table data ────────────────────────────────────────────────────────────
 
@@ -250,10 +218,7 @@ const EvaluationsPage: React.FC = () => {
                     : "Busca y navega por las evaluaciones disponibles."}
                 primaryAction={editable ? {
                     label: "+ Nueva Evaluación",
-                    onClick: () => {
-                        startCreate();
-                        setIsCrudModalOpen(true);
-                    },
+                    onClick: startCreate,
                 } : undefined}
             />
 
@@ -278,26 +243,20 @@ const EvaluationsPage: React.FC = () => {
             </div>
 
             {/* CRUD modal using ModalLauncher */}
-            {editable && crudMode && (
+            {editable && isCrudModalOpen && (
                 <ModalLauncher
                     isOpen={isCrudModalOpen}
-                    onClose={() => {
-                        setIsCrudModalOpen(false);
-                        resetCrud();
-                    }}
+                    onClose={closeCrudModal}
                 >
                     {() => (
                         <VerticalTextFormCard
-                            title={getFormTitle()}
-                            description={getFormDescription()}
-                            fields={getFormFields()}
-                            saveLabel={getFormSaveLabel()}
+                            title={formTitle}
+                            description={formDescription}
+                            fields={formFields}
+                            saveLabel={saveLabel}
                             cancelLabel="Cancelar"
-                            onSave={handleFormSave}
-                            onCancel={() => {
-                                setIsCrudModalOpen(false);
-                                resetCrud();
-                            }}
+                            onSave={handleSave}
+                            onCancel={closeCrudModal}
                         />
                     )}
                 </ModalLauncher>

@@ -12,7 +12,7 @@ import { Criterion } from "../../models/Criterion";
 import { UserRole } from "../../models/user";
 import { useNavigate, useParams } from "react-router-dom";
 import { showToast } from "../../hooks/fireToast";
-import { useCrudModal } from "../../hooks/useCrudModal";
+import { useEntityCrud } from "../../hooks/useEntityCrud";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,17 +49,6 @@ const CriteriaByRubricPage: React.FC = () => {
     const [rubric, setRubric] = useState<Rubric | null>(null);
     const [criteria, setCriteria] = useState<Criterion[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
-    
-    const {
-            crudMode,
-            selectedItem: selectedCriterion,
-            form,
-            setForm,
-            resetCrud,
-            startCreate,
-            startEdit,
-        } = useCrudModal<Criterion>(emptyForm());
 
     //const user = securityService.getUser();
     //const role: UserRole = user?.role ?? "STUDENT";
@@ -67,9 +56,38 @@ const CriteriaByRubricPage: React.FC = () => {
     const role: UserRole = "ADMIN";
     const editable = canEdit(role);
 
+    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
+
+    const getFormFields = (f: Omit<Criterion, "id">): VerticalTextFormField[] => {
+        return [
+            {
+                name: "name",
+                label: "Nombre",
+                placeholder: "Ingrese el nombre del criterio",
+                type: "text",
+                value: f.name,
+            },
+            {
+                name: "description",
+                label: "Descripción",
+                placeholder: "Ingrese la descripción del criterio",
+                kind: "textarea",
+                rows: 3,
+                value: f.description,
+            },
+            {
+                name: "weight",
+                label: "Peso",
+                placeholder: "Ingrese el peso del criterio (0-100)",
+                type: "number",
+                value: String(f.weight),
+            },
+        ];
+    };
+
     // ── Data loading ──────────────────────────────────────────────────────────
 
-    const loadData = async () => {
+    const loadCriteriaByRubric = async () => {
         if (!rubricId) return;
         setLoading(true);
         const [rubricResponse, criteriaResponse] = await Promise.all([
@@ -82,147 +100,99 @@ const CriteriaByRubricPage: React.FC = () => {
     };
 
     useEffect(() => {
-        loadData();
+        loadCriteriaByRubric();
     }, [rubricId]);
 
-    // (Selection removed — using GenericTable for consistency with Rubrics)
+    // ── useEntityCrud hook ────────────────────────────────────────────────────
 
-    // ── CRUD handlers ─────────────────────────────────────────────────────────
-
-    const handleAction = (actionName: string, item: Record<string, any>) => {
-        const criterion = item as Criterion;
-
-        if (actionName === "view") {
-            navigate(`/criteria/${criterion.id}/scales`);
-            return;
-        }
-
-        if (actionName === "edit") {
-            if (rubric?.is_public) {
-                showToast("Error", "No puedes editar criterios de una rúbrica publicada. Archívala primero.", 2);
-                return;
-            }
-            startEdit(criterion);
-            setIsCrudModalOpen(true);
-        }
-
-        if (actionName === "delete") {
-            if (rubric?.is_public) {
-                showToast("Error", "No puedes eliminar criterios de una rúbrica publicada. Archívala primero.", 2);
-                return;
-            }
-            void handleDelete(criterion);
-        }
-    };
-
-    const handleDelete = async (criterion: Criterion) => {
-        const ok = window.confirm(`¿Eliminar el criterio "${criterion.name}"? Esta acción no se puede deshacer.`);
-        if (!ok) return;
-
-        const response = await rubricService.deleteCriterion(criterion.id);
-        if (!response.error) {
-            showToast("Éxito", "Criterio eliminado exitosamente.", 0);
-            await loadData();
-        } else {
-            showToast("Error", response.error || "No se pudo eliminar el criterio.", 2);
-        }
-    };
-
-    const handleSubmit = async (submittedForm?: Omit<Criterion, "id">) => {
-        const currentForm = submittedForm ?? form;
-
-        if (crudMode === "create") {
-            const payload = { ...currentForm, rubric_id: rubricId } as Omit<Criterion, "id">;
-            const response = await rubricService.createCriterion(payload);
-            const created = response.data;
-            if (created) {
-                showToast("Éxito", "Criterio creado exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
-                await loadData();
-            } else {
-                showToast("Error", response.error || "No se pudo crear el criterio. Verifique que la suma de pesos no exceda 100.", 2);
-            }
-            return;
-        }
-
-        if (crudMode === "edit" && selectedCriterion) {
-            const response = await rubricService.updateCriterion(selectedCriterion.id, {
-                name: currentForm.name,
-                description: currentForm.description,
-                weight: currentForm.weight,
+    const {
+        isOpen: isCrudModalOpen,
+        close: closeCrudModal,
+        handleAction,
+        handleSave,
+        startCreate,
+        title: formTitle,
+        description: formDescription,
+        fields: formFields,
+        saveLabel,
+    } = useEntityCrud<Criterion>({
+        emptyForm: emptyForm(),
+        loadData: loadCriteriaByRubric,
+        createItem: async (payload) => {
+            const fullPayload = { ...payload, rubric_id: rubricId } as Omit<Criterion, "id">;
+            const response = await rubricService.createCriterion(fullPayload);
+            return response.data ?? null;
+        },
+        updateItem: async (id, payload) => {
+            const response = await rubricService.updateCriterion(id, {
+                name: payload.name,
+                description: payload.description,
+                weight: payload.weight,
             });
-            const updated = response.data;
-            if (updated) {
-                showToast("Éxito", "Criterio actualizado exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
-                await loadData();
-            } else {
-                showToast("Error", response.error || "No se pudo actualizar el criterio.", 2);
-            }
-        }
-    };
-
-    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
-
-    const getFormTitle = (): string => {
-        if (crudMode === "create") return "Crear Criterio";
-        if (crudMode === "edit") return `Editar Criterio`;
-        return "";
-    };
-
-    const getFormDescription = (): string => {
-        if (selectedCriterion && crudMode === "edit") {
-            return `Nombre: ${selectedCriterion.name} - Peso: ${selectedCriterion.weight}`;
-        }
-        return "";
-    };
-
-    const getFormFields = (): VerticalTextFormField[] => {
-        return [
-            {
-                name: "name",
-                label: "Nombre",
-                placeholder: "Ingrese el nombre del criterio",
-                type: "text",
-                value: form.name,
-            },
-            {
-                name: "description",
-                label: "Descripción",
-                placeholder: "Ingrese la descripción del criterio",
-                kind: "textarea",
-                rows: 3,
-                value: form.description,
-            },
-            {
-                name: "weight",
-                label: "Peso",
-                placeholder: "Ingrese el peso del criterio (0-100)",
-                type: "number",
-                value: String(form.weight),
-            },
-        ];
-    };
-
-    const getFormSaveLabel = (): string => {
-        if (crudMode === "create") return "Crear";
-        if (crudMode === "edit") return "Guardar Cambios";
-        return "Guardar";
-    };
-
-    const handleFormSave = (values: Record<string, string>) => {
-        const nextForm: Omit<Criterion, "id"> = {
-            ...form,
-            name: values.name ?? form.name,
-            description: values.description ?? form.description,
+            return response.data ?? null;
+        },
+        deleteOrArchive: async (id) => {
+            const response = await rubricService.deleteCriterion(id);
+            return !response?.error;
+        },
+        buildFields: (f) => getFormFields(f),
+        mapSaveValues: (values) => ({
+            rubric_id: rubricId ?? "",
+            name: values.name,
+            description: values.description,
             weight: Number(values.weight) || 0,
-        };
-
-        setForm(nextForm);
-        void handleSubmit(nextForm);
-    };
+        }),
+        validateSave: (values) => {
+            const totalWeight = criteria.reduce((sum, c) => sum + (c.weight ?? 0), 0);
+            const newWeight = Number(values.weight) || 0;
+            if (totalWeight + newWeight > 100) {
+                return `La suma de pesos no puede exceder 100%. Actual: ${totalWeight}% + ${newWeight}% = ${totalWeight + newWeight}%.`;
+            }
+            return null;
+        },
+        getFormTitle: (mode) => {
+            if (mode === "create") return "Crear Criterio";
+            if (mode === "edit") return "Editar Criterio";
+            return "";
+        },
+        getFormDescription: (mode, item) => {
+            if (item && mode === "edit") {
+                return `Nombre: ${item.name} - Peso: ${item.weight}`;
+            }
+            return "";
+        },
+        getConfirmMessage: (type, item) => {
+            if (type === "delete") {
+                return `¿Eliminar el criterio "${item.name}"? Esta acción no se puede deshacer.`;
+            }
+            return "";
+        },
+        successMessages: {
+            create: "Criterio creado exitosamente.",
+            update: "Criterio actualizado exitosamente.",
+            delete: "Criterio eliminado exitosamente.",
+        },
+        errorMessages: {
+            create: "No se pudo crear el criterio. Verifique que la suma de pesos no exceda 100.",
+            update: "No se pudo actualizar el criterio.",
+            delete: "No se pudo eliminar el criterio.",
+        },
+        onAction: async (actionName, item) => {
+            if (actionName === "view") {
+                navigate(`/criteria/${item.id}/scales`);
+            } else if (actionName === "edit") {
+                if (rubric?.is_public) {
+                    showToast("Error", "No puedes editar criterios de una rúbrica publicada. Archívala primero.", 2);
+                    return;
+                }
+            } else if (actionName === "delete") {
+                if (rubric?.is_public) {
+                    showToast("Error", "No puedes eliminar criterios de una rúbrica publicada. Archívala primero.", 2);
+                    return;
+                }
+            }
+        },
+    });
 
     // ── Render ────────────────────────────────────────────────────────────────
 
@@ -245,7 +215,10 @@ const CriteriaByRubricPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus criterios para esta rúbrica. Asigna, crea, edita y elimina."
                     : "Busca y navega por los criterios de esta rúbrica."}
-                primaryAction={{ label: "+ Nuevo Criterio", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
+                primaryAction={editable ? {
+                    label: "+ Nuevo Criterio",
+                    onClick: startCreate,
+                } : undefined}
             >
             </PageHeader>
 
@@ -270,20 +243,20 @@ const CriteriaByRubricPage: React.FC = () => {
             </div>
 
             {/* CRUD modal using ModalLauncher */}
-            {editable && crudMode && (
+            {editable && isCrudModalOpen && (
                 <ModalLauncher
                     isOpen={isCrudModalOpen}
-                    onClose={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                    onClose={closeCrudModal}
                 >
                     {() => (
                         <VerticalTextFormCard
-                            title={getFormTitle()}
-                            description={getFormDescription()}
-                            fields={getFormFields()}
-                            saveLabel={getFormSaveLabel()}
+                            title={formTitle}
+                            description={formDescription}
+                            fields={formFields}
+                            saveLabel={saveLabel}
                             cancelLabel="Cancelar"
-                            onSave={handleFormSave}
-                            onCancel={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                            onSave={handleSave}
+                            onCancel={closeCrudModal}
                         />
                     )}
                 </ModalLauncher>
