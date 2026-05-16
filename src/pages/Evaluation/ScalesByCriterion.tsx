@@ -262,12 +262,12 @@ const ScalesByCriterionPage: React.FC = () => {
                                 Selecciona uno o varios criterios destino para copiar la escala sin perder la original.
                             </p>
 
-                            <div className="max-h-[50vh] overflow-y-auto">
-                                {loadingTargets ? (
-                                    <p className="p-4 text-sm text-body dark:text-bodydark">Cargando criterios destino…</p>
-                                ) : targetCriteria.length === 0 ? (
-                                    <p className="p-4 text-sm text-body dark:text-bodydark">No hay criterios disponibles para copiar esta escala.</p>
-                                ) : (
+                            {loadingTargets ? (
+                                <p className="p-4 text-sm text-body dark:text-bodydark">Cargando criterios destino…</p>
+                            ) : targetCriteria.length === 0 ? (
+                                <p className="p-4 text-sm text-body dark:text-bodydark">No hay criterios disponibles para copiar esta escala.</p>
+                            ) : (
+                                <TableScroll maxHeight="50vh">
                                     <SelectableTable
                                         data={targetCriteria}
                                         columns={TARGET_CRITERIA_COLUMNS}
@@ -279,8 +279,8 @@ const ScalesByCriterionPage: React.FC = () => {
                                         }}
                                         selectionMode={2}
                                     />
-                                )}
-                            </div>
+                                </TableScroll>
+                            )}
 
                             <div className="mt-5 flex items-center justify-end gap-3">
                                 <button

@@ -221,36 +221,38 @@ const CalificationPage: React.FC = () => {
                                 </p>
                             </div>
 
-                            <div className="max-h-[60vh] space-y-6 overflow-y-auto">
-                                {criteria.length === 0 ? (
-                                    <p className="text-sm text-body dark:text-bodydark">
-                                        No hay criterios disponibles para esta rúbrica.
-                                    </p>
-                                ) : (
-                                    criteria.map((criterion) => (
-                                        <div key={criterion.id} className="space-y-2">
-                                            <h4 className="text-sm font-medium text-black dark:text-white">
-                                                {criterion.name} (Peso: {criterion.weight}%)
-                                            </h4>
-                                            {scalesByCriterion[criterion.id] ? (
-                                                <SelectableTable
-                                                    data={scalesByCriterion[criterion.id]}
-                                                    columns={SCALE_COLUMNS}
-                                                    actions={[]}
-                                                    onAction={(action, item) => {
-                                                        if (action === "select") {
-                                                            handleScaleSelect(criterion.id, (item as Scale).id);
-                                                        }
-                                                    }}
-                                                    selectionMode={1}
-                                                />
-                                            ) : (
-                                                <p className="text-xs text-body dark:text-bodydark">Cargando escalas…</p>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
+                            <TableScroll maxHeight="60vh">
+                                <div className="space-y-6">
+                                    {criteria.length === 0 ? (
+                                        <p className="text-sm text-body dark:text-bodydark">
+                                            No hay criterios disponibles para esta rúbrica.
+                                        </p>
+                                    ) : (
+                                        criteria.map((criterion) => (
+                                            <div key={criterion.id} className="space-y-2">
+                                                <h4 className="text-sm font-medium text-black dark:text-white">
+                                                    {criterion.name} (Peso: {criterion.weight}%)
+                                                </h4>
+                                                {scalesByCriterion[criterion.id] ? (
+                                                    <SelectableTable
+                                                        data={scalesByCriterion[criterion.id]}
+                                                        columns={SCALE_COLUMNS}
+                                                        actions={[]}
+                                                        onAction={(action, item) => {
+                                                            if (action === "select") {
+                                                                handleScaleSelect(criterion.id, (item as Scale).id);
+                                                            }
+                                                        }}
+                                                        selectionMode={1}
+                                                    />
+                                                ) : (
+                                                    <p className="text-xs text-body dark:text-bodydark">Cargando escalas…</p>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </TableScroll>
 
                             <div className="mt-6 flex gap-3 border-t border-stroke pt-4 dark:border-strokedark">
                                 <button
