@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SelectableTable from "../../components/SelectableTable";
+import TableScroll from "../../components/TableScroll";
 import PageHeader from "../../components/PageHeader";
 import { rubricService } from "../../services/RubricService";
 import { evaluationService } from "../../services/EvaluationService";
@@ -164,19 +165,21 @@ const RubricForEvaluationPage: React.FC = () => {
                     ) : rubrics.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se econtraron rúbricas.</p>
                     ) : (
-                        <SelectableTable
-                            data={rubrics}
-                            columns={COLUMNS}
-                            actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
-                            onAction={(actionName, item) => {
-                                if (actionName === "select") {
-                                    handleAction("select", item);
-                                    return;
-                                }
-                                handleAction(actionName, item);
-                            }}
-                            selectionMode={1}
-                        />
+                        <TableScroll maxHeight="55vh">
+                            <SelectableTable
+                                data={rubrics}
+                                columns={COLUMNS}
+                                actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
+                                onAction={(actionName, item) => {
+                                    if (actionName === "select") {
+                                        handleAction("select", item);
+                                        return;
+                                    }
+                                    handleAction(actionName, item);
+                                }}
+                                selectionMode={1}
+                            />
+                        </TableScroll>
                     )}
                 </div>
             </div>

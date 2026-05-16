@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import GenericTable from "../../components/GenericTable";
+import TableScroll from "../../components/TableScroll";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
@@ -264,12 +265,14 @@ const EvaluationsPage: React.FC = () => {
                     ) : evaluations.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron evaluaciones.</p>
                     ) : (
-                        <GenericTable
-                            data={tableData}
-                            columns={COLUMNS}
-                            actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
-                            onAction={handleAction}
-                        />
+                        <TableScroll maxHeight="55vh">
+                            <GenericTable
+                                data={tableData}
+                                columns={COLUMNS}
+                                actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
+                                onAction={handleAction}
+                            />
+                        </TableScroll>
                     )}
                 </div>
             </div>

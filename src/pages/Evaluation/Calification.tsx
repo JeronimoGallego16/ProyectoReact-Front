@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import GenericTable from "../../components/GenericTable";
 import SelectableTable from "../../components/SelectableTable";
+import TableScroll from "../../components/TableScroll";
 import PageHeader from "../../components/PageHeader";
 import EntityHeader from "../../components/EntityHeader";
 import ModalLauncher from "../../components/ModalLauncher";
@@ -189,17 +190,19 @@ const CalificationPage: React.FC = () => {
                     ) : students.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron estudiantes en este grupo.</p>
                     ) : (
-                        <GenericTable
-                            data={students.map((s) => ({
-                                id: s.id,
-                                student_id: s.student_id,
-                                name: s.student?.name ?? s.student_id ?? "—",
-                                email: s.student?.email ?? "—",
-                            }))}
-                            columns={STUDENT_COLUMNS}
-                            actions={editable ? [{ name: "grade", label: "Calificar" }] : []}
-                            onAction={handleStudentAction}
-                        />
+                        <TableScroll maxHeight="55vh">
+                            <GenericTable
+                                data={students.map((s) => ({
+                                    id: s.id,
+                                    student_id: s.student_id,
+                                    name: s.student?.name ?? s.student_id ?? "—",
+                                    email: s.student?.email ?? "—",
+                                }))}
+                                columns={STUDENT_COLUMNS}
+                                actions={editable ? [{ name: "grade", label: "Calificar" }] : []}
+                                onAction={handleStudentAction}
+                            />
+                        </TableScroll>
                     )}
                 </div>
             </div>

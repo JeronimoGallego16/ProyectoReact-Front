@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import GenericTable from "../../components/GenericTable";
+import TableScroll from "../../components/TableScroll";
 import SelectableTable from "../../components/SelectableTable";
 import EntityHeader from "../../components/EntityHeader";
 import ModalLauncher from "../../components/ModalLauncher";
@@ -325,12 +326,14 @@ const ScalesByCriterionPage: React.FC = () => {
                     ) : scales.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se econtraron escalas para este criterio.</p>
                     ) : (
-                        <GenericTable
-                            data={scales}
-                            columns={COLUMNS}
-                            actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
-                            onAction={handleAction}
-                        />
+                        <TableScroll maxHeight={crudMode ? '20vh' : '55vh'}>
+                            <GenericTable
+                                data={scales}
+                                columns={COLUMNS}
+                                actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
+                                onAction={handleAction}
+                            />
+                        </TableScroll>
                     )}
                 </div>
             </div>

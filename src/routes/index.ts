@@ -11,6 +11,7 @@ const CriteriaByRubricPage = lazy(() => import('../pages/Evaluation/CriteriaByRu
 const ScalesByCriterionPage = lazy(() => import('../pages/Evaluation/ScalesByCriterion'));
 const RubricForEvaluationPage = lazy(() => import('../pages/Evaluation/RubricForEvaluation'));
 const CalificationPage = lazy(() => import('../pages/Evaluation/Calification'));
+const AcademicPage = lazy(() => import('../pages/Academic/AcademicPage'));
 
 const coreRoutes = [
   {
@@ -37,6 +38,11 @@ const coreRoutes = [
     path: '/table-test',
     title: 'Table Test',
     component: TableTest,
+  },
+  {
+    path: '/academic',
+    title: 'Académico',
+    component: AcademicPage,
   },
   {
     path: '/rubrics',
@@ -67,7 +73,7 @@ const coreRoutes = [
     path: '/evaluations/:evaluationId/califications',
     title: 'Calification',
     component: CalificationPage,
-  }
+  },
 ];
 
 const routes = [...coreRoutes];

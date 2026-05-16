@@ -67,8 +67,12 @@ class ApiService {
    */
   async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.get<ApiResponse<T>>(endpoint, { params });
-      return response.data;
+      const response = await this.api.get<any>(endpoint, { params });
+      const raw = response.data;
+      if (raw && typeof raw.success === 'undefined' && raw.data !== undefined) {
+        return { success: true, data: raw.data } as ApiResponse<T>;
+      }
+      return raw as ApiResponse<T>;
     } catch (error) {
       return this.handleError(error);
     }
@@ -79,8 +83,12 @@ class ApiService {
    */
   async post<T>(endpoint: string, data: Record<string, any>): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.post<ApiResponse<T>>(endpoint, data);
-      return response.data;
+      const response = await this.api.post<any>(endpoint, data);
+      const raw = response.data;
+      if (raw && typeof raw.success === 'undefined' && raw.data !== undefined) {
+        return { success: true, data: raw.data } as ApiResponse<T>;
+      }
+      return raw as ApiResponse<T>;
     } catch (error) {
       return this.handleError(error);
     }
@@ -91,8 +99,12 @@ class ApiService {
    */
   async put<T>(endpoint: string, data: Record<string, any>): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.put<ApiResponse<T>>(endpoint, data);
-      return response.data;
+      const response = await this.api.put<any>(endpoint, data);
+      const raw = response.data;
+      if (raw && typeof raw.success === 'undefined' && raw.data !== undefined) {
+        return { success: true, data: raw.data } as ApiResponse<T>;
+      }
+      return raw as ApiResponse<T>;
     } catch (error) {
       return this.handleError(error);
     }
@@ -103,8 +115,12 @@ class ApiService {
    */
   async patch<T>(endpoint: string, data: Record<string, any>): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.patch<ApiResponse<T>>(endpoint, data);
-      return response.data;
+      const response = await this.api.patch<any>(endpoint, data);
+      const raw = response.data;
+      if (raw && typeof raw.success === 'undefined' && raw.data !== undefined) {
+        return { success: true, data: raw.data } as ApiResponse<T>;
+      }
+      return raw as ApiResponse<T>;
     } catch (error) {
       return this.handleError(error);
     }
@@ -115,8 +131,12 @@ class ApiService {
    */
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.delete<ApiResponse<T>>(endpoint);
-      return response.data;
+      const response = await this.api.delete<any>(endpoint);
+      const raw = response.data;
+      if (raw && typeof raw.success === 'undefined' && raw.data !== undefined) {
+        return { success: true, data: raw.data } as ApiResponse<T>;
+      }
+      return raw as ApiResponse<T>;
     } catch (error) {
       return this.handleError(error);
     }
@@ -131,6 +151,8 @@ class ApiService {
     if (axios.isAxiosError(error)) {
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
       } else if (error.response?.statusText) {
         errorMessage = error.response.statusText;
       } else if (error.message) {

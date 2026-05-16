@@ -1,6 +1,6 @@
 import apiService from './api';
 import { Career, CareerCreateInput, CareerUpdateInput } from '../models/Career';
-import { registrationService } from './RegistrationService';
+import { studyPlanService } from './StudyPlanService';
 
 const API_URL = '/academic/careers';
 
@@ -71,12 +71,12 @@ class CareerService {
   }
 
   // Método para archivar una carrera (marcar como inactiva).
-  // Una carrera archivada no puede tener estudiantes matriculados activos.
+  // Una carrera archivada no puede tener planes de estudio publicados activos.
   async archiveCareer(id: string): Promise<Career | null> {
     try {
-      const activeRegistrations = await registrationService.getRegistrationsByCareer(id);
-      if (activeRegistrations.some(registration => registration.is_active)) {
-        throw new Error('Cannot archive a career with active registrations');
+      const publishedPlans = await studyPlanService.getPublishedStudyPlansByCareer(id);
+      if (publishedPlans.length > 0) {
+        throw new Error('Cannot archive a career with published study plans');
       }
 
       return await this.updateCareer(id, { is_active: false });

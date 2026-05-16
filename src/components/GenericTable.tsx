@@ -65,6 +65,11 @@ const GenericTable: React.FC<GenericTableProps> = ({ data, columns, actions, onA
                                                             ? "text-red-500 hover:bg-red-100"
                                                             : ""
                                                     }
+                                                    $
+                                                        action.name === "archive"
+                                                            ? "text-red-500 hover:bg-red-100"
+                                                            : ""
+                                                    }
                                                     ${
                                                         action.name === "view"
                                                             ? "text-blue-500 hover:bg-blue-100"
