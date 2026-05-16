@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import SubjectsPage from '../pages/Academic/Subjects';
 
 const FormElements = lazy(() => import('../pages/Form/FormElements'));
 const FormLayout = lazy(() => import('../pages/Form/FormLayout'));
@@ -43,6 +44,11 @@ const coreRoutes = [
     path: '/academic',
     title: 'Académico',
     component: AcademicPage,
+  },
+  {
+    path: '/academic/subjects',
+    title: 'Asignaturas',
+    component: SubjectsPage,
   },
   {
     path: '/rubrics',

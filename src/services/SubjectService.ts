@@ -119,6 +119,14 @@ class SubjectService {
     }
   }
 
+  async reactivateSubject(id: string): Promise<Subject | null> {
+    try {
+      return await this.updateSubject(id, { is_active: true });
+    } catch (error) {
+      return this._handleError(error);
+    }
+  }
+
   // Helpers
   private _handleError(error: any): any {
     if (error.response?.data?.error) {
