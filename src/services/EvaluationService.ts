@@ -1,6 +1,7 @@
 import apiService, { ApiResponse } from './api';
 import { Evaluation } from '../models/Evaluation';
 import { gradeService } from './GradeService';
+import { enrollmentService } from './EnrollmentService';
 import { rubricService } from './RubricService';
 
 const API_URL_EVALUATIONS = '/evaluation/evaluations';
@@ -40,7 +41,19 @@ class EvaluationService {
         if (evaluation.rubric_id && evaluation.rubric_id !== rubricId) {
             const gradesResponse = await gradeService.getGradesByRubricId(evaluation.rubric_id);
             const grades = Array.isArray(gradesResponse.data) ? gradesResponse.data : [];
-            if (grades.length > 0) {
+
+            // Sólo considerar como bloqueo las notas que pertenecen a la misma evaluación (mismo group_id).
+            // Para ello, obtenemos la inscripción (enrollment) de cada nota y comparamos su group_id con evaluation.group_id.
+            let hasGradesInThisEvaluation = false;
+            for (const g of grades) {
+                const enrollment = await enrollmentService.getEnrollmentById(g.enrollment_id);
+                if (enrollment && enrollment.group_id && evaluation.group_id && enrollment.group_id === evaluation.group_id) {
+                    hasGradesInThisEvaluation = true;
+                    break;
+                }
+            }
+
+            if (hasGradesInThisEvaluation) {
                 console.log('La evaluación ya tiene notas asociadas a su rúbrica actual. No se puede cambiar la rúbrica.');
                 return {
                     success: false,

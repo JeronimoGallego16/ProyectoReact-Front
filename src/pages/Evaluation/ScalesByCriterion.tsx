@@ -6,7 +6,8 @@ import EntityHeader from "../../components/EntityHeader";
 import ModalLauncher from "../../components/ModalLauncher";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
-import { rubricService } from "../../services/RubricService";
+import { criterionService } from "../../services/CriterionService";
+import { scaleService } from "../../services/ScaleService";
 import { Criterion } from "../../models/Criterion";
 import { Scale } from "../../models/Scale";
 //import securityService from "../../services/segurity.service";
@@ -75,8 +76,8 @@ const ScalesByCriterionPage: React.FC = () => {
         if (!criterionId) return;
         setLoading(true);
         const [criterionResponse, scalesResponse] = await Promise.all([
-            rubricService.getCriterionById(criterionId),
-            rubricService.getScaleByCriterionId(criterionId),
+            criterionService.getCriterionById(criterionId),
+            scaleService.getScaleByCriterionId(criterionId),
         ]);
         setCriterion(criterionResponse.data || null);
         setScales(Array.isArray(scalesResponse.data) ? scalesResponse.data : []);
@@ -126,13 +127,12 @@ const ScalesByCriterionPage: React.FC = () => {
     const handleDelete = async (scale: Scale) => {
         const ok = window.confirm(`Eliminar escala "${scale.name}" de este criterio?`);
         if (!ok) return;
-
-        const response = await rubricService.updateScale(scale.id, { criterion_id: undefined });
-        if (response.data) {
-            showToast("Éxito", "Escala desvinculada del criterio.", 0);
+        const response = await scaleService.deleteScale(scale.id);
+        if (!response.error) {
+            showToast("Éxito", "Escala eliminada correctamente.", 0);
             await loadData();
         } else {
-            showToast("Error", "No se pudo desvincular la escala.", 2);
+            showToast("Error", response.error || "No se pudo eliminar la escala.", 2);
         }
     };
 
@@ -194,7 +194,7 @@ const ScalesByCriterionPage: React.FC = () => {
         setForm(nextForm);
 
         if (crudMode === "create") {
-            const response = await rubricService.createScale(nextForm);
+            const response = await scaleService.createScale(nextForm);
             if (response.data) {
                 showToast("Éxito", "Escala creada exitosamente.", 0);
                     setIsCrudModalOpen(false);
@@ -207,7 +207,7 @@ const ScalesByCriterionPage: React.FC = () => {
         }
 
         if (crudMode === "edit" && selectedScale) {
-            const response = await rubricService.updateScale(selectedScale.id, {
+            const response = await scaleService.updateScale(selectedScale.id, {
                 name: nextForm.name,
                 description: nextForm.description,
                 value: nextForm.value,

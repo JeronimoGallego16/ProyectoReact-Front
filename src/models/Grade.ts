@@ -9,6 +9,6 @@ export interface Grade {
     observations?: string | null;
     is_locked: boolean;
     details: GradeDetail[];
-    created_at: string;
-    updated_at: string;
+    created_at?: string;
+    updated_at?: string;
 }

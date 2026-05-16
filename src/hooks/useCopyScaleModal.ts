@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Criterion } from "../models/Criterion";
 import { Scale } from "../models/Scale";
-import { rubricService } from "../services/RubricService";
+import { criterionService } from "../services/CriterionService";
+import { scaleService } from "../services/ScaleService";
 import { showToast } from "./fireToast";
 
 type UseCopyScaleModalParams = {
@@ -44,7 +45,7 @@ export function useCopyScaleModal({ criterionId, rubricId, onCopySuccess }: UseC
         setIsCopyModalOpen(true);
         setLoadingTargets(true);
 
-        const response = await rubricService.getCriteriaByRubricId(rubricId);
+        const response = await criterionService.getCriteriaByRubricId(rubricId);
         const allCriteria = Array.isArray(response.data) ? response.data : [];
         const availableTargets = allCriteria.filter((item) => item.id !== criterionId);
         setTargetCriteria(availableTargets);
@@ -67,7 +68,7 @@ export function useCopyScaleModal({ criterionId, rubricId, onCopySuccess }: UseC
         let failCount = 0;
 
         for (const targetCriterionId of selectedTargetIds) {
-            const response = await rubricService.copyScaleToCriterion(sourceScale.id, targetCriterionId);
+            const response = await scaleService.copyScaleToCriterion(sourceScale.id, targetCriterionId);
             if (response.data) {
                 successCount += 1;
             } else {

@@ -11,6 +11,7 @@ interface SelectableTableProps {
     actions: Action[];
     onAction: (name: string, item: Record<string, any>) => void;
     selectionMode: 1 | 2; // 1 = radio (single), 2 = checkbox (multiple)
+    selectionName?: string;
 }
 
 const SelectableTable: React.FC<SelectableTableProps> = ({
@@ -19,6 +20,7 @@ const SelectableTable: React.FC<SelectableTableProps> = ({
     actions,
     onAction,
     selectionMode,
+    selectionName,
 }) => {
     return (
         <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
@@ -51,9 +53,8 @@ const SelectableTable: React.FC<SelectableTableProps> = ({
                                 <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark text-center">
                                     <input
                                         type={selectionMode === 1 ? "radio" : "checkbox"}
-                                        name={selectionMode === 1 ? "table-selection" : undefined}
+                                        name={selectionMode === 1 ? (selectionName ?? "table-selection") : undefined}
                                         className="w-4 h-4 cursor-pointer"
-                                        // En SelectableTable.tsx, en el <input type="checkbox">:
                                         onChange={() => onAction("select", item)}
                                     />
                                 </td>

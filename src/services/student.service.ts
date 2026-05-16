@@ -45,6 +45,14 @@ class StudentService {
   }
 
   /**
+   * Obtener datos académicos del estudiante por academic student id
+   * Endpoint: /academic/students/{id}
+   */
+  async getAcademicStudentById(academicStudentId: string): Promise<ApiResponse<any>> {
+    return apiService.get<any>(`/academic/students/${academicStudentId}`);
+  }
+
+  /**
    * Crear un nuevo estudiante
    */
   async createStudent(payload: CreateStudentPayload): Promise<ApiResponse<Student>> {

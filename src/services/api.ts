@@ -129,13 +129,28 @@ class ApiService {
     let errorMessage = 'Error desconocido';
 
     if (axios.isAxiosError(error)) {
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
+      // Prefer explicit server error message
+      if (error.response?.data) {
+        try {
+          // If server sends { error: '...' } prefer that, otherwise stringify entire body for debugging
+          if (typeof error.response.data === 'object' && error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else {
+            errorMessage = JSON.stringify(error.response.data);
+          }
+        } catch (e) {
+          errorMessage = String(error.response.data);
+        }
       } else if (error.response?.statusText) {
         errorMessage = error.response.statusText;
       } else if (error.message) {
         errorMessage = error.message;
       }
+    }
+
+    // Log full error to console for developer debugging
+    if (import.meta.env.DEV) {
+      console.error('API request error:', error);
     }
 
     return {

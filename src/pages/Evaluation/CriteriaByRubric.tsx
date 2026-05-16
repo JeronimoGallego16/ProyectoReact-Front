@@ -5,6 +5,7 @@ import EntityHeader from "../../components/EntityHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
 import { rubricService } from "../../services/RubricService";
+import { criterionService } from "../../services/CriterionService";
 import { Rubric } from "../../models/Rubric";
 import { Criterion } from "../../models/Criterion";
 //import securityService from "../../services/segurity.service";
@@ -73,7 +74,7 @@ const CriteriaByRubricPage: React.FC = () => {
         setLoading(true);
         const [rubricResponse, criteriaResponse] = await Promise.all([
             rubricService.getRubricById(rubricId),
-            rubricService.getCriteriaByRubricId(rubricId),
+            criterionService.getCriteriaByRubricId(rubricId),
         ]);
         setRubric(rubricResponse.data || null);
         setCriteria(Array.isArray(criteriaResponse.data) ? criteriaResponse.data : []);
@@ -118,7 +119,7 @@ const CriteriaByRubricPage: React.FC = () => {
         const ok = window.confirm(`¿Eliminar el criterio "${criterion.name}"? Esta acción no se puede deshacer.`);
         if (!ok) return;
 
-        const response = await rubricService.deleteCriterion(criterion.id);
+        const response = await criterionService.deleteCriterion(criterion.id);
         if (!response.error) {
             showToast("Éxito", "Criterio eliminado exitosamente.", 0);
             await loadData();
@@ -132,7 +133,7 @@ const CriteriaByRubricPage: React.FC = () => {
 
         if (crudMode === "create") {
             const payload = { ...currentForm, rubric_id: rubricId } as Omit<Criterion, "id">;
-            const response = await rubricService.createCriterion(payload);
+            const response = await criterionService.createCriterion(payload);
             const created = response.data;
             if (created) {
                 showToast("Éxito", "Criterio creado exitosamente.", 0);
@@ -140,13 +141,16 @@ const CriteriaByRubricPage: React.FC = () => {
                 resetCrud();
                 await loadData();
             } else {
+                // Cerrar el modal para que el mensaje de error sea visible en la página
+                setIsCrudModalOpen(false);
+                resetCrud();
                 showToast("Error", response.error || "No se pudo crear el criterio. Verifique que la suma de pesos no exceda 100.", 2);
             }
             return;
         }
 
         if (crudMode === "edit" && selectedCriterion) {
-            const response = await rubricService.updateCriterion(selectedCriterion.id, {
+            const response = await criterionService.updateCriterion(selectedCriterion.id, {
                 name: currentForm.name,
                 description: currentForm.description,
                 weight: currentForm.weight,
@@ -247,6 +251,19 @@ const CriteriaByRubricPage: React.FC = () => {
                 primaryAction={{ label: "+ Nuevo Criterio", onClick: () => { startCreate(); setIsCrudModalOpen(true); } }}
             >
             </PageHeader>
+
+            {/* Nota sobre pesos */}
+            <div className="mt-3 mb-4">
+                {(() => {
+                    const totalWeight = criteria.reduce((s, c) => s + (Number(c.weight) || 0), 0);
+                    const ok = totalWeight === 100;
+                    return (
+                        <div className={`rounded-sm p-3 text-sm ${ok ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-800'}`}>
+                            <strong>Nota:</strong> La suma de los pesos de los criterios debe ser 100. Total actual: <span className={`font-medium ${ok ? 'text-green-800' : 'text-yellow-900'}`}>{totalWeight}</span>.
+                        </div>
+                    );
+                })()}
+            </div>
 
             {/* Table — full height */}
             <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[60vh]">

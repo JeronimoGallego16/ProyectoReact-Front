@@ -1,80 +1,132 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import GenericTable from "../../components/GenericTable";
-import SelectableTable from "../../components/SelectableTable";
-import PageHeader from "../../components/PageHeader";
+import CriterionCommentBox from "../../components/CriterionCommentBox";
 import EntityHeader from "../../components/EntityHeader";
 import ModalLauncher from "../../components/ModalLauncher";
-import { evaluationService } from "../../services/EvaluationService";
-import { gradeService } from "../../services/GradeService";
-import { enrollmentService } from "../../services/EnrollmentService";
-import { rubricService } from "../../services/RubricService";
+import PageHeader from "../../components/PageHeader";
+import SelectableTable from "../../components/SelectableTable";
+
 import { Evaluation } from "../../models/Evaluation";
 import { Criterion } from "../../models/Criterion";
+import { Group } from "../../models/Group";
 import { Scale } from "../../models/Scale";
-import { GradeDetail } from "../../models/GradeDetail";
-import { UserRole } from "../../models/user";
+import { Subject } from "../../models/Subject";
+import { Enrollment } from "../../models/Enrollment";
+
+import { evaluationService } from "../../services/EvaluationService";
+import { enrollmentService } from "../../services/EnrollmentService";
+import { groupService } from "../../services/GroupService";
+import { gradeService } from "../../services/GradeService";
+import studentService from "../../services/student.service";
+import { subjectService } from "../../services/SubjectService";
+import { rubricService } from "../../services/RubricService";
+import { criterionService } from "../../services/CriterionService";
+import { scaleService } from "../../services/ScaleService";
+
 import { showToast } from "../../hooks/fireToast";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+type StudentRow = {
+    student_code: string;
+    email: string;
+    enrollment_id: string;
+};
 
-const STUDENT_COLUMNS = ["id", "name", "email"];
-
-const SCALE_COLUMNS = ["name", "description", "value"];
-
-const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
+const STUDENT_COLUMNS = ["student_code", "email"];
 
 const CalificationPage: React.FC = () => {
     const { evaluationId } = useParams<{ evaluationId: string }>();
     const navigate = useNavigate();
 
     const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
-    const [students, setStudents] = useState<any[]>([]);
+    const [rubric, setRubric] = useState<{ id: string; title?: string } | null>(null);
     const [criteria, setCriteria] = useState<Criterion[]>([]);
     const [scalesByCriterion, setScalesByCriterion] = useState<Record<string, Scale[]>>({});
-    const [existingGrades, setExistingGrades] = useState<any[]>([]);
+    const [group, setGroup] = useState<Group | null>(null);
+    const [subject, setSubject] = useState<Subject | null>(null);
+    const [students, setStudents] = useState<StudentRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [gradingStudent, setGradingStudent] = useState<any | null>(null);
+    const [tableLoading, setTableLoading] = useState(false);
+    const [gradingStudent, setGradingStudent] = useState<StudentRow | null>(null);
     const [selectedScales, setSelectedScales] = useState<Record<string, string>>({});
-
-    const role: UserRole = "ADMIN";
-    const editable = canEdit(role);
-
-    // ── Data loading ──────────────────────────────────────────────────────────
+    const [criterionComments, setCriterionComments] = useState<Record<string, string>>({});
+    const [openCommentCriterionId, setOpenCommentCriterionId] = useState<string | null>(null);
+    const [savingGrade, setSavingGrade] = useState(false);
 
     const loadData = async () => {
         if (!evaluationId) return;
+
         setLoading(true);
+        setTableLoading(true);
         try {
             const evaluationResp = await evaluationService.getEvaluationById(evaluationId);
-            setEvaluation(evaluationResp.data || null);
+            const evaluationData = evaluationResp.data || null;
+            setEvaluation(evaluationData);
 
-            if (evaluationResp.data?.group_id) {
-                const enrollmentsResp = await enrollmentService.getEnrollmentsByGroup(evaluationResp.data.group_id);
-                setStudents(Array.isArray(enrollmentsResp) ? enrollmentsResp : []);
+            const [groupResp, subjectResp] = await Promise.all([
+                evaluationData?.group_id ? groupService.getGroupById(evaluationData.group_id) : Promise.resolve(null),
+                evaluationData?.subject_id ? subjectService.getSubjectById(evaluationData.subject_id) : Promise.resolve(null),
+            ]);
+
+            setGroup(groupResp);
+            setSubject(subjectResp);
+
+            if (evaluationData?.rubric_id) {
+                const [rubricResp, criteriaResp] = await Promise.all([
+                    rubricService.getRubricById(evaluationData.rubric_id),
+                    criterionService.getCriteriaByRubricId(evaluationData.rubric_id),
+                ]);
+
+                setRubric(rubricResp.data ? { id: rubricResp.data.id, title: rubricResp.data.title } : null);
+
+                const rubricCriteria = Array.isArray(criteriaResp.data) ? criteriaResp.data : [];
+                setCriteria(rubricCriteria);
+
+                const scalesMapEntries = await Promise.all(
+                    rubricCriteria.map(async (criterion) => {
+                        const scalesResp = await scaleService.getScaleByCriterionId(criterion.id);
+                        return [criterion.id, Array.isArray(scalesResp.data) ? scalesResp.data : []] as const;
+                    })
+                );
+                setScalesByCriterion(Object.fromEntries(scalesMapEntries));
+            } else {
+                setRubric(null);
+                setCriteria([]);
+                setScalesByCriterion({});
             }
 
-            if (evaluationResp.data?.rubric_id) {
-                const criteriaResp = await rubricService.getCriteriaByRubricId(evaluationResp.data.rubric_id);
-                const critArray = Array.isArray(criteriaResp.data) ? criteriaResp.data : [];
-                setCriteria(critArray);
+            const groupId = groupResp?.id ?? evaluationData?.group_id;
+            if (groupId) {
+                const enrollments = await enrollmentService.getEnrollmentsByGroup(groupId);
+                const activeEnrollments = enrollments.filter((enrollment: Enrollment) => enrollment.status === "ACTIVE");
 
-                // Load scales for each criterion
-                const scalesMap: Record<string, Scale[]> = {};
-                for (const criterion of critArray) {
-                    const scalesResp = await rubricService.getScaleByCriterionId(criterion.id);
-                    scalesMap[criterion.id] = Array.isArray(scalesResp.data) ? scalesResp.data : [];
-                }
-                setScalesByCriterion(scalesMap);
+                const rows = await Promise.all(
+                    activeEnrollments.map(async (enrollment) => {
+                        const academicStudentResp = await studentService.getAcademicStudentById(enrollment.student_id);
+                        const academicStudent = academicStudentResp.data;
 
-                // Load existing grades for this rubric
-                const gradesResp = await gradeService.getGradesByRubricId(evaluationResp.data.rubric_id);
-                setExistingGrades(Array.isArray(gradesResp.data) ? gradesResp.data : []);
+                        const userResp = academicStudent?.user_id
+                            ? await studentService.getStudentById(academicStudent.user_id)
+                            : null;
+                        const student = (userResp as any)?.data ?? userResp;
+
+                        return {
+                            student_code: student?.code ?? academicStudent?.identification ?? "N/A",
+                            email: student?.email ?? "N/A",
+                            enrollment_id: enrollment.id,
+                        };
+                    })
+                );
+
+                setStudents(rows);
+            } else {
+                setStudents([]);
             }
         } catch (err) {
-            showToast("Error", "No se pudieron cargar los datos de calificación.", 2);
+            showToast("Error", "No se pudo cargar la información de la evaluación.", 2);
         } finally {
             setLoading(false);
+            setTableLoading(false);
         }
     };
 
@@ -82,46 +134,34 @@ const CalificationPage: React.FC = () => {
         void loadData();
     }, [evaluationId]);
 
-    // ── Grade submission ──────────────────────────────────────────────────────
+    const getSubtitle = (): string => {
+        const pieces: string[] = [];
 
-    const handleGradeStudent = (student: any) => {
-        setGradingStudent(student);
-        setSelectedScales({});
+        if (subject) {
+            pieces.push(`Asignatura: ${subject.name}`);
+        } else if (evaluation?.subject_id) {
+            pieces.push(`Asignatura ID: ${evaluation.subject_id}`);
+        }
+
+        if (group) {
+            pieces.push(`Grupo: ${group.name}`);
+        } else if (evaluation?.group_id) {
+            pieces.push(`Grupo ID: ${evaluation.group_id}`);
+        }
+
+        return pieces.length > 0 ? pieces.join(" • ") : "No se pudo resolver el grupo o la asignatura asociada.";
     };
 
-    const handleSubmitGrades = async () => {
-        if (!gradingStudent || !evaluation || !evaluation.rubric_id) {
-            showToast("Error", "Faltan datos para guardar la calificación.", 2);
+    const handleOpenGradeModal = (student: StudentRow) => {
+        if (!rubric || criteria.length === 0) {
+            showToast("Error", "No hay rúbrica ni criterios cargados para esta evaluación.", 2);
             return;
         }
 
-        setLoading(true);
-        try {
-            const details = Object.entries(selectedScales).map(([_criterionId, scaleId]) => ({
-                scale_id: scaleId,
-            }));
-
-            const payload = {
-                enrollment_id: gradingStudent.id,
-                rubric_id: evaluation.rubric_id,
-                details,
-                status: "SENT",
-            };
-
-            const response = await gradeService.saveGrade(payload);
-            if (response.data) {
-                showToast("Éxito", "Estudiante calificado exitosamente.", 0);
-                setGradingStudent(null);
-                setSelectedScales({});
-                await loadData();
-            } else {
-                showToast("Error", response.error || "No se pudo guardar la calificación.", 2);
-            }
-        } catch (err) {
-            showToast("Error", "Error al guardar la calificación.", 2);
-        } finally {
-            setLoading(false);
-        }
+        setGradingStudent(student);
+        setSelectedScales({});
+        setCriterionComments({});
+        setOpenCommentCriterionId(null);
     };
 
     const handleScaleSelect = (criterionId: string, scaleId: string) => {
@@ -131,145 +171,218 @@ const CalificationPage: React.FC = () => {
         }));
     };
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
-    const isStudentGraded = (studentId: string): boolean => {
-        // Check if student has grades by looking in the details array
-        return existingGrades.some((grade) =>
-            grade.details?.some((detail: GradeDetail) => detail.student_id === studentId)
-        );
+    const toggleCriterionComment = (criterionId: string) => {
+        setOpenCommentCriterionId((prev) => (prev === criterionId ? null : criterionId));
     };
 
-    // ── Student actions ──────────────────────────────────────────────────────
+    const handleCommentChange = (criterionId: string, value: string) => {
+        setCriterionComments((prev) => ({
+            ...prev,
+            [criterionId]: value,
+        }));
+    };
 
-    const handleStudentAction = (actionName: string, item: Record<string, any>) => {
-        if (actionName === "grade") {
-            if (!evaluation?.rubric_id || criteria.length === 0) {
-                showToast("Error", "No hay rúbrica asociada a esta evaluación para calificar.", 2);
+    const buildGradePayload = () => {
+        if (!gradingStudent || !evaluation?.rubric_id) {
+            return null;
+        }
+
+        const details = criteria.map((criterion) => {
+            const scaleId = selectedScales[criterion.id];
+            if (!scaleId) {
+                return null;
+            }
+
+            return {
+                scale_id: scaleId,
+                comment: criterionComments[criterion.id]?.trim() || undefined,
+            };
+        });
+
+        if (details.some((detail) => detail === null)) {
+            return null;
+        }
+
+        return {
+            enrollment_id: gradingStudent.enrollment_id,
+            rubric_id: evaluation.rubric_id,
+            details: details as Array<{ scale_id: string; comment?: string }>,
+            status: "SENT",
+        };
+    };
+
+    const handleSaveGrade = async (closeModal: () => void) => {
+        const payload = buildGradePayload();
+
+        if (!payload) {
+            showToast("Error", "Debes seleccionar una escala para cada criterio antes de guardar.", 2);
+            return;
+        }
+
+        setSavingGrade(true);
+        try {
+            const response = await gradeService.saveGrade(payload);
+            if (response.data) {
+                showToast("Éxito", "La calificación se guardó correctamente.", 0);
+                setGradingStudent(null);
+                setSelectedScales({});
+                setCriterionComments({});
+                setOpenCommentCriterionId(null);
+                closeModal();
+                await loadData();
                 return;
             }
-            if (isStudentGraded(item.student_id)) {
-                showToast("Info", "Este estudiante ya está calificado.", 1);
-                return;
-            }
-            handleGradeStudent(item);
+
+            // Close modal so the toast is visible
+            setGradingStudent(null);
+            closeModal();
+            showToast("Error", response.error || "No se pudo guardar la calificación.", 2);
+        } catch (error) {
+            // Close modal so the toast is visible
+            setGradingStudent(null);
+            try { closeModal(); } catch {}
+            showToast("Error", "Ocurrió un error al guardar la calificación.", 2);
+        } finally {
+            setSavingGrade(false);
         }
     };
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    const selectedCriteriaCount = Object.keys(selectedScales).length;
+    const SCALE_COLUMNS = ["name", "description", "value"];
+    const canSaveGrade = criteria.length > 0 && selectedCriteriaCount === criteria.length && !savingGrade;
 
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
-            {/* Entity header */}
             {evaluation && (
                 <EntityHeader
                     onBack={() => navigate(-1)}
                     backLabel="← Volver"
                     title={evaluation.name ?? evaluation.id}
                     description={evaluation.description}
-                    entityType="Calificar Evaluación"
+                    entityType="Calificación"
                 >
-                    {evaluation.weight !== undefined && (
-                        <p className="text-sm text-body dark:text-bodydark">Peso: {evaluation.weight}</p>
-                    )}
+                    <div className="space-y-1 text-sm text-body dark:text-bodydark">
+                        {evaluation.weight !== undefined && <p>Peso: {evaluation.weight}</p>}
+                        <p>{getSubtitle()}</p>
+                    </div>
                 </EntityHeader>
             )}
 
-            {/* Page header */}
             <PageHeader
-                title="Calificación"
-                description="Selecciona un estudiante para calificarlo según la rúbrica asociada."
+                title="Calificar estudiantes"
+                description="Primero se muestra el contexto de la evaluación seleccionada. Después se listarán los estudiantes vinculados a la asignatura para iniciar la calificación paso a paso."
             />
 
-            {/* Students table */}
-            <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[70vh]">
-                <div className="h-full overflow-y-auto">
-                    {loading ? (
-                        <p className="p-6 text-sm text-body dark:text-bodydark">Cargando estudiantes…</p>
-                    ) : students.length === 0 ? (
-                        <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron estudiantes en este grupo.</p>
-                    ) : (
-                        <GenericTable
-                            data={students.map((s) => ({
-                                id: s.id,
-                                student_id: s.student_id,
-                                name: s.student?.name ?? s.student_id ?? "—",
-                                email: s.student?.email ?? "—",
-                            }))}
-                            columns={STUDENT_COLUMNS}
-                            actions={editable ? [{ name: "grade", label: "Calificar" }] : []}
-                            onAction={handleStudentAction}
-                        />
-                    )}
-                </div>
-            </div>
+            <div className="space-y-4">
+                {loading ? (
+                    <p className="text-sm text-body dark:text-bodydark">Cargando información de la evaluación…</p>
+                ) : evaluation ? (
+                    <div className="space-y-4">
+                        {tableLoading ? (
+                            <p className="p-6 text-sm text-body dark:text-bodydark">Cargando estudiantes…</p>
+                        ) : students.length === 0 ? (
+                            <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron estudiantes activos para este grupo.</p>
+                        ) : (
+                            <GenericTable
+                                data={students}
+                                columns={STUDENT_COLUMNS}
+                                actions={[{ name: "grade", label: "Calificar" }]}
+                                onAction={(actionName, item) => {
+                                    if (actionName === "grade") {
+                                        handleOpenGradeModal(item as StudentRow);
+                                    }
+                                }}
+                            />
+                        )}
+                    
+                    </div>
+                ) : (
+                    <p className="text-sm text-body dark:text-bodydark">No se encontró la evaluación solicitada.</p>
+                )}
 
-            {/* Grading modal */}
-            {editable && gradingStudent && (
-                <ModalLauncher isOpen={!!gradingStudent} onClose={() => setGradingStudent(null)}>
-                    {() => (
-                        <div>
-                            <div className="mb-6 border-b border-stroke pb-4 dark:border-strokedark">
-                                <h3 className="text-lg font-semibold text-black dark:text-white">
-                                    Calificar: {gradingStudent.name}
-                                </h3>
-                                <p className="mt-1 text-sm text-body dark:text-bodydark">
-                                    Selecciona una escala para cada criterio.
-                                </p>
-                            </div>
-
-                            <div className="max-h-[60vh] space-y-6 overflow-y-auto">
-                                {criteria.length === 0 ? (
+                {gradingStudent && (
+                    <ModalLauncher
+                        isOpen={!!gradingStudent}
+                        onClose={() => setGradingStudent(null)}
+                        maxWidthClassName="max-w-6xl"
+                        overlayClassName="lg:pl-[18.125rem] lg:pr-6"
+                    >
+                        {(closeModal) => (
+                            <div className="max-h-[80vh] overflow-y-auto pr-1">
+                                <div className="mb-4 rounded-sm border border-stroke bg-gray-2 px-4 py-3 dark:border-strokedark dark:bg-meta-4">
                                     <p className="text-sm text-body dark:text-bodydark">
-                                        No hay criterios disponibles para esta rúbrica.
+                                        Escalas seleccionadas: {selectedCriteriaCount} de {criteria.length}
                                     </p>
-                                ) : (
-                                    criteria.map((criterion) => (
-                                        <div key={criterion.id} className="space-y-2">
-                                            <h4 className="text-sm font-medium text-black dark:text-white">
-                                                {criterion.name} (Peso: {criterion.weight}%)
-                                            </h4>
-                                            {scalesByCriterion[criterion.id] ? (
-                                                <SelectableTable
-                                                    data={scalesByCriterion[criterion.id]}
-                                                    columns={SCALE_COLUMNS}
-                                                    actions={[]}
-                                                    onAction={(action, item) => {
-                                                        if (action === "select") {
-                                                            handleScaleSelect(criterion.id, (item as Scale).id);
-                                                        }
-                                                    }}
-                                                    selectionMode={1}
-                                                />
-                                            ) : (
-                                                <p className="text-xs text-body dark:text-bodydark">Cargando escalas…</p>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
+                                </div>
 
-                            <div className="mt-6 flex gap-3 border-t border-stroke pt-4 dark:border-strokedark">
-                                <button
-                                    type="button"
-                                    onClick={() => setGradingStudent(null)}
-                                    className="rounded-md border border-stroke px-4 py-2 text-sm font-medium text-body hover:bg-gray-2 dark:border-strokedark dark:text-bodydark"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => void handleSubmitGrades()}
-                                    disabled={Object.keys(selectedScales).length !== criteria.length || loading}
-                                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    {loading ? "Guardando…" : "Guardar Calificación"}
-                                </button>
+                                <div className="space-y-6">
+                                    {criteria.length === 0 ? (
+                                        <p className="text-sm text-body dark:text-bodydark">
+                                            No hay criterios disponibles para esta rúbrica.
+                                        </p>
+                                    ) : (
+                                        criteria.map((criterion) => (
+                                            <section key={criterion.id} className="space-y-4 rounded-sm border border-stroke p-4 dark:border-strokedark">
+                                                <PageHeader
+                                                    title={criterion.name ?? "Criterio"}
+                                                    description={criterion.description || "Sin descripción"}
+                                                    primaryAction={{
+                                                        label: openCommentCriterionId === criterion.id ? "Ocultar comentario" : "Agregar comentario opcional",
+                                                        onClick: () => toggleCriterionComment(criterion.id),
+                                                    }}
+                                                >
+                                                    <p className="text-xs text-body dark:text-bodydark">Peso: {criterion.weight ?? 0}%</p>
+                                                </PageHeader>
+
+                                                {scalesByCriterion[criterion.id]?.length ? (
+                                                    <SelectableTable
+                                                        data={scalesByCriterion[criterion.id]}
+                                                        columns={SCALE_COLUMNS}
+                                                        actions={[]}
+                                                        onAction={(actionName, item) => {
+                                                            if (actionName === "select") {
+                                                                handleScaleSelect(criterion.id, item.id);
+                                                            }
+                                                        }}
+                                                        selectionMode={1}
+                                                        selectionName={`criterion-${criterion.id}`}
+                                                    />
+                                                ) : (
+                                                    <p className="text-sm text-body dark:text-bodydark">Cargando escalas…</p>
+                                                )}
+
+                                                <CriterionCommentBox
+                                                    isOpen={openCommentCriterionId === criterion.id}
+                                                    comment={criterionComments[criterion.id] ?? ""}
+                                                    onChange={(value) => handleCommentChange(criterion.id, value)}
+                                                />
+                                            </section>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div className="mt-6 flex items-center justify-end gap-3 border-t border-stroke pt-4 dark:border-strokedark">
+                                    <button
+                                        type="button"
+                                        onClick={closeModal}
+                                        className="rounded-md border border-stroke px-4 py-2 text-sm font-medium text-body hover:bg-gray-2 dark:border-strokedark dark:text-bodydark"
+                                    >
+                                        Cerrar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleSaveGrade(closeModal)}
+                                        disabled={!canSaveGrade}
+                                        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {savingGrade ? "Guardando…" : "Guardar calificación"}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </ModalLauncher>
-            )}
+                        )}
+                    </ModalLauncher>
+                )}
+            </div>
         </div>
     );
 };

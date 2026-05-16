@@ -13,7 +13,7 @@ import { useCrudModal } from "../../hooks/useCrudModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-const COLUMNS = ["title", "description", "is_public", "is_archived"];
+const COLUMNS = ["title", "description", "created_at", "is_public", "is_archived"];
 
 const ADMIN_TEACHER_ACTIONS = [
     { name: "view", label: "Ver" },
@@ -193,6 +193,16 @@ const RubricsPage: React.FC = () => {
         setForm(nextForm);
 
         if (crudMode === "create") {
+            /* const user = securityService.getUser();
+            const teacherId = user?.id;
+
+           const groups = await groupService.getGroupsByTeacher(teacherId as string);
+            if (!groups || groups.length === 0) {
+                showToast("Error", "No puedes crear una rúbrica: debes tener al menos un grupo asignado.", 3);
+                return;
+            }
+            */
+
             const response = await rubricService.createRubric(nextForm);
             if (response.data) {
                 showToast("Éxito", "Rúbrica creada exitosamente.", 0);
@@ -202,7 +212,7 @@ const RubricsPage: React.FC = () => {
             } else {
                 showToast("Error", "No se pudo crear la rúbrica.", 2);
             }
-            return;
+        return;
         }
 
         if (crudMode === "edit" && selectedRubric) {
@@ -222,6 +232,7 @@ const RubricsPage: React.FC = () => {
 
     const tableData = rubrics.map((r) => ({
         ...r,
+        created_at: r.created_at ? new Date(r.created_at).toLocaleDateString() : "",
         is_public: r.is_public ? "Sí" : "No",
         is_archived: r.is_archived ? "Sí" : "No",
     }));
