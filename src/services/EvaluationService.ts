@@ -16,7 +16,7 @@ class EvaluationService {
     async getEvaluationById(id: string): Promise<ApiResponse<Evaluation>> {
         return apiService.get<Evaluation>(`${API_URL_EVALUATIONS}/${id}`);
     }
-    
+
     // Método para crear una nueva evaluación.
     async createEvaluation(evaluation: Omit<Evaluation, "id">): Promise<ApiResponse<Evaluation>> {
         return apiService.post<Evaluation>(API_URL_EVALUATIONS, evaluation);

@@ -8,7 +8,7 @@ import { Rubric } from "../../models/Rubric";
 import { Evaluation } from "../../models/Evaluation";
 import EntityHeader from "../../components/EntityHeader";
 //import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/user";
+import { UserRole } from "../../models/User";
 import { showToast } from "../../hooks/fireToast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

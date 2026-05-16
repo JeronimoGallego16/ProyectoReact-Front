@@ -8,7 +8,7 @@ import { enrollmentService } from "../../services/EnrollmentService";
 import studentService from "../../services/student.service";
 import { Grade } from "../../models/Grade";
 //import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/user"; 
+import { UserRole } from "../../models/User"; 
 import { showToast } from "../../hooks/fireToast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

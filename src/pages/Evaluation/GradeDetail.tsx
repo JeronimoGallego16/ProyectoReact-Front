@@ -3,15 +3,14 @@ import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import EntityHeader from "../../components/EntityHeader";
 import { gradeService } from "../../services/GradeService";
-// TODO: Import rubricService when resolving scale names
-// import { rubricService } from "../../services/RubricService";
+import { scaleService } from "../../services/ScaleService";
 import { Grade } from "../../models/Grade";
 import { GradeDetail } from "../../models/GradeDetail";
 import { useNavigate, useParams } from "react-router-dom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-const COLUMNS = ["score", "scale_id", "comment"];
+const COLUMNS = ["score", "name", "comment"];
 
 // GradeDetail is read-only — no actions needed
 const ACTIONS: { name: string; label: string }[] = [];
@@ -24,6 +23,7 @@ const GradeDetailPage: React.FC = () => {
 
     const [grade, setGrade] = useState<Grade | null>(null);
     const [details, setDetails] = useState<GradeDetail[]>([]);
+    const [scaleNameMap, setScaleNameMap] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
 
     // ── Data loading ──────────────────────────────────────────────────────────
@@ -35,13 +35,22 @@ const GradeDetailPage: React.FC = () => {
         const gradeData = gradeResponse.data ?? null;
 
         setGrade(gradeData);
-        setDetails(Array.isArray(gradeData?.details) ? gradeData.details : []);
+        const resolvedDetails = Array.isArray(gradeData?.details) ? gradeData.details : [];
+        setDetails(resolvedDetails);
 
-        // TODO: Once scale names are needed, resolve them here:
-        // const scaleIds = [...new Set(gradeData?.details?.map(d => d.scale_id) ?? [])];
-        // const scales = await Promise.all(scaleIds.map(id => rubricService.getScaleById(id)));
-        // Map scale names into tableData below instead of showing scale_id raw.
-
+        // Resolve scale names to show human-friendly names instead of raw IDs
+        try {
+            const scaleIds = [...new Set(resolvedDetails.map((d) => d.scale_id).filter(Boolean))];
+            const scaleResponses = await Promise.all(scaleIds.map((id) => scaleService.getScaleById(id)));
+            const scaleMap: Record<string, string> = {};
+            scaleResponses.forEach((r) => {
+                if (r.data) scaleMap[r.data.id] = r.data.name ?? String(r.data.id);
+            });
+            setScaleNameMap(scaleMap);
+        } catch (err) {
+            // If resolution fails, keep showing raw IDs but don't break the page
+            console.warn("No se pudieron resolver los nombres de escala:", err);
+        }
         setLoading(false);
     };
 
@@ -53,6 +62,7 @@ const GradeDetailPage: React.FC = () => {
 
     const tableData = details.map((d) => ({
         ...d,
+        name: scaleNameMap[d.scale_id] ?? d.scale_id ?? "—",
         comment: d.comment ?? "—",
     }));
 

@@ -6,7 +6,7 @@ import ModalLauncher from "../../components/ModalLauncher";
 import { rubricService } from "../../services/RubricService";
 import { Rubric } from "../../models/Rubric";
 //import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/user";
+import { UserRole } from "../../models/User";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../../hooks/fireToast";
 import { useCrudModal } from "../../hooks/useCrudModal";

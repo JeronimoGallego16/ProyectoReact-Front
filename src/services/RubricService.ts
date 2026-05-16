@@ -52,7 +52,7 @@ class RubricService {
                 error: `No se puede publicar la rúbrica ${id}: requiere mínimo 2 criterios y solo tiene ${rubricCriteria.length}`,
             };
         }
-        
+
         const criteriaScales = await Promise.all(rubricCriteria.map((c: any) => scaleService.getScaleByCriterionId(c.id)));
         if (criteriaScales.some(scalesResponse => (Array.isArray(scalesResponse.data) ? scalesResponse.data : []).length < 2)) {
             console.error(`No se puede publicar la rúbrica ${id}: cada criterio requiere mínimo 2 escalas`);

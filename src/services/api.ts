@@ -67,8 +67,12 @@ class ApiService {
    */
   async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.get<ApiResponse<T>>(endpoint, { params });
-      return response.data;
+      const response = await this.api.get<any>(endpoint, { params });
+      // El backend devuelve {message, data} en success
+      return {
+        success: true,
+        data: response.data?.data,
+      };
     } catch (error) {
       return this.handleError(error);
     }
@@ -79,8 +83,12 @@ class ApiService {
    */
   async post<T>(endpoint: string, data: Record<string, any>): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.post<ApiResponse<T>>(endpoint, data);
-      return response.data;
+      const response = await this.api.post<any>(endpoint, data);
+      // El backend devuelve {message, data} en success
+      return {
+        success: true,
+        data: response.data?.data,
+      };
     } catch (error) {
       return this.handleError(error);
     }
@@ -91,8 +99,12 @@ class ApiService {
    */
   async put<T>(endpoint: string, data: Record<string, any>): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.put<ApiResponse<T>>(endpoint, data);
-      return response.data;
+      const response = await this.api.put<any>(endpoint, data);
+      // El backend devuelve {message, data} en success
+      return {
+        success: true,
+        data: response.data?.data,
+      };
     } catch (error) {
       return this.handleError(error);
     }
@@ -103,8 +115,12 @@ class ApiService {
    */
   async patch<T>(endpoint: string, data: Record<string, any>): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.patch<ApiResponse<T>>(endpoint, data);
-      return response.data;
+      const response = await this.api.patch<any>(endpoint, data);
+      // El backend devuelve {message, data} en success
+      return {
+        success: true,
+        data: response.data?.data,
+      };
     } catch (error) {
       return this.handleError(error);
     }
@@ -115,8 +131,12 @@ class ApiService {
    */
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.delete<ApiResponse<T>>(endpoint);
-      return response.data;
+      const response = await this.api.delete<any>(endpoint);
+      // El backend devuelve {message, data} en success
+      return {
+        success: true,
+        data: response.data?.data,
+      };
     } catch (error) {
       return this.handleError(error);
     }
@@ -129,18 +149,10 @@ class ApiService {
     let errorMessage = 'Error desconocido';
 
     if (axios.isAxiosError(error)) {
-      // Prefer explicit server error message
-      if (error.response?.data) {
-        try {
-          // If server sends { error: '...' } prefer that, otherwise stringify entire body for debugging
-          if (typeof error.response.data === 'object' && error.response.data.error) {
-            errorMessage = error.response.data.error;
-          } else {
-            errorMessage = JSON.stringify(error.response.data);
-          }
-        } catch (e) {
-          errorMessage = String(error.response.data);
-        }
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
       } else if (error.response?.statusText) {
         errorMessage = error.response.statusText;
       } else if (error.message) {

@@ -11,3 +11,11 @@ export interface Subject {
 
 export type SubjectCreateInput = Omit<Subject, 'id' | 'created_at' | 'updated_at'>;
 export type SubjectUpdateInput = Partial<SubjectCreateInput>;
+
+/**
+ * Datos simplificados de Docente para respuestas API
+ */
+export interface TeacherData {
+  id: string;
+  name: string;
+}

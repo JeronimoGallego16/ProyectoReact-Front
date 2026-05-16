@@ -8,8 +8,8 @@ import { rubricService } from "../../services/RubricService";
 import { criterionService } from "../../services/CriterionService";
 import { Rubric } from "../../models/Rubric";
 import { Criterion } from "../../models/Criterion";
-//import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/user";
+import securityService from "../../services/segurity.service";
+import { UserRole } from "../../models/User";
 import { useNavigate, useParams } from "react-router-dom";
 import { showToast } from "../../hooks/fireToast";
 import { useCrudModal } from "../../hooks/useCrudModal";
@@ -128,6 +128,11 @@ const CriteriaByRubricPage: React.FC = () => {
         }
     };
 
+    const closeCrudModal = () => {
+        setIsCrudModalOpen(false);
+        resetCrud();
+    };
+
     const handleSubmit = async (submittedForm?: Omit<Criterion, "id">) => {
         const currentForm = submittedForm ?? form;
 
@@ -137,13 +142,10 @@ const CriteriaByRubricPage: React.FC = () => {
             const created = response.data;
             if (created) {
                 showToast("Éxito", "Criterio creado exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
+                closeCrudModal();
                 await loadData();
             } else {
-                // Cerrar el modal para que el mensaje de error sea visible en la página
-                setIsCrudModalOpen(false);
-                resetCrud();
+                closeCrudModal();
                 showToast("Error", response.error || "No se pudo crear el criterio. Verifique que la suma de pesos no exceda 100.", 2);
             }
             return;
@@ -158,10 +160,10 @@ const CriteriaByRubricPage: React.FC = () => {
             const updated = response.data;
             if (updated) {
                 showToast("Éxito", "Criterio actualizado exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
+                closeCrudModal();
                 await loadData();
             } else {
+                closeCrudModal();
                 showToast("Error", response.error || "No se pudo actualizar el criterio.", 2);
             }
         }
@@ -216,11 +218,35 @@ const CriteriaByRubricPage: React.FC = () => {
     };
 
     const handleFormSave = (values: Record<string, string>) => {
+        const newWeight = Number(values.weight) || 0;
+
+        // Validar rango del peso
+        if (newWeight < 0 || newWeight > 100) {
+            closeCrudModal();
+            showToast("Error", "El peso debe estar entre 0 y 100.", 2);
+            return;
+        }
+
+        // Calcular suma después del cambio (restando el peso actual si estamos editando)
+        const currentTotal = criteria.reduce((s, c) => s + (Number(c.weight) || 0), 0);
+        let totalAfter = currentTotal;
+        if (crudMode === "edit" && selectedCriterion) {
+            totalAfter = currentTotal - (Number(selectedCriterion.weight) || 0) + newWeight;
+        } else {
+            totalAfter = currentTotal + newWeight;
+        }
+
+        if (totalAfter > 100) {
+            closeCrudModal();
+            showToast("Error", "La suma total de pesos excede 100. Ajusta el peso antes de guardar.", 2);
+            return;
+        }
+
         const nextForm: Omit<Criterion, "id"> = {
             ...form,
             name: values.name ?? form.name,
             description: values.description ?? form.description,
-            weight: Number(values.weight) || 0,
+            weight: newWeight,
         };
 
         setForm(nextForm);

@@ -9,8 +9,8 @@ import { subjectService } from "../../services/SubjectService";
 import { Evaluation } from "../../models/Evaluation";
 import { Group } from "../../models/Group";
 import { Subject } from "../../models/Subject";
-//import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/user";
+import securityService from "../../services/segurity.service";
+import { UserRole } from "../../models/User";
 import { showToast } from "../../hooks/fireToast";
 import { useCrudModal } from "../../hooks/useCrudModal";
 import { useNavigate } from "react-router";
@@ -104,7 +104,15 @@ const EvaluationsPage: React.FC = () => {
         }
 
         if (actionName === "edit") {
+            const originalEvaluation = evaluations.find((current) => current.id === evaluation.id) ?? evaluation;
             startEdit(evaluation);
+            setForm({
+                name: originalEvaluation.name ?? "",
+                description: originalEvaluation.description ?? "",
+                weight: originalEvaluation.weight ?? 0,
+                subject_id: originalEvaluation.subject_id ?? "",
+                group_id: originalEvaluation.group_id ?? "",
+            });
             setIsCrudModalOpen(true);
         }
 
@@ -124,6 +132,11 @@ const EvaluationsPage: React.FC = () => {
         } else {
             showToast("Error", "No se pudo eliminar la evaluación.", 2);
         }
+    };
+
+    const closeCrudModal = () => {
+        setIsCrudModalOpen(false);
+        resetCrud();
     };
 
     // ── Helper functions for VerticalTextFormCard ─────────────────────────────
@@ -187,6 +200,7 @@ const EvaluationsPage: React.FC = () => {
     const handleFormSave = async (values: Record<string, string>) => {
         const selectedGroup = groups.find((group) => group.id === values.group_id);
         if (!selectedGroup) {
+            closeCrudModal();
             showToast("Error", "Debes seleccionar un grupo válido para crear la evaluación.", 2);
             return;
         }
@@ -206,10 +220,10 @@ const EvaluationsPage: React.FC = () => {
             const created = await evaluationService.createEvaluation(nextForm);
             if (created) {
                 showToast("Éxito", "Evaluación creada exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
+                closeCrudModal();
                 await loadData();
             } else {
+                closeCrudModal();
                 showToast("Error", "No se pudo crear la evaluación.", 2);
             }
             return;
@@ -219,10 +233,10 @@ const EvaluationsPage: React.FC = () => {
             const updated = await evaluationService.updateEvaluation(selectedEvaluation.id, nextForm);
             if (updated) {
                 showToast("Éxito", "Evaluación actualizada exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
+                closeCrudModal();
                 await loadData();
             } else {
+                closeCrudModal();
                 showToast("Error", "No se pudo actualizar la evaluación.", 2);
             }
         }
@@ -278,10 +292,7 @@ const EvaluationsPage: React.FC = () => {
             {editable && crudMode && (
                 <ModalLauncher
                     isOpen={isCrudModalOpen}
-                    onClose={() => {
-                        setIsCrudModalOpen(false);
-                        resetCrud();
-                    }}
+                    onClose={closeCrudModal}
                 >
                     {() => (
                         <VerticalTextFormCard
@@ -291,10 +302,7 @@ const EvaluationsPage: React.FC = () => {
                             saveLabel={getFormSaveLabel()}
                             cancelLabel="Cancelar"
                             onSave={handleFormSave}
-                            onCancel={() => {
-                                setIsCrudModalOpen(false);
-                                resetCrud();
-                            }}
+                            onCancel={closeCrudModal}
                         />
                     )}
                 </ModalLauncher>

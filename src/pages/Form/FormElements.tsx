@@ -109,6 +109,7 @@ const FormElements = () => {
             <h3 className="text-lg font-semibold text-black dark:text-white">Formulario de carrera</h3>
             <p className="mt-1 text-sm text-body dark:text-bodydark">Se abre como modal con campos de texto y textarea.</p>
           </div>
+<<<<<<< HEAD
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
@@ -117,6 +118,19 @@ const FormElements = () => {
             Abrir modal
           </button>
           <ModalLauncher isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+=======
+          <ModalLauncher
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={open}
+                className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-white transition hover:bg-opacity-90"
+              >
+                Abrir modal
+              </button>
+            )}
+          >
+>>>>>>> 30dc716ceb9a5057a59ad2d05c2fa23c73d28ea3
             {(close) => (
               <VerticalTextFormCard
                 title="Formulario de carrera"

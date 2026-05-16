@@ -11,7 +11,7 @@ import { scaleService } from "../../services/ScaleService";
 import { Criterion } from "../../models/Criterion";
 import { Scale } from "../../models/Scale";
 //import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/user";
+import { UserRole } from "../../models/User";
 import { showToast } from "../../hooks/fireToast";
 import { useCrudModal } from "../../hooks/useCrudModal";
 import { useCopyScaleModal } from "../../hooks/useCopyScaleModal";
@@ -136,6 +136,11 @@ const ScalesByCriterionPage: React.FC = () => {
         }
     };
 
+    const closeCrudModal = () => {
+        setIsCrudModalOpen(false);
+        resetCrud();
+    };
+
     const getFormTitle = (): string => {
         if (crudMode === "create") return "Crear Escala";
         if (crudMode === "edit") return `Editar Escala: ${selectedScale?.name ?? selectedScale?.id}`;
@@ -197,10 +202,10 @@ const ScalesByCriterionPage: React.FC = () => {
             const response = await scaleService.createScale(nextForm);
             if (response.data) {
                 showToast("Éxito", "Escala creada exitosamente.", 0);
-                    setIsCrudModalOpen(false);
-                    resetCrud();
+                closeCrudModal();
                 await loadData();
             } else {
+                closeCrudModal();
                 showToast("Error", "No se pudo crear la escala.", 2);
             }
             return;
@@ -214,10 +219,10 @@ const ScalesByCriterionPage: React.FC = () => {
             });
             if (response.data) {
                 showToast("Éxito", "Escala actualizada exitosamente.", 0);
-                    setIsCrudModalOpen(false);
-                    resetCrud();
+                closeCrudModal();
                 await loadData();
             } else {
+                closeCrudModal();
                 showToast("Error", "No se pudo actualizar la escala.", 2);
             }
         }
@@ -337,7 +342,7 @@ const ScalesByCriterionPage: React.FC = () => {
 
             {/* CRUD modal using ModalLauncher */}
             {editable && crudMode && (
-                <ModalLauncher isOpen={isCrudModalOpen} onClose={() => { setIsCrudModalOpen(false); resetCrud(); }}>
+                <ModalLauncher isOpen={isCrudModalOpen} onClose={closeCrudModal}>
                     {() => (
                         <VerticalTextFormCard
                             title={getFormTitle()}
@@ -346,7 +351,7 @@ const ScalesByCriterionPage: React.FC = () => {
                             saveLabel={getFormSaveLabel()}
                             cancelLabel="Cancelar"
                             onSave={handleFormSave}
-                            onCancel={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                            onCancel={closeCrudModal}
                         />
                     )}
                 </ModalLauncher>
