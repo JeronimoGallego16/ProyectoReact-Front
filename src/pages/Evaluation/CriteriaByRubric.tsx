@@ -1,21 +1,26 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+
 import GenericTable from "../../components/GenericTable";
-import TableScroll from "../../components/TableScroll";
 import PageHeader from "../../components/PageHeader";
 import EntityHeader from "../../components/EntityHeader";
-import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
-import { rubricService } from "../../services/RubricService";
-import { Rubric } from "../../models/Rubric";
-import { Criterion } from "../../models/Criterion";
-//import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/user";
-import { useNavigate, useParams } from "react-router-dom";
+import TableScroll from "../../components/TableScroll";
+import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import { showToast } from "../../hooks/fireToast";
 import { useEntityCrud } from "../../hooks/useEntityCrud";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { rubricService } from "../../services/RubricService";
+import { criterionService } from "../../services/CriterionService";
+import { evaluationService } from "../../services/EvaluationService";
+import securityService from "../../services/segurity.service";
+import { canUserViewRubric, fetchCriteriaAndScalesByRubric, extractItem, extractList } from "../../utils/dataResolvers";
 
+import { Rubric } from "../../models/Rubric";
+import { Criterion } from "../../models/Criterion";
+import { UserRole } from "../../models/user";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["name", "description", "weight"];
 
 const ADMIN_TEACHER_ACTIONS = [
@@ -29,7 +34,6 @@ const STUDENT_ACTIONS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
 const emptyForm = (): Omit<Criterion, "id"> => ({
@@ -40,7 +44,6 @@ const emptyForm = (): Omit<Criterion, "id"> => ({
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
-
 const CriteriaByRubricPage: React.FC = () => {
     const { rubricId } = useParams<{ rubricId: string }>();
     const navigate = useNavigate();
@@ -49,15 +52,54 @@ const CriteriaByRubricPage: React.FC = () => {
     const [rubric, setRubric] = useState<Rubric | null>(null);
     const [criteria, setCriteria] = useState<Criterion[]>([]);
     const [loading, setLoading] = useState(true);
-
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
-
-    const role: UserRole = "ADMIN";
+    
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
-    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
+    const handleCreateCriterion = () => {
+        if (rubric?.is_public) {
+            showToast("Error", "No puedes crear criterios en una rúbrica publicada. Archívala primero.", 2);
+            return;
+        }
 
+        startCreate();
+    };
+
+    const loadData = async () => {
+        if (!rubricId) return;
+        setLoading(true);
+
+        try {
+            const [rubricResponse, evaluationsResponse, rubricContent] = await Promise.all([
+                rubricService.getRubricById(rubricId),
+                evaluationService.getEvaluations(),
+                fetchCriteriaAndScalesByRubric(rubricId),
+            ]);
+
+            const allEvaluations = extractList(evaluationsResponse);
+
+            const rubricData = extractItem(rubricResponse);
+            const canAccess = await canUserViewRubric(user, rubricData, allEvaluations);
+
+            if (!canAccess) {
+                showToast("Error", "No tienes permisos para ver esta rúbrica.", 2);
+                navigate(-1);
+                return;
+            }
+
+            setRubric(rubricData);
+            setCriteria(rubricContent.criteria);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadData();
+    }, [rubricId]);
+
+    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
     const getFormFields = (f: Omit<Criterion, "id">): VerticalTextFormField[] => {
         return [
             {
@@ -85,30 +127,11 @@ const CriteriaByRubricPage: React.FC = () => {
         ];
     };
 
-    // ── Data loading ──────────────────────────────────────────────────────────
-
-    const loadCriteriaByRubric = async () => {
-        if (!rubricId) return;
-        setLoading(true);
-        const [rubricResponse, criteriaResponse] = await Promise.all([
-            rubricService.getRubricById(rubricId),
-            rubricService.getCriteriaByRubricId(rubricId),
-        ]);
-        setRubric(rubricResponse.data || null);
-        setCriteria(Array.isArray(criteriaResponse.data) ? criteriaResponse.data : []);
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        loadCriteriaByRubric();
-    }, [rubricId]);
-
     // ── useEntityCrud hook ────────────────────────────────────────────────────
-
     const {
         isOpen: isCrudModalOpen,
         close: closeCrudModal,
-        handleAction,
+        handleAction: handleCrudAction,
         handleSave,
         startCreate,
         title: formTitle,
@@ -117,23 +140,29 @@ const CriteriaByRubricPage: React.FC = () => {
         saveLabel,
     } = useEntityCrud<Criterion>({
         emptyForm: emptyForm(),
-        loadData: loadCriteriaByRubric,
+        loadData,
         createItem: async (payload) => {
             const fullPayload = { ...payload, rubric_id: rubricId } as Omit<Criterion, "id">;
-            const response = await rubricService.createCriterion(fullPayload);
+            const response = await criterionService.createCriterion(fullPayload);
+            if (response.success === false) throw new Error(response.error || "Error al crear criterio.");
             return response.data ?? null;
         },
         updateItem: async (id, payload) => {
-            const response = await rubricService.updateCriterion(id, {
+            const response = await criterionService.updateCriterion(id, {
                 name: payload.name,
                 description: payload.description,
                 weight: payload.weight,
             });
+            if (response.success === false) throw new Error(response.error || "Error al actualizar criterio.");
             return response.data ?? null;
         },
         deleteOrArchive: async (id) => {
-            const response = await rubricService.deleteCriterion(id);
-            return !response?.error;
+            const response = await criterionService.deleteCriterion(id);
+            if (response.success === false) {
+                showToast("Error", response.error || "No se pudo eliminar el criterio.", 2);
+                return false;
+            }
+            return true;
         },
         buildFields: (f) => getFormFields(f),
         mapSaveValues: (values) => ({
@@ -177,25 +206,30 @@ const CriteriaByRubricPage: React.FC = () => {
             update: "No se pudo actualizar el criterio.",
             delete: "No se pudo eliminar el criterio.",
         },
-        onAction: async (actionName, item) => {
-            if (actionName === "view") {
-                navigate(`/criteria/${item.id}/scales`);
-            } else if (actionName === "edit") {
-                if (rubric?.is_public) {
-                    showToast("Error", "No puedes editar criterios de una rúbrica publicada. Archívala primero.", 2);
-                    return;
-                }
-            } else if (actionName === "delete") {
-                if (rubric?.is_public) {
-                    showToast("Error", "No puedes eliminar criterios de una rúbrica publicada. Archívala primero.", 2);
-                    return;
-                }
-            }
-        },
     });
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    const handleAction = async (actionName: string, item: Record<string, any>) => {
+        const criterion = item as Criterion;
 
+        if (actionName === "view") {
+            navigate(`/criteria/${criterion.id}/scales`);
+            return;
+        }
+
+        if (actionName === "edit" && rubric?.is_public) {
+            showToast("Error", "No puedes editar criterios de una rúbrica publicada. Archívala primero.", 2);
+            return;
+        }
+
+        if (actionName === "delete" && rubric?.is_public) {
+            showToast("Error", "No puedes eliminar criterios de una rúbrica publicada. Archívala primero.", 2);
+            return;
+        }
+
+        await handleCrudAction(actionName, criterion);
+    };
+
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
@@ -217,10 +251,25 @@ const CriteriaByRubricPage: React.FC = () => {
                     : "Busca y navega por los criterios de esta rúbrica."}
                 primaryAction={editable ? {
                     label: "+ Nuevo Criterio",
-                    onClick: startCreate,
+                    onClick: handleCreateCriterion,
                 } : undefined}
             >
             </PageHeader>
+
+            {/* Nota sobre pesos (solo visible para administradores/docentes) */}
+            {editable && (
+                <div className="mt-3 mb-4">
+                    {(() => {
+                        const totalWeight = criteria.reduce((s, c) => s + (Number(c.weight) || 0), 0);
+                        const ok = totalWeight === 100;
+                        return (
+                            <div className={`rounded-sm p-3 text-sm ${ok ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-800'}`}>
+                                <strong>Nota:</strong> La suma de los pesos de los criterios debe ser 100. Total actual: <span className={`font-medium ${ok ? 'text-green-800' : 'text-yellow-900'}`}>{totalWeight}</span>.
+                            </div>
+                        );
+                    })()}
+                </div>
+            )}
 
             {/* Table — full height */}
             <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[60vh]">
@@ -261,7 +310,6 @@ const CriteriaByRubricPage: React.FC = () => {
                     )}
                 </ModalLauncher>
             )}
-
         </div>
     );
 };

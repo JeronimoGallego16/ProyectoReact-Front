@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { rubricService } from '../services/RubricService';
+import { criterionService } from '../services/CriterionService';
+import { scaleService } from '../services/ScaleService';
 import { evaluationService } from '../services/EvaluationService';
 import { Rubric } from '../models/Rubric';
 import { Criterion } from '../models/Criterion';
@@ -15,13 +17,11 @@ type ResultMessage = {
 const initialRubricForm = {
     title: '',
     description: '',
-    subject_id: '',
 };
 
 const initialRubricEditForm = {
     title: '',
     description: '',
-    subject_id: '',
 };
 
 const initialCriterionForm = {
@@ -134,7 +134,8 @@ const Tests = () => {
         setLoading(true);
         clearMessage();
         try {
-            const data = await rubricService.getRubrics();
+            const response = await rubricService.getRubrics();
+            const data = Array.isArray(response.data) ? response.data : [];
             setRubrics(data);
             if (!selectedRubricId && data.length > 0) {
                 setSelectedRubricId(data[0].id);
@@ -156,7 +157,8 @@ const Tests = () => {
         setLoading(true);
         clearMessage();
         try {
-            const data = await rubricService.getCriteriaByRubricId(rubricId);
+            const response = await criterionService.getCriteriaByRubricId(rubricId);
+            const data = Array.isArray(response.data) ? response.data : [];
             setCriteriaByRubric(data);
             showMessage('success', `Criterios cargados: ${data.length}`);
         } catch {
@@ -177,7 +179,8 @@ const Tests = () => {
         setLoading(true);
         clearMessage();
         try {
-            const data = await rubricService.getScaleByCriterionId(criterionId);
+            const response = await scaleService.getScaleByCriterionId(criterionId);
+            const data = Array.isArray(response.data) ? response.data : [];
             setScalesByCriterion(data);
             setSelectedScaleId(data[0]?.id ?? '');
             showMessage('success', `Escalas cargadas: ${data.length}`);
@@ -212,7 +215,6 @@ const Tests = () => {
             setRubricEditForm({
                 title: selectedRubric.title ?? '',
                 description: selectedRubric.description ?? '',
-                subject_id: selectedRubric.subject_id ?? '',
             });
         } else {
             setRubricEditForm(initialRubricEditForm);
@@ -259,28 +261,27 @@ const Tests = () => {
 
     const createRubric = async () => {
         clearMessage();
-        if (!rubricForm.title.trim() || !rubricForm.subject_id.trim()) {
-            showMessage('error', 'Título y subject_id son obligatorios.');
+        if (!rubricForm.title.trim()) {
+            showMessage('error', 'Título es obligatorio.');
             return;
         }
 
         setLoading(true);
         try {
-            const created = await rubricService.createRubric({
+            const response = await rubricService.createRubric({
                 title: rubricForm.title.trim(),
                 description: rubricForm.description.trim(),
-                subject_id: rubricForm.subject_id.trim(),
             });
 
-            if (!created) {
+            if (!response.data) {
                 showMessage('error', 'No se pudo crear la rúbrica.');
                 return;
             }
 
-            showMessage('success', `Rúbrica creada: ${created.title}`);
+            showMessage('success', `Rúbrica creada: ${response.data.title}`);
             setRubricForm(initialRubricForm);
             await loadRubrics();
-            setSelectedRubricId(created.id);
+            setSelectedRubricId(response.data.id);
         } catch {
             showMessage('error', 'Error creando la rúbrica.');
         } finally {
@@ -297,13 +298,12 @@ const Tests = () => {
 
         setLoading(true);
         try {
-            const updated = await rubricService.updateRubric(selectedRubricId, {
+            const response = await rubricService.updateRubric(selectedRubricId, {
                 title: rubricEditForm.title.trim(),
                 description: rubricEditForm.description.trim(),
-                subject_id: rubricEditForm.subject_id.trim(),
             });
 
-            if (!updated) {
+            if (!response.data) {
                 showMessage('error', 'No se pudo actualizar la rúbrica.');
                 return;
             }
@@ -331,7 +331,7 @@ const Tests = () => {
         }
 
         const newCriterionWeight = Number(criterionForm.weight) || 0;
-        const validation = await rubricService.validateCriterionWeight(selectedRubricId, newCriterionWeight);
+        const validation = await criterionService.validateCriterionWeight(selectedRubricId, newCriterionWeight);
         setWeightValidationMessage(validation.message ?? `Total actual: ${validation.total.toFixed(2)}. Proyectado: ${validation.projectedTotal.toFixed(2)}.`);
         if (!validation.ok) {
             showMessage('error', validation.message ?? 'Los pesos de los criterios superarían 100.');
@@ -340,21 +340,21 @@ const Tests = () => {
 
         setLoading(true);
         try {
-            const created = await rubricService.createCriterion({
+            const response = await criterionService.createCriterion({
                 rubric_id: selectedRubricId,
                 name: criterionForm.name.trim(),
                 description: criterionForm.description.trim(),
                 weight: newCriterionWeight,
             } as Omit<Criterion, 'id'>);
 
-            if (!created) {
+            if (!response.data) {
                 showMessage('error', 'No se pudo crear el criterio.');
                 return;
             }
 
-            showMessage('success', `Criterio creado: ${created.name}`);
+            showMessage('success', `Criterio creado: ${response.data.name}`);
             setCriterionForm(initialCriterionForm);
-            setSelectedCriterionId(created.id);
+            setSelectedCriterionId(response.data.id);
             await loadCriteriaForRubric(selectedRubricId);
         } catch {
             showMessage('error', 'Error creando el criterio.');
@@ -372,7 +372,7 @@ const Tests = () => {
 
         setLoading(true);
         try {
-            const updated = await rubricService.updateCriterion(selectedCriterionId, {
+            const updated = await criterionService.updateCriterion(selectedCriterionId, {
                 name: criterionEditForm.name.trim(),
                 description: criterionEditForm.description.trim(),
                 weight: Number(criterionEditForm.weight) || 0,
@@ -402,7 +402,7 @@ const Tests = () => {
         }
 
         const weight = Number(criterionForm.weight) || 0;
-        const validation = await rubricService.validateCriterionWeight(selectedRubricId, weight);
+        const validation = await criterionService.validateCriterionWeight(selectedRubricId, weight);
         setWeightValidationMessage(validation.message ?? `Total actual: ${validation.total.toFixed(2)}. Proyectado: ${validation.projectedTotal.toFixed(2)}.`);
         if (!validation.ok) {
             showMessage('error', validation.message ?? 'Los pesos superarían 100.');
@@ -426,19 +426,19 @@ const Tests = () => {
 
         setLoading(true);
         try {
-            const created = await rubricService.createScale({
+            const response = await scaleService.createScale({
                 criterion_id: selectedCriterionId,
                 name: scaleForm.name.trim(),
                 description: scaleForm.description.trim(),
                 value: Number(scaleForm.value),
             } as Omit<Scale, 'id'>);
 
-            if (!created) {
+            if (!response.data) {
                 showMessage('error', 'No se pudo crear la escala.');
                 return;
             }
 
-            showMessage('success', `Escala creada: ${created.name}`);
+            showMessage('success', `Escala creada: ${response.data.name}`);
             setScaleForm(initialScaleForm);
             await loadScalesForCriterion(selectedCriterionId);
         } catch {
@@ -457,7 +457,7 @@ const Tests = () => {
 
         setLoading(true);
         try {
-            const updated = await rubricService.updateScale(selectedScaleId, {
+            const updated = await scaleService.updateScale(selectedScaleId, {
                 name: scaleEditForm.name.trim(),
                 description: scaleEditForm.description.trim(),
                 value: Number(scaleEditForm.value) || 0,
@@ -493,14 +493,14 @@ const Tests = () => {
 
         setLoading(true);
         try {
-            const copied = await rubricService.copyScaleToCriterion(copyScaleSourceId, copyScaleTargetCriterionId);
-            if (!copied) {
+            const response = await scaleService.copyScaleToCriterion(copyScaleSourceId, copyScaleTargetCriterionId);
+            if (!response.data) {
                 setCopyScaleMessage('No se pudo copiar la escala. Revisa que el valor no exista ya en el criterio destino.');
                 showMessage('error', 'No se pudo copiar la escala.');
                 return;
             }
 
-            setCopyScaleMessage(`Escala copiada: ${copied.name}`);
+            setCopyScaleMessage(`Escala copiada: ${response.data.name}`);
             showMessage('success', `Escala copiada al criterio destino.`);
             await loadScalesForCriterion(copyScaleTargetCriterionId);
         } catch {
@@ -596,7 +596,8 @@ const Tests = () => {
 
         setLoading(true);
         try {
-            const rubric = await rubricService.getRubricById(selectedRubricId);
+            const response = await rubricService.getRubricById(selectedRubricId);
+            const rubric = response.data;
             if (!rubric) {
                 showMessage('error', 'No se encontró la rúbrica seleccionada.');
                 return;
@@ -614,7 +615,8 @@ const Tests = () => {
         setLoading(true);
         clearMessage();
         try {
-            const data = await evaluationService.getEvaluations();
+            const response = await evaluationService.getEvaluations();
+            const data = Array.isArray(response.data) ? response.data : [];
             setAssessments(data);
             if (!selectedAssessmentId && data.length > 0) {
                 setSelectedAssessmentId(data[0].id ?? '');
@@ -706,14 +708,15 @@ const Tests = () => {
 
         setLoading(true);
         try {
-            const result = await evaluationService.associateRubric(selectedAssessmentId, selectedRubricId);
+            const response = await evaluationService.associateRubric(selectedAssessmentId, selectedRubricId);
+            const result = response.data;
             if (!result) {
                 setAssociateRubricMessage('No se pudo asociar la rúbrica a la evaluación.');
                 showMessage('error', 'No se pudo asociar la rúbrica.');
                 return;
             }
 
-            setAssociateRubricMessage(`Rúbrica asociada a evaluación: ${result.name}`);
+            setAssociateRubricMessage(`Rúbrica asociada a evaluación: ${result.id}`);
             showMessage('success', 'Rúbrica asociada correctamente a la evaluación.');
             await loadAssessments();
         } catch {
@@ -753,11 +756,6 @@ const Tests = () => {
                             value={rubricForm.title}
                             onChange={e => setRubricForm(prev => ({ ...prev, title: e.target.value }))}
                         />
-                        <input
-                            placeholder="Subject ID"
-                            value={rubricForm.subject_id}
-                            onChange={e => setRubricForm(prev => ({ ...prev, subject_id: e.target.value }))}
-                        />
                     </div>
                     <textarea
                         placeholder="Descripción"
@@ -785,7 +783,7 @@ const Tests = () => {
                         <option value="">-- Seleccionar rúbrica --</option>
                         {rubrics.map(rubric => (
                             <option key={rubric.id} value={rubric.id}>
-                                {rubric.title} ({rubric.subject_id})
+                                {rubric.title}
                             </option>
                         ))}
                     </select>
@@ -811,11 +809,6 @@ const Tests = () => {
                                 placeholder="Título"
                                 value={rubricEditForm.title}
                                 onChange={e => setRubricEditForm(prev => ({ ...prev, title: e.target.value }))}
-                            />
-                            <input
-                                placeholder="Materia"
-                                value={rubricEditForm.subject_id}
-                                onChange={e => setRubricEditForm(prev => ({ ...prev, subject_id: e.target.value }))}
                             />
                         </div>
                         <textarea
@@ -1168,7 +1161,7 @@ const Tests = () => {
                                 <div key={rubric.id ?? `${rubric.title}-${index}`} style={styles.listRow}>
                                     <div>
                                         <strong>{rubric.title}</strong>
-                                        <div style={styles.muted}>{rubric.subject_id}</div>
+                                        <div style={styles.muted}>{rubric.description}</div>
                                     </div>
                                     <div style={styles.muted}>{rubric.description}</div>
                                 </div>

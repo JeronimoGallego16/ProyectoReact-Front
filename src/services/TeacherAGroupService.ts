@@ -2,7 +2,6 @@ import apiService from './api';
 import { Group, GroupCreateInput } from '../models/Group';
 import { AssignTeacherPayload, AssignTeacherResponse } from '../models/TeacherGroup';
 import { groupService } from './GroupService';
-import teacherService from './teacher.service';
 
 class TeacherAGroupService {
   /**
@@ -142,10 +141,9 @@ class TeacherAGroupService {
    */
   async deleteGroup(groupId: string): Promise<boolean> {
     try {
-      const result = await groupService.desactivateGroup(groupId);
-      return !!result;
+      await apiService.patch(`/groups/${groupId}`, { is_active: false });
+      return true;
     } catch (error) {
-      console.error('Error al desactivar grupo:', error);
       return false;
     }
   }

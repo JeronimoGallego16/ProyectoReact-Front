@@ -102,12 +102,139 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             </h3>
 
             <ul className="mb-6 flex flex-col gap-1.5">
-              {/* Dashboard removed */}
+              {/* <!-- Menu Item Rubrics --> */}
+              <li>
+                  <NavLink
+                      to="/rubrics"
+                        className={({ isActive }) => `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${isActive ? 'bg-graydark dark:bg-meta-4' : ''}`}
+                  >
+                      <svg
+                          className="fill-current"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 18 18"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                      >
+                          <path
+                              d="M16.5 2.25H1.5C0.675 2.25 0 2.925 0 3.75V14.25C0 15.075 0.675 15.75 1.5 15.75H16.5C17.325 15.75 18 15.075 18 14.25V3.75C18 2.925 17.325 2.25 16.5 2.25ZM16.5 14.25H1.5V3.75H16.5V14.25ZM3 6.75H15V8.25H3V6.75ZM3 9.75H11.25V11.25H3V9.75Z"
+                              fill=""
+                          />
+                      </svg>
+                      Rúbricas
+                  </NavLink>
+              </li>
 
-              {/* Calendar removed */}
+              {/* <!-- Menu Item Evaluations --> */}  
+              <li>
+                  <NavLink
+                      to="/evaluations"
+                        className={({ isActive }) => `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${isActive ? 'bg-graydark dark:bg-meta-4' : ''}`}
+                  >
+                      <svg
+                          className="fill-current"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 18 18"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                      >
+                          <path
+                              d="M16.5 2.25H1.5C0.675 2.25 0 2.925 0 3.75V14.25C0 15.075 0.675 15.75 1.5 15.75H16.5C17.325 15.75 18 15.075 18 14.25V3.75C18 2.925 17.325 2.25 16.5 2.25ZM16.5 14.25H1.5V3.75H16.5V14.25ZM3 6.75H15V8.25H3V6.75ZM3 9.75H11.25V11.25H3V9.75Z"
+                              fill=""
+                          />
+                      </svg>
+                      Evaluaciones
+                  </NavLink>
+              </li>
 
-              {/* Profile removed */}
+              {/* <!-- Menu Item Grades --> */}
+              <li>
+                  <NavLink
+                      to="/grades"
+                      className={({ isActive }) =>
+                          `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
+                              isActive && 'bg-graydark dark:bg-meta-4'
+                          }`
+                      }
+                  >
+                      <svg
+                          className="fill-current"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 18 18"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                      >
+                          <path
+                              d="M16.5 2.25H1.5C0.675 2.25 0 2.925 0 3.75V14.25C0 15.075 0.675 15.75 1.5 15.75H16.5C17.325 15.75 18 15.075 18 14.25V3.75C18 2.925 17.325 2.25 16.5 2.25ZM16.5 14.25H1.5V3.75H16.5V14.25ZM3 6.75H15V8.25H3V6.75ZM3 9.75H11.25V11.25H3V9.75Z"
+                              fill=""
+                          />
+                      </svg>
+                      Notas
+                  </NavLink>
+              </li>
 
+                {/* <!-- Menu Item Academic (Carreras y Semestres) --> */}
+                <li>
+                  <NavLink
+                    to="/academic"
+                    className={({ isActive }) => `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${isActive ? 'bg-graydark dark:bg-meta-4' : ''}`}
+                  >
+                    <svg
+                      className="fill-current"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M2 2h14v3H2zM2 7h14v3H2zM2 12h14v3H2z" fill="" />
+                    </svg>
+                    Carreras y Semestres
+                  </NavLink>
+                </li>
+
+                {/* <!-- Menu Item Academic (Asignaturas y Planes de estudio) --> */}
+                <li>
+                  <NavLink
+                    to="/academic/subjects"
+                    className={({ isActive }) => `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${isActive ? 'bg-graydark dark:bg-meta-4' : ''}`}
+                  >
+                    <svg
+                      className="fill-current"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M4 3h10v3H4zM4 8h10v3H4zM4 13h10v2H4z" fill="" />
+                    </svg>
+                    Asignaturas
+                  </NavLink>
+                </li>
+
+                {/* <!-- Menu Item Academic (Planes de estudio) --> */}
+                  <li>
+                    <NavLink
+                      to="/academic/study-plans"
+                      className={({ isActive }) => `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${isActive ? 'bg-graydark dark:bg-meta-4' : ''}`}
+                    >
+                      <svg
+                        className="fill-current"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 18 18"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path d="M3 2h12v2H3zM3 5h12v2H3zM3 8h12v2H3zM3 11h12v2H3z" fill="" />
+                      </svg>
+                      Plan de estudios
+                    </NavLink>
+                  </li>
+                
               {/* <!-- Menu Item Forms --> */}
               <SidebarLinkGroup
                 activeCondition={
@@ -119,11 +246,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                     <React.Fragment>
                       <NavLink
                         to="#"
-                        className={`group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
-                          (pathname === '/forms' ||
-                            pathname.includes('forms')) &&
-                          'bg-graydark dark:bg-meta-4'
-                        }`}
+                        className={`group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${(pathname === '/forms' || pathname.includes('forms')) ? 'bg-graydark dark:bg-meta-4' : ''}`}
                         onClick={(e) => {
                           e.preventDefault();
                           sidebarExpanded
@@ -162,9 +285,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                         </svg>
                         Forms
                         <svg
-                          className={`absolute right-4 top-1/2 -translate-y-1/2 fill-current ${
-                            open && 'rotate-180'
-                          }`}
+                          className={`absolute right-4 top-1/2 -translate-y-1/2 fill-current ${open ? 'rotate-180' : ''}`}
                           width="20"
                           height="20"
                           viewBox="0 0 20 20"
@@ -181,9 +302,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                       </NavLink>
                       {/* <!-- Dropdown Menu Start --> */}
                       <div
-                        className={`translate transform overflow-hidden ${
-                          !open && 'hidden'
-                        }`}
+                        className={`translate transform overflow-hidden ${!open ? 'hidden' : ''}`}
                       >
                         <ul className="mt-4 mb-5.5 flex flex-col gap-2.5 pl-6">
                           <li>
@@ -356,6 +475,29 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 </NavLink>
               </li>
               {/* <!-- Menu Item Matricula --> */}
+
+              {/* <!-- Menu Item Inscribir en Grupo (CU-07) --> */}
+              <li>
+                <NavLink
+                  to="/academic/enroll-student"
+                  className={`group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${pathname === '/academic/enroll-student' &&
+                    'bg-graydark dark:bg-meta-4'
+                    }`}
+                >
+                  <svg
+                    className="fill-current"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 18 18"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M9 2.25C5.02031 2.25 1.875 5.39531 1.875 9.375C1.875 13.3547 5.02031 16.5 9 16.5C12.9797 16.5 16.125 13.3547 16.125 9.375C16.125 5.39531 12.9797 2.25 9 2.25ZM9 15C5.51016 15 2.75 12.2398 2.75 8.75C2.75 5.26016 5.51016 2.5 9 2.5C12.4898 2.5 15.25 5.26016 15.25 8.75C15.25 12.2398 12.4898 15 9 15Z" fill="" />
+                    <path d="M6 7.5H12V9H6zM6 10.5H12V12H6z" fill="" />
+                  </svg>
+                  Inscribir en Grupo
+                </NavLink>
+              </li>
 
               {/* Tables removed */}
 

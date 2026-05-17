@@ -1,20 +1,41 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 
 type ModalLauncherProps = {
-  trigger: (open: () => void) => ReactNode;
   children: (close: () => void) => ReactNode;
-  className?: string;
+  isOpen: boolean;
+  onClose: () => void;
+  maxWidthClassName?: string;
+  overlayClassName?: string;
 };
 
-// Reusable launcher: trigger receives `open`, children receives `close`
-export default function ModalLauncher({ trigger, children, className }: ModalLauncherProps) {
-  const [open, setOpen] = useState(false);
+// Reusable controlled modal launcher with built-in backdrop and structure
+export default function ModalLauncher({
+  children,
+  isOpen,
+  onClose,
+  maxWidthClassName = 'max-w-2xl',
+  overlayClassName = '',
+}: ModalLauncherProps) {
+  const closeModal = () => {
+    onClose();
+  };
+
   return (
-    <div className={className}>
-      <div onClick={() => setOpen(true)}>{trigger(() => setOpen(true))}</div>
-      {open ? (
-        <>{children(() => setOpen(false))}</>
-      ) : null}
-    </div>
+    <>
+      {isOpen && (
+        <div className={`fixed inset-0 z-99999 flex items-center justify-center bg-black/50 ${overlayClassName}`}>
+          <div className={`relative w-full ${maxWidthClassName} rounded-lg bg-white p-6 shadow-lg dark:bg-boxdark`}>
+            <button
+              onClick={closeModal}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label="Close modal"
+            >
+              ✕
+            </button>
+            <div className="pr-6">{children(closeModal)}</div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

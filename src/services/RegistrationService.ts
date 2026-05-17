@@ -1,4 +1,4 @@
-import apiClient from '../interceptor/apiClient';
+import apiService from './api';
 import { Registration, RegistrationCreateInput, RegistrationUpdateInput } from '../models/Registration';
 
 const API_URL = '/academic/registrations';
@@ -7,8 +7,9 @@ class RegistrationService {
   // Método para obtener todas las matrículas.
   async getRegistrations(): Promise<Registration[]> {
     try {
-      const response = await apiClient.get(API_URL);
-      const data = this._extractData(response);
+      const res = await apiService.get<Registration[]>(API_URL);
+      if (!res || !res.success) return [];
+      const data = res.data ?? [];
       return Array.isArray(data) ? data : [];
     } catch (error) {
       return this._handleError(error) || [];
@@ -35,6 +36,15 @@ class RegistrationService {
     }
   }
 
+  async getActiveRegistrationByCareer(studentId: string, careerId: string): Promise<Registration | null> {
+    try {
+      const registrations = await this.getActiveRegistrationsByStudent(studentId);
+      return registrations.find(registration => registration.career_id === careerId) || null;
+    } catch (error) {
+      return this._handleError(error);
+    }
+  }
+
   // Método para obtener matrículas de una carrera.
   async getRegistrationsByCareer(careerId: string): Promise<Registration[]> {
     try {
@@ -48,8 +58,9 @@ class RegistrationService {
   // Método para obtener una matrícula por ID.
   async getRegistrationById(id: string): Promise<Registration | null> {
     try {
-      const response = await apiClient.get(`${API_URL}/${id}`);
-      return this._extractData(response) as Registration || null;
+      const res = await apiService.get<Registration>(`${API_URL}/${id}`);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Registration) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -74,32 +85,20 @@ class RegistrationService {
         throw new Error('Student already has an active registration in this career');
       }
 
-      const response = await apiClient.post(API_URL, payload);
-      return this._extractData(response) as Registration || null;
-    } catch (error: any) {
-      let errorMessage = 'Error desconocido';
-      
-      // Capturar error del backend (400, 500, etc.)
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      console.error('Registration error:', errorMessage);
-      throw new Error(errorMessage);
+      const res = await apiService.post<Registration>(API_URL, payload);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Registration) || null;
+    } catch (error) {
+      return this._handleError(error);
     }
   }
 
   // Método para actualizar una matrícula (cambiar estado académico o desactivarla).
   async updateRegistration(id: string, payload: RegistrationUpdateInput): Promise<Registration | null> {
     try {
-      const response = await apiClient.put(`${API_URL}/${id}`, payload);
-      return this._extractData(response) as Registration || null;
+      const res = await apiService.put<Registration>(`${API_URL}/${id}`, payload);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Registration) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -138,13 +137,6 @@ class RegistrationService {
   }
 
   // Helpers
-  private _extractData(response: any): any {
-    if (!response) return null;
-    if (response.data && response.data.data !== undefined) return response.data.data;
-    if (response.data !== undefined) return response.data;
-    return null;
-  }
-
   private _handleError(error: any): any {
     const errorMessage = error.response?.data?.error || error.message || 'Error desconocido';
     console.error('Registration error:', errorMessage);

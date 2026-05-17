@@ -4,9 +4,6 @@ import react from "file:///C:/Users/erika/Universidad/ProyectoReact-Front/node_m
 var vite_config_default = defineConfig({
   plugins: [react()],
   server: {
-    headers: {
-  "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
-    },
     proxy: {
       "/api": {
         target: "http://localhost:5000",

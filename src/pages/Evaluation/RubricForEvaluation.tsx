@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+
 import SelectableTable from "../../components/SelectableTable";
 import TableScroll from "../../components/TableScroll";
 import PageHeader from "../../components/PageHeader";
-import { rubricService } from "../../services/RubricService";
-import { evaluationService } from "../../services/EvaluationService";
-import { Rubric } from "../../models/Rubric";
-import { Evaluation } from "../../models/Evaluation";
 import EntityHeader from "../../components/EntityHeader";
-//import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/user";
 import { showToast } from "../../hooks/fireToast";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { rubricService } from "../../services/RubricService";
+import { evaluationService } from "../../services/EvaluationService";
+import securityService from "../../services/segurity.service";
+import { extractList, canUserViewRubric, resolveEvaluationContext } from "../../utils/dataResolvers";
 
+import { Rubric } from "../../models/Rubric";
+import { Evaluation } from "../../models/Evaluation";
+import { UserRole } from "../../models/user";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["title", "description"];
 
 const ADMIN_TEACHER_ACTIONS = [{ name: "view", label: "Ver" }];
@@ -23,7 +26,6 @@ const STUDENT_ACTIONS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
 const RubricForEvaluationPage: React.FC = () => {
@@ -36,29 +38,45 @@ const RubricForEvaluationPage: React.FC = () => {
     const [selectedRubric, setSelectedRubric] = useState<Rubric | null>(null);
     const [loading, setLoading] = useState(true);
 
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
-    
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
-
     const loadData = async () => {
         if (!evaluationId) return;
         setLoading(true);
         try {
-            const [evaluationResponse, rubricsResponse] = await Promise.all([
-                evaluationService.getEvaluationById(evaluationId),
+            const [{ evaluation: evaluationData }, rubricsResp] = await Promise.all([
+                resolveEvaluationContext(evaluationId),
                 rubricService.getRubrics(),
             ]);
 
-            setEvaluation(evaluationResponse.data || null);
+            setEvaluation(evaluationData);
 
-            const allRubrics = Array.isArray(rubricsResponse.data) ? rubricsResponse.data : [];
             // mostrar solo rúbricas públicas y no archivadas
-            const available = allRubrics.filter(r => r.is_public && !r.is_archived);
-            setRubrics(available);
+            const allRubrics = extractList<Rubric>(rubricsResp);
+            const available: Rubric[] = allRubrics.filter(
+                (rubric): rubric is Rubric => Boolean(rubric.is_public) && !Boolean(rubric.is_archived)
+            );
+
+            // aplicar visibilidad basada en permisos
+            const evaluationsList = evaluationData ? [evaluationData] : [];
+            const visiblePromises = available.map(async (rubric: Rubric) => (await canUserViewRubric(user, rubric, evaluationsList)) ? rubric : null);
+            const visible = (await Promise.all(visiblePromises)).filter((rubric): rubric is Rubric => rubric !== null);
+
+            // Si el usuario es estudiante, mostrar únicamente la rúbrica asociada a la evaluación
+            if (!editable) {
+                const rubricId = evaluationData?.rubric_id;
+                if (rubricId) {
+                    const found = visible.find((rubric) => rubric.id === rubricId);
+                    setRubrics(found ? [found] : []);
+                } else {
+                    setRubrics([]);
+                }
+            } else {
+                setRubrics(visible);
+            }
             setSelectedRubric(null);
         } catch (err) {
             showToast("Error", "No se pudo cargar la evaluación o las rúbricas.", 2);
@@ -72,7 +90,6 @@ const RubricForEvaluationPage: React.FC = () => {
     }, [evaluationId]);
 
     // ── CRUD handlers ─────────────────────────────────────────────────────────
-
     const handleAction = (actionName: string, item: Record<string, any>) => {
         const rubric = item as Rubric;
 
@@ -95,7 +112,7 @@ const RubricForEvaluationPage: React.FC = () => {
         setLoading(true);
         try {
             const response = await evaluationService.associateRubric(evaluation.id, rubricId);
-            if (response.data) {
+            if (response.success) {
                 showToast("Éxito", "Rúbrica asignada a la evaluación.", 0);
                 setSelectedRubric(null);
                 await loadData();
@@ -178,6 +195,7 @@ const RubricForEvaluationPage: React.FC = () => {
                                     handleAction(actionName, item);
                                 }}
                                 selectionMode={1}
+                                selectedItemId={selectedRubric?.id}
                             />
                         </TableScroll>
                     )}

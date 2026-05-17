@@ -4,6 +4,7 @@ import PageHeader from '../../components/PageHeader';
 import TableScroll from '../../components/TableScroll';
 import VerticalTextFormCard from '../../components/VerticalTextFormCard';
 import ModalLauncher from '../../components/ModalLauncher';
+import FilterTable from '../../components/FilterTable';
 import { Subject } from '../../models/Subject';
 import { subjectService } from '../../services/SubjectService';
 import { useAcademicEntityCrud } from '../../hooks/useAcademicEntityCrud';
@@ -28,9 +29,11 @@ const emptySubjectForm = (): Omit<Subject, 'id'> => ({
 const SubjectsPage: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'archived'>('all');
-  const [creditsFilter, setCreditsFilter] = useState<'all' | number>('all');
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({
+    search: '',
+    status: 'all',
+    credits: 'all',
+  });
   const [detailItem, setDetailItem] = useState<Subject | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -52,22 +55,22 @@ const SubjectsPage: React.FC = () => {
 
   const filteredSubjects = useMemo(() => {
     return subjects.filter((subject) => {
-      const term = searchTerm.toLowerCase().trim();
+      const term = filterValues.search.toLowerCase().trim();
       const matchesSearch =
         subject.code.toLowerCase().includes(term) ||
         subject.name.toLowerCase().includes(term);
 
       const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && subject.is_active) ||
-        (statusFilter === 'archived' && !subject.is_active);
+        filterValues.status === 'all' ||
+        (filterValues.status === 'active' && subject.is_active) ||
+        (filterValues.status === 'archived' && !subject.is_active);
 
       const matchesCredits =
-        creditsFilter === 'all' || subject.credits === creditsFilter;
+        filterValues.credits === 'all' || subject.credits === Number(filterValues.credits);
 
       return matchesSearch && matchesStatus && matchesCredits;
     });
-  }, [subjects, searchTerm, statusFilter, creditsFilter]);
+  }, [subjects, filterValues]);
 
   const openDetail = (subject: Subject) => {
     setDetailItem(subject);
@@ -175,47 +178,40 @@ const SubjectsPage: React.FC = () => {
         }}
       />
 
-      <div className="mb-6 grid gap-4 md:grid-cols-[1.5fr_1fr_1fr]">
-        <div className="rounded-md border border-stroke bg-white p-4 shadow-default dark:border-strokedark dark:bg-boxdark">
-          <label className="mb-2 block text-sm font-medium text-bodydark">Buscar</label>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Buscar por código o nombre"
-            className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 font-medium text-black outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-        </div>
-
-        <div className="rounded-md border border-stroke bg-white p-4 shadow-default dark:border-strokedark dark:bg-boxdark">
-          <label className="mb-2 block text-sm font-medium text-bodydark">Estado</label>
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as 'all' | 'active' | 'archived')}
-            className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 font-medium text-black outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          >
-            <option value="all">Todas</option>
-            <option value="active">Activas</option>
-            <option value="archived">Archivadas</option>
-          </select>
-        </div>
-
-        <div className="rounded-md border border-stroke bg-white p-4 shadow-default dark:border-strokedark dark:bg-boxdark">
-          <label className="mb-2 block text-sm font-medium text-bodydark">Créditos</label>
-          <select
-            value={creditsFilter}
-            onChange={(event) => setCreditsFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))}
-            className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 font-medium text-black outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          >
-            <option value="all">Todos</option>
-            {creditsOptions.map((credits) => (
-              <option key={credits} value={credits}>
-                {credits}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <FilterTable
+        filters={[
+          {
+            id: 'search',
+            label: 'Buscar',
+            placeholder: 'Buscar por código o nombre',
+            type: 'text',
+          },
+          {
+            id: 'status',
+            label: 'Estado',
+            type: 'select',
+            options: [
+              { value: 'all', label: 'Todas' },
+              { value: 'active', label: 'Activas' },
+              { value: 'archived', label: 'Archivadas' },
+            ],
+          },
+          {
+            id: 'credits',
+            label: 'Créditos',
+            type: 'select',
+            options: [
+              { value: 'all', label: 'Todos' },
+              ...creditsOptions.map((credits) => ({
+                value: String(credits),
+                label: String(credits),
+              })),
+            ],
+          },
+        ]}
+        initialValues={filterValues}
+        onFilterChange={setFilterValues}
+      />
 
       <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
         <div className="h-full overflow-y-auto">

@@ -149,6 +149,7 @@ export function useAcademicEntityCrud<T extends { id: string }>(
                     close();
                     await options.loadData();
                 } else {
+                    close();
                     showToast("Error", options.errorMessages.create, 2);
                 }
                 return;
@@ -161,6 +162,7 @@ export function useAcademicEntityCrud<T extends { id: string }>(
                     close();
                     await options.loadData();
                 } else {
+                    close();
                     showToast("Error", options.errorMessages.update, 2);
                 }
                 return;
@@ -174,10 +176,10 @@ export function useAcademicEntityCrud<T extends { id: string }>(
                 );
             }
         } catch (error: any) {
-            const message = error?.message || "Ocurrió un error inesperado.";
-            const toastMessage = crudMode === "create"
-                ? `${options.errorMessages.create} ${message}`
-                : `${options.errorMessages.update} ${message}`;
+            const toastMessage = error?.message || (crudMode === "create"
+                ? options.errorMessages.create
+                : options.errorMessages.update);
+            close();
             showToast("Error", toastMessage, 2);
         }
     };

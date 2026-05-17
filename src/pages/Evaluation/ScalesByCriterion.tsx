@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+
 import GenericTable from "../../components/GenericTable";
 import TableScroll from "../../components/TableScroll";
 import SelectableTable from "../../components/SelectableTable";
@@ -7,16 +8,22 @@ import EntityHeader from "../../components/EntityHeader";
 import ModalLauncher from "../../components/ModalLauncher";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
-import { rubricService } from "../../services/RubricService";
-import { Criterion } from "../../models/Criterion";
-import { Scale } from "../../models/Scale";
-//import securityService from "../../services/segurity.service";
-import { UserRole } from "../../models/user";
+import { showToast } from "../../hooks/fireToast";
 import { useCopyScaleModal } from "../../hooks/useCopyScaleModal";
 import { useEntityCrud } from "../../hooks/useEntityCrud";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { criterionService } from "../../services/CriterionService";
+import { rubricService } from "../../services/RubricService";
+import { scaleService } from "../../services/ScaleService";
+import securityService from "../../services/segurity.service";
+import { canUserViewRubric, extractItem, fetchCriteriaAndScalesByRubric } from "../../utils/dataResolvers";
 
+import { Criterion } from "../../models/Criterion";
+import { Rubric } from "../../models/Rubric";
+import { Scale } from "../../models/Scale";
+import { UserRole } from "../../models/user";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["name", "description", "value"];
 
 const ADMIN_TEACHER_ACTIONS = [
@@ -25,13 +32,11 @@ const ADMIN_TEACHER_ACTIONS = [
     { name: "copy", label: "Copiar a..." },
 ];
 
-// Students have no actions — table is read-only, radio is visual only
 const STUDENT_ACTIONS: { name: string; label: string }[] = [];
 
 const TARGET_CRITERIA_COLUMNS = ["name", "description", "weight"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
 const emptyForm = (): Omit<Scale, "id"> => ({
@@ -42,23 +47,68 @@ const emptyForm = (): Omit<Scale, "id"> => ({
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
-
 const ScalesByCriterionPage: React.FC = () => {
     const { criterionId } = useParams<{ criterionId: string }>();
     const navigate = useNavigate();
     const onBack = () => navigate(-1);
 
     const [criterion, setCriterion] = useState<Criterion | null>(null);
+    const [rubric, setRubric] = useState<Rubric | null>(null);
     const [scales, setScales] = useState<Scale[]>([]);
     const [loading, setLoading] = useState(true);
 
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
-    
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
-    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
+    const loadData = async () => {
+        if (!criterionId) return;
+
+        setLoading(true);
+        try {
+            const criterionResponse = await criterionService.getCriterionById(criterionId);
+
+            const criterionData = extractItem(criterionResponse);
+            setCriterion(criterionData);
+
+            if (criterionData?.rubric_id) {
+                const [rubricResponse, rubricContent] = await Promise.all([
+                    rubricService.getRubricById(criterionData.rubric_id),
+                    fetchCriteriaAndScalesByRubric(criterionData.rubric_id),
+                ]);
+                const rubricData = extractItem(rubricResponse);
+                const canAccess = await canUserViewRubric(user, rubricData);
+
+                if (!canAccess) {
+                    showToast("Error", "No tienes permisos para ver estas escalas.", 2);
+                    navigate(-1);
+                    return;
+                }
+
+                setRubric(rubricData);
+                setCriterion(rubricContent.criteria.find((current) => current.id === criterionId) ?? criterionData);
+                setScales(rubricContent.scalesByCriterion[criterionId] ?? []);
+            } else {
+                setRubric(null);
+                setScales([]);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadData();
+    }, [criterionId]);
+
+    const handleCreateScale = () => {
+        if (rubric?.is_public) {
+            showToast("Error", "No puedes crear escalas en una rúbrica publicada. Archívala primero.", 2);
+            return;
+        }
+
+        startCreate();
+    };
 
     const getFormFields = (f: Omit<Scale, "id">): VerticalTextFormField[] => {
         return [
@@ -87,26 +137,6 @@ const ScalesByCriterionPage: React.FC = () => {
         ];
     };
 
-    // ── Data loading ──────────────────────────────────────────────────────────
-
-    const loadScalesByCriterion = async () => {
-        if (!criterionId) return;
-        setLoading(true);
-        const [criterionResponse, scalesResponse] = await Promise.all([
-            rubricService.getCriterionById(criterionId),
-            rubricService.getScaleByCriterionId(criterionId),
-        ]);
-        setCriterion(criterionResponse.data || null);
-        setScales(Array.isArray(scalesResponse.data) ? scalesResponse.data : []);
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        loadScalesByCriterion();
-    }, [criterionId]);
-
-    // ── useCopyScaleModal hook ────────────────────────────────────────────────
-
     const {
         isCopyModalOpen,
         sourceScale,
@@ -121,15 +151,13 @@ const ScalesByCriterionPage: React.FC = () => {
     } = useCopyScaleModal({
         criterionId,
         rubricId: criterion?.rubric_id,
-        onCopySuccess: loadScalesByCriterion,
+        onCopySuccess: loadData,
     });
-
-    // ── useEntityCrud hook ────────────────────────────────────────────────────
 
     const {
         isOpen: isCrudModalOpen,
         close: closeCrudModal,
-        handleAction,
+        handleAction: handleCrudAction,
         handleSave,
         startCreate,
         title: formTitle,
@@ -138,26 +166,32 @@ const ScalesByCriterionPage: React.FC = () => {
         saveLabel,
     } = useEntityCrud<Scale>({
         emptyForm: emptyForm(),
-        loadData: loadScalesByCriterion,
-        createItem: async (payload) => {
+        loadData,
+        createItem: async (payload: Omit<Scale, "id">) => {
             const fullPayload = { ...payload, criterion_id: criterionId } as Omit<Scale, "id">;
-            const response = await rubricService.createScale(fullPayload);
+            const response = await scaleService.createScale(fullPayload);
+            if (response.success === false) throw new Error(response.error || "Error al crear escala.");
             return response.data ?? null;
         },
-        updateItem: async (id, payload) => {
-            const response = await rubricService.updateScale(id, {
+        updateItem: async (id: string, payload: Omit<Scale, "id">) => {
+            const response = await scaleService.updateScale(id, {
                 name: payload.name,
                 description: payload.description,
                 value: payload.value,
             });
+            if (response.success === false) throw new Error(response.error || "Error al actualizar escala.");
             return response.data ?? null;
         },
-        deleteOrArchive: async (id) => {
-            const response = await rubricService.updateScale(id, { criterion_id: undefined });
-            return !!response.data;
+        deleteOrArchive: async (id: string) => {
+            const response = await scaleService.deleteScale(id);
+            if (response.success === false) {
+                showToast("Error", response.error || "No se pudo desvincular la escala.", 2);
+                return false;
+            }
+            return true;
         },
-        buildFields: (f) => getFormFields(f),
-        mapSaveValues: (values) => ({
+        buildFields: (f: Omit<Scale, "id">) => getFormFields(f),
+        mapSaveValues: (values: Record<string, string>) => ({
             criterion_id: criterionId ?? "",
             name: values.name,
             description: values.description,
@@ -190,19 +224,35 @@ const ScalesByCriterionPage: React.FC = () => {
             update: "No se pudo actualizar la escala.",
             delete: "No se pudo desvincular la escala.",
         },
-        onAction: async (actionName, item) => {
+        onAction: async (actionName: string, item: Scale) => {
             if (actionName === "copy") {
                 await openCopyModal(item);
             }
         },
     });
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    const handleAction = async (actionName: string, item: Record<string, any>) => {
+        if (actionName === "copy") {
+            await openCopyModal(item as Scale);
+            return;
+        }
+
+        if ((actionName === "edit" || actionName === "delete") && rubric?.is_public) {
+            showToast(
+                "Error",
+                actionName === "edit"
+                    ? "No puedes editar escalas de una rúbrica publicada. Archívala primero."
+                    : "No puedes eliminar escalas de una rúbrica publicada. Archívala primero.",
+                2
+            );
+            return;
+        }
+
+        await handleCrudAction(actionName, item as Scale);
+    };
 
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
-
-            {/* Entity header with back button and criterion info */}
             {criterion && (
                 <EntityHeader
                     onBack={onBack}
@@ -217,7 +267,6 @@ const ScalesByCriterionPage: React.FC = () => {
                 </EntityHeader>
             )}
 
-            {/* Copy scale modal */}
             {isCopyModalOpen && (
                 <ModalLauncher isOpen={isCopyModalOpen} onClose={closeCopyModal}>
                     {() => (
@@ -277,7 +326,6 @@ const ScalesByCriterionPage: React.FC = () => {
                 </ModalLauncher>
             )}
 
-            {/* Page header */}
             <PageHeader
                 title="Escalas"
                 description={editable
@@ -285,12 +333,10 @@ const ScalesByCriterionPage: React.FC = () => {
                     : "Explora las escalas para este criterio."}
                 primaryAction={editable ? {
                     label: "+ Nueva Escala",
-                    onClick: startCreate,
+                    onClick: handleCreateScale,
                 } : undefined}
-            >
-            </PageHeader>
+            />
 
-            {/* Table */}
             <div
                 className={`overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark transition-all duration-300 ${
                     isCrudModalOpen ? "max-h-80" : "max-h-[60vh]"
@@ -302,7 +348,7 @@ const ScalesByCriterionPage: React.FC = () => {
                     ) : scales.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se econtraron escalas para este criterio.</p>
                     ) : (
-                        <TableScroll maxHeight={isCrudModalOpen ? '20vh' : '55vh'}>
+                        <TableScroll maxHeight={isCrudModalOpen ? "20vh" : "55vh"}>
                             <GenericTable
                                 data={scales}
                                 columns={COLUMNS}
@@ -314,12 +360,8 @@ const ScalesByCriterionPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* CRUD modal using ModalLauncher */}
             {editable && isCrudModalOpen && (
-                <ModalLauncher
-                    isOpen={isCrudModalOpen}
-                    onClose={closeCrudModal}
-                >
+                <ModalLauncher isOpen={isCrudModalOpen} onClose={closeCrudModal}>
                     {() => (
                         <VerticalTextFormCard
                             title={formTitle}
@@ -333,7 +375,6 @@ const ScalesByCriterionPage: React.FC = () => {
                     )}
                 </ModalLauncher>
             )}
-
         </div>
     );
 };

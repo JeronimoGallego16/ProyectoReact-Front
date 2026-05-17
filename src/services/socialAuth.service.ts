@@ -9,7 +9,7 @@ import {
 } from "firebase/auth";
 import { store } from "../store/store";
 import { setUser } from "../store/userSlice";
-import { User } from "../models/User";
+import { User } from "../models/user";
 
 class SocialAuthService {
   private axios: any;
@@ -142,3 +142,4 @@ class SocialAuthService {
 }
 
 export default new SocialAuthService();
+

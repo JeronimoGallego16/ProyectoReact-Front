@@ -71,7 +71,6 @@ export function useEntityCrud<T extends { id: string }>(
     const handleAction = async (actionName: string, item: Record<string, any>) => {
         const entity = item as T;
 
-        // Special actions that page can handle
         if (
             actionName === "view" ||
             actionName === "grade" ||
@@ -84,7 +83,6 @@ export function useEntityCrud<T extends { id: string }>(
             return;
         }
 
-        // CRUD-related actions handled by hook
         if (actionName === "edit") {
             startEdit(entity);
             return;
@@ -127,6 +125,7 @@ export function useEntityCrud<T extends { id: string }>(
     const handleSave = async (values: Record<string, string>) => {
         const validationError = options.validateSave?.(values, form, crudMode, selectedItem);
         if (validationError) {
+            close();
             showToast("Error", validationError, 2);
             return;
         }
@@ -134,36 +133,46 @@ export function useEntityCrud<T extends { id: string }>(
         const nextForm = options.mapSaveValues(values, form, crudMode, selectedItem);
         setForm(nextForm);
 
-        if (crudMode === "create") {
-            const created = await options.createItem(nextForm);
-            if (created) {
-                showToast("Éxito", options.successMessages.create, 0);
-                close();
-                await options.loadData();
-            } else {
-                showToast("Error", options.errorMessages.create, 2);
+        try {
+            if (crudMode === "create") {
+                const created = await options.createItem(nextForm);
+                if (created) {
+                    showToast("Éxito", options.successMessages.create, 0);
+                    close();
+                    await options.loadData();
+                } else {
+                    close();
+                    showToast("Error", options.errorMessages.create, 2);
+                }
+                return;
             }
-            return;
-        }
 
-        if (crudMode === "edit" && selectedItem) {
-            const updated = await options.updateItem(selectedItem.id, nextForm);
-            if (updated) {
-                showToast("Éxito", options.successMessages.update, 0);
-                close();
-                await options.loadData();
-            } else {
-                showToast("Error", options.errorMessages.update, 2);
+            if (crudMode === "edit" && selectedItem) {
+                const updated = await options.updateItem(selectedItem.id, nextForm);
+                if (updated) {
+                    showToast("Éxito", options.successMessages.update, 0);
+                    close();
+                    await options.loadData();
+                } else {
+                    close();
+                    showToast("Error", options.errorMessages.update, 2);
+                }
+                return;
             }
-            return;
-        }
 
-        if (crudMode === "edit" && !selectedItem) {
-            showToast(
-                "Error",
-                options.errorMessages.invalidSelection ?? "No se pudo identificar el elemento a editar.",
-                2
-            );
+            if (crudMode === "edit" && !selectedItem) {
+                showToast(
+                    "Error",
+                    options.errorMessages.invalidSelection ?? "No se pudo identificar el elemento a editar.",
+                    2
+                );
+            }
+        } catch (error: any) {
+            const toastMessage = error?.message || (crudMode === "create"
+                ? options.errorMessages.create
+                : options.errorMessages.update);
+            close();
+            showToast("Error", toastMessage, 2);
         }
     };
 

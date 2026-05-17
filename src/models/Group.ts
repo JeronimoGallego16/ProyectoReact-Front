@@ -11,9 +11,7 @@ export interface Group {
 }
 
 export interface GroupWithDetails extends Group {
-  group_code?: string;
   code?: string;
-  created_at?: string;
 }
 
 export type GroupCreateInput = Omit<Group, 'id' | 'created_at' | 'updated_at'>;

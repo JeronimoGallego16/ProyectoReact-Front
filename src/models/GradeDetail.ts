@@ -1,7 +1,9 @@
 export interface GradeDetail {
     id: string;
-    grade_id?: string;
-    scale_id?: number;
-    score?: number;
-    comment?: string;
+    student_id: string;
+    scale_id: string;
+    score: number;
+    comment?: string | null;
+    created_at?: string;
+    updated_at?: string;
 }

@@ -1,22 +1,27 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+
+import FilterTable from "../../components/FilterTable";
 import GenericTable from "../../components/GenericTable";
 import TableScroll from "../../components/TableScroll";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
+import { useEntityCrud } from "../../hooks/useEntityCrud";
+import { showToast } from "../../hooks/fireToast";
+
 import { evaluationService } from "../../services/EvaluationService";
 import { groupService } from "../../services/GroupService";
 import { subjectService } from "../../services/SubjectService";
+import securityService from "../../services/segurity.service";
+import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
+
 import { Evaluation } from "../../models/Evaluation";
 import { Group } from "../../models/Group";
 import { Subject } from "../../models/Subject";
-//import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
-import { useNavigate } from "react-router";
-import { useEntityCrud } from "../../hooks/useEntityCrud";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 const COLUMNS = ["name", "description", "weight", "subject_id", "group_id"];
 
 const ADMIN_TEACHER_ACTIONS = [
@@ -31,36 +36,85 @@ const STUDENT_ACTIONS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
 const emptyForm = (): Omit<Evaluation, "id"> => ({
     name: "",
     description: "",
     weight: 0,
+    rubric_id: "",
     subject_id: "",
     group_id: "",
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
-
 const EvaluationsPage: React.FC = () => {
     const navigate = useNavigate();
 
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
+    const [accessibleGroupIds, setAccessibleGroupIds] = useState<string[]>([]);
+    const [groupFilterId, setGroupFilterId] = useState("");
+    const [subjectFilterId, setSubjectFilterId] = useState("");
+    const [nameFilter, setNameFilter] = useState("");
+    const [accessibleSubjectIds, setAccessibleSubjectIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
 
-    //const user = securityService.getUser();
-    //const role: UserRole = user?.role ?? "STUDENT";
-
-    const role: UserRole = "ADMIN";
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
-    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
+    // ── Data loading ──────────────────────────────────────────────────────────
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const user = securityService.getUser();
 
+            const [evaluationsResponse, subjectsData, groupsData] = await Promise.all([
+            evaluationService.getEvaluations(),
+            subjectService.getActiveSubjects(),
+            groupService.getGroups(),
+            ]);
+
+            const allEvaluations = Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : [];
+            const accessibleSubjects = await evaluationAuthorizationService.getAccessibleSubjectIds(user);
+            const accessibleGroups = await evaluationAuthorizationService.getAccessibleGroupIds(user);
+
+            const filteredEvaluations =
+            user?.role === "ADMIN"
+                ? allEvaluations
+                : allEvaluations.filter((evaluation) =>
+                    accessibleSubjects.includes(evaluation.subject_id ?? "")
+                );
+
+            setEvaluations(filteredEvaluations);
+            setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
+            setGroups(Array.isArray(groupsData) ? groupsData : []);
+            setAccessibleGroupIds(Array.isArray(accessibleGroups) ? accessibleGroups : []);
+            setAccessibleSubjectIds(Array.isArray(accessibleSubjects) ? accessibleSubjects : []);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const groupsForFilter = role === "ADMIN"
+        ? groups
+        : groups.filter((group) => accessibleGroupIds.includes(group.id));
+    const groupsForCrud = groupsForFilter;
+
+    const subjectsForFilter = role === "ADMIN"
+        ? subjects
+        : subjects.filter((s) => accessibleSubjectIds.includes(s.id));
+
+    // ── Helper functions for VerticalTextFormCard ──────────────────────────────
     const getFormFields = (f: Omit<Evaluation, "id">): VerticalTextFormField[] => {
+        const selectedGroupId = f.group_id || groupsForCrud[0]?.id || "";
+
         return [
             {
                 name: "name",
@@ -88,8 +142,8 @@ const EvaluationsPage: React.FC = () => {
                 name: "group_id",
                 label: "Grupo",
                 kind: "select",
-                value: f.group_id,
-                options: groups.map((group) => ({
+                value: selectedGroupId,
+                options: groupsForCrud.map((group) => ({
                     label: `${group.name} - ${group.group_code} (${subjects.find((subject) => subject.id === group.subject_id)?.name ?? group.subject_id})`,
                     value: group.id,
                 })),
@@ -97,31 +151,11 @@ const EvaluationsPage: React.FC = () => {
         ];
     };
 
-    // ── Data loading ──────────────────────────────────────────────────────────
-
-    const loadData = async () => {
-        setLoading(true);
-        const [evaluationsResponse, subjectsData, groupsData] = await Promise.all([
-            evaluationService.getEvaluations(),
-            subjectService.getActiveSubjects(),
-            groupService.getGroups(),
-        ]);
-        setEvaluations(Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : []);
-        setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
-        setGroups(Array.isArray(groupsData) ? groupsData : []);
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        loadData();
-    }, []);
-
     // ── useEntityCrud hook ────────────────────────────────────────────────────
-
     const {
         isOpen: isCrudModalOpen,
         close: closeCrudModal,
-        handleAction,
+        handleAction: handleCrudAction,
         handleSave,
         startCreate,
         title: formTitle,
@@ -133,31 +167,40 @@ const EvaluationsPage: React.FC = () => {
         loadData,
         createItem: async (payload) => {
             const response = await evaluationService.createEvaluation(payload);
+            if (response.success === false) throw new Error(response.error || "Error al crear evaluación.");
             return response.data ?? null;
         },
         updateItem: async (id, payload) => {
             const response = await evaluationService.updateEvaluation(id, payload);
+            if (response.success === false) throw new Error(response.error || "Error al actualizar evaluación.");
             return response.data ?? null;
         },
         deleteOrArchive: async (id) => {
-            const result = await evaluationService.deleteEvaluation(id);
-            return result.success === true;
+            const response = await evaluationService.deleteEvaluation(id);
+            if (response.success === false) {
+                showToast("Error", response.error || "No se pudo eliminar la evaluación.", 2);
+                return false;
+            }
+            return true;
         },
         buildFields: (f) => getFormFields(f),
         mapSaveValues: (values, f) => {
-            const selectedGroup = groups.find((group) => group.id === values.group_id);
+            const selectedGroup = groupsForCrud.find((group) => group.id === values.group_id);
             return {
-                ...f,
                 name: values.name ?? f.name,
                 description: values.description ?? f.description,
                 weight: Number(values.weight) || 0,
                 subject_id: selectedGroup?.subject_id ?? f.subject_id,
                 group_id: selectedGroup?.id ?? f.group_id,
-            };
+            } as Omit<Evaluation, "id">;
         },
         validateSave: (values) => {
-            if (!groups.find((group) => group.id === values.group_id)) {
-                return "Debes seleccionar un grupo válido para crear la evaluación.";
+            if (!groupsForCrud.length) {
+                return "No tienes grupos disponibles para crear o editar evaluaciones.";
+            }
+
+            if (!groupsForCrud.find((group) => group.id === values.group_id)) {
+                return "Debes seleccionar uno de tus grupos disponibles.";
             }
             return null;
         },
@@ -188,25 +231,42 @@ const EvaluationsPage: React.FC = () => {
             update: "No se pudo actualizar la evaluación.",
             delete: "No se pudo eliminar la evaluación.",
         },
-        onAction: async (actionName, item) => {
-            if (actionName === "view") {
-                navigate(`/evaluations/${item.id}/rubric`);
-            } else if (actionName === "grade") {
-                navigate(`/evaluations/${item.id}/califications`);
-            }
-        },
     });
 
-    // ── Table data ────────────────────────────────────────────────────────────
+    const handleAction = async (actionName: string, item: Record<string, any>) => {
+        const evaluation = evaluations.find((current) => current.id === item.id) ?? (item as Evaluation);
 
-    const tableData = evaluations.map((e) => ({
+        if (actionName === "view") {
+            navigate(`/evaluations/${evaluation.id}/rubric`);
+            return;
+        }
+
+        if (actionName === "grade") {
+            navigate(`/evaluations/${evaluation.id}/califications`);
+            return;
+        }
+
+        await handleCrudAction(actionName, evaluation);
+    };
+
+    // ── Table data ────────────────────────────────────────────────────────────
+    const filteredEvaluations = evaluations.filter((evaluation) => {
+        if (groupFilterId && evaluation.group_id !== groupFilterId) return false;
+        if (subjectFilterId && evaluation.subject_id !== subjectFilterId) return false;
+        if (nameFilter) {
+            const name = (evaluation.name ?? "").toLowerCase();
+            if (!name.includes(nameFilter.toLowerCase())) return false;
+        }
+        return true;
+    });
+
+    const tableData = filteredEvaluations.map((e) => ({
         ...e,
         subject_id: subjects.find((s) => s.id === e.subject_id)?.name ?? e.subject_id ?? "—",
         group_id: groups.find((g) => g.id === e.group_id)?.group_code ?? e.group_id ?? "—",
     }));
 
     // ── Render ────────────────────────────────────────────────────────────────
-
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
@@ -222,12 +282,45 @@ const EvaluationsPage: React.FC = () => {
                 } : undefined}
             />
 
+            <FilterTable
+                filters={[
+                    {
+                        id: "group_id",
+                        label: "Grupo",
+                        placeholder: "Todos los grupos",
+                        type: "select",
+                        options: groupsForFilter.map((group) => ({
+                            label: `${group.name} - ${group.group_code}`,
+                            value: group.id,
+                        })),
+                    },
+                    {
+                        id: "subject_id",
+                        label: "Materia",
+                        placeholder: "Todas las materias",
+                        type: "select",
+                        options: subjectsForFilter.map((s) => ({ label: s.name, value: s.id })),
+                    },
+                    {
+                        id: "evaluation_name",
+                        label: "Nombre evaluación",
+                        placeholder: "Buscar por nombre",
+                        type: "text",
+                    },
+                ]}
+                onFilterChange={(filters) => {
+                    setGroupFilterId(filters.group_id ?? "");
+                    setSubjectFilterId(filters.subject_id ?? "");
+                    setNameFilter(filters.evaluation_name ?? "");
+                }}
+            />
+
             {/* Table — full height */}
             <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[70vh]">
                 <div className="h-full overflow-y-auto">
                     {loading ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">Cargando evaluaciones…</p>
-                    ) : evaluations.length === 0 ? (
+                    ) : tableData.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron evaluaciones.</p>
                     ) : (
                         <TableScroll maxHeight="55vh">
@@ -261,7 +354,6 @@ const EvaluationsPage: React.FC = () => {
                     )}
                 </ModalLauncher>
             )}
-
         </div>
     );
 };

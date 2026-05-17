@@ -1,5 +1,5 @@
 import apiService, { ApiResponse } from './api';
-import { Student } from '../models/Student';
+import { Student } from '../models/student';
 import { CreateStudentPayload, UpdateStudentPayload } from '../models/StudentPayload';
 
 /**
@@ -21,6 +21,14 @@ class StudentService {
    */
   async getStudentById(studentId: string): Promise<ApiResponse<Student>> {
     return apiService.get<Student>(`${this.usersEndpoint}/${studentId}`);
+  }
+
+  /**
+   * Obtener datos académicos del estudiante por academic student id
+   * Endpoint: /academic/students/{id}
+   */
+  async getAcademicStudentById(academicStudentId: string): Promise<ApiResponse<any>> {
+    return apiService.get<any>(`/academic/students/${academicStudentId}`);
   }
 
   /**

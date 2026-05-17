@@ -1,4 +1,4 @@
-import { User, TeacherProfile } from './User';
+import { User, TeacherProfile } from './user';
 
 /**
  * Interface Docente - Extiende User

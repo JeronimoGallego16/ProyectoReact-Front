@@ -1,4 +1,4 @@
-import apiClient from '../interceptor/apiClient';
+import apiService from './api';
 import { Group, GroupCreateInput, GroupUpdateInput } from '../models/Group';
 
 const API_URL = '/academic/groups';
@@ -7,8 +7,9 @@ class GroupService {
   // Método para obtener todos los grupos.
   async getGroups(): Promise<Group[]> {
     try {
-      const response = await apiClient.get(API_URL);
-      const data = this._extractData(response);
+      const res = await apiService.get<Group[]>(API_URL);
+      if (!res || !res.success) return [];
+      const data = res.data ?? [];
       return Array.isArray(data) ? data : [];
     } catch (error) {
       return this._handleError(error) || [];
@@ -48,20 +49,32 @@ class GroupService {
   // Método para obtener un grupo por ID.
   async getGroupById(id: string): Promise<Group | null> {
     try {
-      const response = await apiClient.get(`${API_URL}/${id}`);
-      return this._extractData(response) as Group || null;
+      const res = await apiService.get<Group>(`${API_URL}/${id}`);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Group) || null;
     } catch (error) {
       return this._handleError(error);
     }
   }
 
   // Método para crear un nuevo grupo.
-  // El teacher_id puede estar vacío y asignarse después mediante TeacherAGroupService
+  // Requisitos: teacher_id, subject_id, semester_id, group_code único.
+  // Validación: un docente no puede repetir asignatura en el mismo semestre.
   async createGroup(payload: GroupCreateInput): Promise<Group | null> {
     try {
-      // Validaciones básicas - teacher_id es opcional
-      if (!payload.subject_id || !payload.semester_id || !payload.group_code) {
-        throw new Error('Subject, semester, and group code are required');
+      if (!payload.teacher_id || !payload.subject_id || !payload.semester_id || !payload.group_code) {
+        throw new Error('Teacher, subject, semester, and group code are required');
+      }
+
+      // Validar que el docente no tenga ya un grupo con la misma asignatura en este semestre
+      const teacherGroups = await this.getGroupsByTeacher(payload.teacher_id);
+      const conflict = teacherGroups.find(
+        g => g.subject_id === payload.subject_id && g.semester_id === payload.semester_id
+      );
+      if (conflict) {
+        throw new Error(
+          `Teacher already has a group for this subject in this semester (Group: ${conflict.group_code})`
+        );
       }
 
       // Validar group_code único
@@ -70,18 +83,9 @@ class GroupService {
         throw new Error(`Group code "${payload.group_code}" already exists`);
       }
 
-      const response = await apiClient.post(API_URL, payload);
-      return this._extractData(response) as Group || null;
-    } catch (error) {
-      return this._handleError(error);
-    }
-  }
-
-  // Método para desactivar un grupo
-  async desactivateGroup(groupId: string): Promise<Group | null> {
-    try {
-      const response = await apiClient.patch(`${API_URL}/${groupId}`, { is_active: false });
-      return this._extractData(response) as Group || null;
+      const res = await apiService.post<Group>(API_URL, payload);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Group) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -90,8 +94,9 @@ class GroupService {
   // Método para actualizar un grupo.
   async updateGroup(id: string, payload: GroupUpdateInput): Promise<Group | null> {
     try {
-      const response = await apiClient.put(`${API_URL}/${id}`, payload);
-      return this._extractData(response) as Group || null;
+      const res = await apiService.put<Group>(`${API_URL}/${id}`, payload);
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Group) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -119,8 +124,9 @@ class GroupService {
         );
       }
 
-      const response = await apiClient.patch(`${API_URL}/${groupId}/assign-teacher/${teacherId}`);
-      return this._extractData(response) as Group || null;
+      const res = await apiService.patch<Group>(`${API_URL}/${groupId}/assign-teacher/${teacherId}`, {});
+      if (!res || !res.success) return this._handleError(new Error(res?.error)) || null;
+      return (res.data as Group) || null;
     } catch (error) {
       return this._handleError(error);
     }
@@ -138,15 +144,6 @@ class GroupService {
     } catch (error) {
       return this._handleError(error) || 0;
     }
-  }
-
-
-  // Helpers
-  private _extractData(response: any): any {
-    if (!response) return null;
-    if (response.data && response.data.data !== undefined) return response.data.data;
-    if (response.data !== undefined) return response.data;
-    return null;
   }
 
   private _handleError(error: any): any {
