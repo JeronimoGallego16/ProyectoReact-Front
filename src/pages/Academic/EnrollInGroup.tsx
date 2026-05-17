@@ -176,12 +176,18 @@ const EnrollInGroupPage: React.FC = () => {
           <div className="rounded-sm border border-stroke bg-white p-4 shadow-default dark:border-strokedark dark:bg-boxdark">
             <h3 className="font-medium text-black dark:text-white mb-3">Estudiantes</h3>
             <div className="max-h-[60vh] overflow-auto">
-              {filteredStudents.map(s => (
-                <div key={s.id} className={`p-2 rounded hover:bg-gray-50 cursor-pointer ${selectedStudent?.id === s.id ? 'bg-gray-100' : ''}`} onClick={() => void selectStudent(s)}>
-                  <div className="text-sm font-medium text-black dark:text-white">{s.profile?.first_name} {s.profile?.last_name}</div>
-                  <div className="text-xs text-body dark:text-bodydark">{s.profile?.identification || '-'}</div>
-                </div>
-              ))}
+              {loading ? (
+                <div className="text-sm text-body dark:text-bodydark">Cargando estudiantes...</div>
+              ) : filteredStudents.length === 0 ? (
+                <div className="text-sm text-body dark:text-bodydark">No se encontraron estudiantes.</div>
+              ) : (
+                filteredStudents.map(s => (
+                  <div key={s.id} className={`p-2 rounded hover:bg-gray-50 cursor-pointer ${selectedStudent?.id === s.id ? 'bg-gray-100' : ''}`} onClick={() => void selectStudent(s)}>
+                    <div className="text-sm font-medium text-black dark:text-white">{s.profile?.first_name} {s.profile?.last_name}</div>
+                    <div className="text-xs text-body dark:text-bodydark">{s.profile?.identification || '-'}</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -203,9 +209,15 @@ const EnrollInGroupPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <p className="text-xs text-body dark:text-bodydark">Matrícula activa</p>
-                  {activeRegistration ? (
-                    <div className="text-sm text-black dark:text-white">Carrera: {activeRegistration.career_id} — Estado: {activeRegistration.academic_status}</div>
+                  <p className="text-xs text-body dark:text-bodydark">Matrículas activas</p>
+                  {registrations.length > 0 ? (
+                    <div className="space-y-2">
+                      {registrations.map(reg => (
+                        <div key={reg.id} className="text-sm text-black dark:text-white">
+                          Carrera: {reg.career_id} — Estado: {reg.academic_status} — Activa: {reg.is_active ? 'Sí' : 'No'}
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="text-sm text-body dark:text-bodydark">No tiene matrícula activa</div>
                   )}
