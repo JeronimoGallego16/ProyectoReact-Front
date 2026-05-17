@@ -10,6 +10,7 @@ const CriteriaByRubricPage = lazy(() => import('../pages/Evaluation/CriteriaByRu
 const ScalesByCriterionPage = lazy(() => import('../pages/Evaluation/ScalesByCriterion'));
 const RubricForEvaluationPage = lazy(() => import('../pages/Evaluation/RubricForEvaluation'));
 const CalificationPage = lazy(() => import('../pages/Evaluation/Calification'));
+const CalificationDetailPage = lazy(() => import('../pages/Evaluation/CalificationDetail'));
 const GradesPage = lazy(() => import('../pages/Evaluation/Grades'));
 const GradeDetailPage = lazy(() => import('../pages/Evaluation/GradeDetail'));
 const UsersPage = lazy(() => import('../pages/UsersPage'));
@@ -88,6 +89,11 @@ const coreRoutes = [
     title: 'Calification',
     component: CalificationPage,
   }, 
+  {
+    path: '/evaluations/:evaluationId/califications/:enrollmentId',
+    title: 'Calification Detail',
+    component: CalificationDetailPage,
+  },
   { 
     path: '/grades',
     title: 'Grades',

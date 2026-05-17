@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import FilterTable from "../../components/FilterTable";
 import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import CriterionCommentBox from "../../components/CriterionCommentBox";
 import { showToast } from "../../hooks/fireToast";
 
 import { gradeService } from "../../services/GradeService";
+import { enrollmentService } from "../../services/EnrollmentService";
+import { groupService } from "../../services/GroupService";
 import securityService from "../../services/segurity.service";
 import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
 import studentService from "../../services/student.service";
@@ -14,6 +17,7 @@ import studentService from "../../services/student.service";
 import { exportGroupGradesPDF } from "../../utils/pdfExporter";
 
 import { Grade } from "../../models/Grade";
+import { Group } from "../../models/Group";
 import { UserRole } from "../../models/User"; 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -51,6 +55,9 @@ const GradesPage: React.FC = () => {
     const navigate = useNavigate();
 
     const [grades, setGrades] = useState<Grade[]>([]);
+    const [groups, setGroups] = useState<Group[]>([]);
+    const [accessibleGroupIds, setAccessibleGroupIds] = useState<string[]>([]);
+    const [groupFilterId, setGroupFilterId] = useState("");
 
     // Observations state
     const [obsModalOpen, setObsModalOpen] = useState(false);
@@ -78,14 +85,25 @@ const GradesPage: React.FC = () => {
 
             setGrades(filteredGrades);
 
+            const [allGroups, accessibleGroups] = await Promise.all([
+                groupService.getGroups(),
+                evaluationAuthorizationService.getAccessibleGroupIds(user),
+            ]);
+
+            setGroups(Array.isArray(allGroups) ? allGroups : []);
+            setAccessibleGroupIds(Array.isArray(accessibleGroups) ? accessibleGroups : []);
+
             const nextTableData = await Promise.all(
                 filteredGrades.map(async (grade) => {
                     const studentDetailId = grade.details?.[0]?.student_id;
                     const studentCode = await getStudentCode(studentDetailId);
+                    const enrollment = await enrollmentService.getEnrollmentById(grade.enrollment_id);
+                    const groupId = enrollment?.group_id ?? "";
 
                     return {
                         ...grade,
                         student_code: studentCode,
+                        group_id: groupId,
                         observations: grade.observations ? grade.observations : "-",
                         is_locked: grade.is_locked ? "Bloqueada" : "No publicada",
                     };
@@ -116,6 +134,14 @@ const GradesPage: React.FC = () => {
             setObsModalOpen(true);
         }
     };
+
+    const groupsForFilter = role === "ADMIN"
+        ? groups
+        : groups.filter((group) => accessibleGroupIds.includes(group.id));
+
+    const filteredTableData = groupFilterId
+        ? tableData.filter((grade) => grade.group_id === groupFilterId)
+        : tableData;
 
     const handlePublishAll = async () => {
         const unlockedGrades = grades.filter((grade) => !grade.is_locked);
@@ -159,11 +185,11 @@ const GradesPage: React.FC = () => {
 
      // Export pdf with the grades from the table ─────────────
     const handleExportPDF = () => {
-        if (tableData.length === 0) {
+        if (filteredTableData.length === 0) {
             showToast("Info", "No hay notas para exportar.", 1);
             return;
         }
-        exportGroupGradesPDF("Grupo", COLUMNS, tableData);
+        exportGroupGradesPDF("Grupo", COLUMNS, filteredTableData);
     };
 
     const saveObservations = async () => {
@@ -205,16 +231,32 @@ const GradesPage: React.FC = () => {
                     : "Consulta tus notas."}
             />
 
+            <FilterTable
+                filters={[
+                    {
+                        id: "group_id",
+                        label: "Grupo",
+                        placeholder: "Todos los grupos",
+                        type: "select",
+                        options: groupsForFilter.map((group) => ({
+                            label: `${group.name} - ${group.group_code}`,
+                            value: group.id,
+                        })),
+                    },
+                ]}
+                onFilterChange={(filters) => setGroupFilterId(filters.group_id ?? "")}
+            />
+
             {/* Table */}
             <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[70vh]">
                 <div className="h-full overflow-y-auto">
                     {loading ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">Cargando notas…</p>
-                    ) : grades.length === 0 ? (
+                    ) : filteredTableData.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron notas.</p>
                     ) : (
                         <GenericTable
-                            data={tableData}
+                            data={filteredTableData}
                             columns={COLUMNS}
                             actions={getActionsForRole(editable)}
                             onAction={(actionName, item) => handleAction(actionName, item as Grade)}
@@ -255,7 +297,7 @@ const GradesPage: React.FC = () => {
                 {editable && (
                     <button
                         onClick={handleExportPDF}
-                        disabled={loading || tableData.length === 0}
+                        disabled={loading || filteredTableData.length === 0}
                         className="inline-flex items-center gap-2 rounded-md border border-primary px-4 py-2 text-sm font-medium text-primary hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                     >
                         Descargar PDF

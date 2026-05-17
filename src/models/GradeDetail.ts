@@ -4,6 +4,6 @@ export interface GradeDetail {
     scale_id: string;
     score: number;
     comment?: string | null;
-    created_at: string;
-    updated_at: string;
+    created_at?: string;
+    updated_at?: string;
 }

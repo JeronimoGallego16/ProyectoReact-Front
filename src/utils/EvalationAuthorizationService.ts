@@ -5,6 +5,16 @@ import { enrollmentService } from '../services/EnrollmentService';
 import { groupService } from '../services/GroupService';
 
 class AuthorizationService {
+  private getTeacherIdentifier(user: User | null): string | null {
+    if (!user || user.role !== 'TEACHER') return null;
+    return user.id || user.profile?.id || null;
+  }
+
+  private getStudentIdentifier(user: User | null): string | null {
+    if (!user || user.role !== 'STUDENT') return null;
+    return user.profile?.id || user.id || null;
+  }
+
   /**
    * Obtiene los IDs de materias que el usuario puede ver
    */
@@ -16,7 +26,10 @@ class AuthorizationService {
 
     if (user.role === 'STUDENT') {
       // Estudiante: materias donde está inscrito
-      const enrollments = await enrollmentService.getActiveEnrollmentsByStudent(userProfileId);
+      const studentId = this.getStudentIdentifier(user);
+      if (!studentId) return [];
+
+      const enrollments = await enrollmentService.getActiveEnrollmentsByStudent(studentId);
       const groups = await groupService.getGroups();
       return groups
         .filter(g => enrollments.some(e => e.group_id === g.id))
@@ -25,7 +38,10 @@ class AuthorizationService {
 
     if (user.role === 'TEACHER') {
       // Profesor: materias que dicta
-      const groups = await groupService.getGroupsByTeacher(userProfileId);
+      const teacherId = this.getTeacherIdentifier(user);
+      if (!teacherId) return [];
+
+      const groups = await groupService.getGroupsByTeacher(teacherId);
       return groups.map(g => g.subject_id);
     }
 
@@ -43,13 +59,19 @@ class AuthorizationService {
 
     if (user.role === 'STUDENT') {
       // Estudiante: grupos donde está inscrito
-      const enrollments = await enrollmentService.getActiveEnrollmentsByStudent(userProfileId);
+      const studentId = this.getStudentIdentifier(user);
+      if (!studentId) return [];
+
+      const enrollments = await enrollmentService.getActiveEnrollmentsByStudent(studentId);
       return enrollments.map(e => e.group_id);
     }
 
     if (user.role === 'TEACHER') {
       // Profesor: sus grupos
-      const groups = await groupService.getGroupsByTeacher(userProfileId);
+      const teacherId = this.getTeacherIdentifier(user);
+      if (!teacherId) return [];
+
+      const groups = await groupService.getGroupsByTeacher(teacherId);
       return groups.map(g => g.id);
     }
 
@@ -67,12 +89,16 @@ class AuthorizationService {
 
     if (user.role === 'STUDENT') {
       // Un estudiante solo se ve a sí mismo
-      return [userProfileId];
+      const studentId = this.getStudentIdentifier(user);
+      return studentId ? [studentId] : [];
     }
 
     if (user.role === 'TEACHER') {
       // Profesor: estudiantes de sus grupos
-      const groups = await groupService.getGroupsByTeacher(userProfileId);
+      const teacherId = this.getTeacherIdentifier(user);
+      if (!teacherId) return [];
+
+      const groups = await groupService.getGroupsByTeacher(teacherId);
       const enrollments = await enrollmentService.getEnrollments();
       return enrollments
         .filter(e => groups.some(g => g.id === e.group_id) && e.status === 'ACTIVE')

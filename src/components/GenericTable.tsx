@@ -3,6 +3,7 @@ import React from "react";
 interface Action {
     name: string;
     label: string;
+    visible?: (item: Record<string, any>) => boolean;
 }
 
 interface GenericTableProps {
@@ -58,33 +59,35 @@ const GenericTable: React.FC<GenericTableProps> = ({ data, columns, actions = []
                                 {hasActions && (
                                     <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
                                         <div className="flex items-center gap-2">
-                                            {actions.map((action) => (
-                                                <button
-                                                    key={action.name}
-                                                    onClick={() => onAction?.(action.name, item)}
-                                                    type="button"
-                                                    className={`rounded-md border border-stroke px-2 py-1 text-xs font-medium transition
-                                                        hover:bg-gray-2 dark:border-strokedark
-                                                        ${
-                                                            action.name === "delete"
-                                                                ? "text-red-500 hover:bg-red-100"
-                                                                : ""
-                                                        }
-                                                        ${
-                                                            action.name === "view"
-                                                                ? "text-blue-500 hover:bg-blue-100"
-                                                                : ""
-                                                        }
-                                                        ${
-                                                            action.name === "download"
-                                                                ? "text-green-500 hover:bg-green-100"
-                                                                : ""
-                                                        }
-                                                    `}
-                                                >
-                                                    {action.label}
-                                                </button>
-                                            ))}
+                                            {actions
+                                                .filter((action) => (action.visible ? action.visible(item) : true))
+                                                .map((action) => (
+                                                    <button
+                                                        key={action.name}
+                                                        onClick={() => onAction?.(action.name, item)}
+                                                        type="button"
+                                                        className={`rounded-md border border-stroke px-2 py-1 text-xs font-medium transition
+                                                            hover:bg-gray-2 dark:border-strokedark
+                                                            ${
+                                                                action.name === "delete"
+                                                                    ? "text-red-500 hover:bg-red-100"
+                                                                    : ""
+                                                            }
+                                                            ${
+                                                                action.name === "view"
+                                                                    ? "text-blue-500 hover:bg-blue-100"
+                                                                    : ""
+                                                            }
+                                                            ${
+                                                                action.name === "download"
+                                                                    ? "text-green-500 hover:bg-green-100"
+                                                                    : ""
+                                                            }
+                                                        `}
+                                                    >
+                                                        {action.label}
+                                                    </button>
+                                                ))}
                                         </div>
                                     </td>
                                 )}

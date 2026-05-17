@@ -86,7 +86,7 @@ const CriteriaByRubricPage: React.FC = () => {
                 role === "ADMIN" ||
                 (currentEvaluation?.subject_id
                     ? accessibleSubjects.includes(currentEvaluation.subject_id)
-                    : false);
+                    : role === "TEACHER");
 
             if (!canAccess) {
                 showToast("Error", "No tienes permisos para ver esta rúbrica.", 2);

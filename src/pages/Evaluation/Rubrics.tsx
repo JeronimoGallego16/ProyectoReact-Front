@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import FilterTable from "../../components/FilterTable";
 import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import ModalLauncher from "../../components/ModalLauncher";
@@ -16,6 +17,8 @@ import securityService from "../../services/segurity.service";
 
 import { UserRole } from "../../models/User";
 import { Rubric } from "../../models/Rubric";
+import { Group } from "../../models/Group";
+import { Evaluation } from "../../models/Evaluation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +50,10 @@ const RubricsPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const [rubrics, setRubrics] = useState<Rubric[]>([]);
+    const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
+    const [groups, setGroups] = useState<Group[]>([]);
+    const [accessibleGroupIds, setAccessibleGroupIds] = useState<string[]>([]);
+    const [groupFilterId, setGroupFilterId] = useState("");
    
     const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
     const {
@@ -67,13 +74,18 @@ const RubricsPage: React.FC = () => {
     const loadRubrics = async () => {
         setLoading(true);
         try {
-            const [rubricsResponse, evaluationsResponse] = await Promise.all([
+            const [rubricsResponse, evaluationsResponse, groupsResponse] = await Promise.all([
                 rubricService.getRubrics(),
                 evaluationService.getEvaluations(),
+                groupService.getGroups(),
             ]);
 
             const allRubrics = Array.isArray(rubricsResponse.data) ? rubricsResponse.data : [];
             const allEvaluations = Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : [];
+            const allGroups = Array.isArray(groupsResponse) ? groupsResponse : [];
+
+            const user = securityService.getUser();
+            const accessibleGroups = await evaluationAuthorizationService.getAccessibleGroupIds(user);
 
             const filteredRubrics = await Promise.all(
                 allRubrics.map(async (rubric) => {
@@ -91,6 +103,9 @@ const RubricsPage: React.FC = () => {
             );
 
             setRubrics(filteredRubrics.filter((rubric): rubric is Rubric => rubric !== null));
+            setEvaluations(allEvaluations);
+            setGroups(allGroups);
+            setAccessibleGroupIds(Array.isArray(accessibleGroups) ? accessibleGroups : []);
         } finally {
             setLoading(false);
         }
@@ -216,43 +231,55 @@ const RubricsPage: React.FC = () => {
 
         setForm(nextForm);
 
-        if (crudMode === "create") {
-            const user = securityService.getUser();
-            const teacherId = user?.id;
+        try {
+            if (crudMode === "create") {
+                const user = securityService.getUser();
+                const teacherId = user?.id;
 
-           const groups = await groupService.getGroupsByTeacher(teacherId as string);
-            if (!groups || groups.length === 0) {
-                showToast("Error", "No puedes crear una rúbrica: debes tener al menos un grupo asignado.", 3);
+               const groups = await groupService.getGroupsByTeacher(teacherId as string);
+                if (!groups || groups.length === 0) {
+                    showToast("Error", "No puedes crear una rúbrica: debes tener al menos un grupo asignado.", 3);
+                    return;
+                }
+
+                const response = await rubricService.createRubric(nextForm);
+                if (response.data) {
+                    showToast("Éxito", "Rúbrica creada exitosamente.", 0);
+                    await loadRubrics();
+                } else {
+                    showToast("Error", "No se pudo crear la rúbrica.", 2);
+                }
                 return;
             }
 
-            const response = await rubricService.createRubric(nextForm);
-            if (response.data) {
-                showToast("Éxito", "Rúbrica creada exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
-                await loadRubrics();
-            } else {
-                showToast("Error", "No se pudo crear la rúbrica.", 2);
+            if (crudMode === "edit" && selectedRubric) {
+                const response = await rubricService.updateRubric(selectedRubric.id, nextForm);
+                if (response.data) {
+                    showToast("Éxito", "Rúbrica actualizada exitosamente.", 0);
+                    await loadRubrics();
+                } else {
+                    showToast("Error", "No se pudo actualizar la rúbrica.", 2);
+                }
             }
-        return;
-        }
-
-        if (crudMode === "edit" && selectedRubric) {
-            const response = await rubricService.updateRubric(selectedRubric.id, nextForm);
-            if (response.data) {
-                showToast("Éxito", "Rúbrica actualizada exitosamente.", 0);
-                setIsCrudModalOpen(false);
-                resetCrud();
-                await loadRubrics();
-            } else {
-                showToast("Error", "No se pudo actualizar la rúbrica.", 2);
-            }
+        } catch (err) {
+            showToast("Error", "Ocurrió un error al procesar la solicitud.", 2);
+        } finally {
+            // Close the modal regardless of success or error
+            setIsCrudModalOpen(false);
+            resetCrud();
         }
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
-    const tableData = rubrics.map((r) => ({
+    const groupsForFilter = role === "ADMIN"
+        ? groups
+        : groups.filter((group) => accessibleGroupIds.includes(group.id));
+
+    const filteredRubrics = groupFilterId
+        ? rubrics.filter((rubric) => evaluations.some((evaluation) => evaluation.rubric_id === rubric.id && evaluation.group_id === groupFilterId))
+        : rubrics;
+
+    const tableData = filteredRubrics.map((r) => ({
         ...r,
         created_at: r.created_at ? new Date(r.created_at).toLocaleDateString() : "",
         is_public: r.is_public ? "Sí" : "No",
@@ -271,12 +298,28 @@ const RubricsPage: React.FC = () => {
                 primaryAction={editable ? { label: "+ Nueva Rúbrica", onClick: () => { startCreate(); setIsCrudModalOpen(true); } } : undefined}
             />
 
+            <FilterTable
+                filters={[
+                    {
+                        id: "group_id",
+                        label: "Grupo",
+                        placeholder: "Todos los grupos",
+                        type: "select",
+                        options: groupsForFilter.map((group) => ({
+                            label: `${group.name} - ${group.group_code}`,
+                            value: group.id,
+                        })),
+                    },
+                ]}
+                onFilterChange={(filters) => setGroupFilterId(filters.group_id ?? "")}
+            />
+
             {/* Table — full height */}
             <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[70vh]">
                 <div className="h-full overflow-y-auto">
                     {loading ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">Cargando rúbricas…</p>
-                    ) : rubrics.length === 0 ? (
+                    ) : tableData.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron rúbricas.</p>
                     ) : (
                         <GenericTable

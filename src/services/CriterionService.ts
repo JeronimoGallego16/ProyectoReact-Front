@@ -31,6 +31,16 @@ class CriterionService {
             };
         }
 
+        if (!criterion.name || String(criterion.name).trim() === "") {
+            console.error('El nombre del criterio es obligatorio.');
+            return { success: false, error: 'El nombre del criterio es obligatorio.' };
+        }
+
+        if (criterion.weight === undefined || criterion.weight === null || Number.isNaN(Number(criterion.weight))) {
+            console.error('El peso del criterio es obligatorio y debe ser un número.');
+            return { success: false, error: 'El peso del criterio es obligatorio y debe ser un número.' };
+        }
+
         const validation = await this.validateCriterionWeight(criterion.rubric_id, Number(criterion.weight) || 0);
         if (!validation.ok) {
             console.error(validation.message);
@@ -53,6 +63,20 @@ class CriterionService {
 
     // Método para modificar un criterio existente.
     async updateCriterion(id: string, criterion: Partial<Criterion>): Promise<ApiResponse<Criterion>> {
+        if (criterion && Object.prototype.hasOwnProperty.call(criterion, 'name')) {
+            if (!criterion.name || String(criterion.name).trim() === "") {
+                console.error('El nombre del criterio no puede estar vacío.');
+                return { success: false, error: 'El nombre del criterio no puede estar vacío.' };
+            }
+        }
+
+        if (criterion && Object.prototype.hasOwnProperty.call(criterion, 'weight')) {
+            if (criterion.weight === undefined || criterion.weight === null || Number.isNaN(Number(criterion.weight))) {
+                console.error('El peso del criterio debe ser un número válido.');
+                return { success: false, error: 'El peso del criterio debe ser un número válido.' };
+            }
+        }
+
         return apiService.put<Criterion>(`${API_URL_CRITERIA}/${id}`, criterion);
     }
 

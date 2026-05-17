@@ -83,6 +83,33 @@ class GradeService {
 
     // Método para modificar una nota existente.
 	async updateGrade(id: string, grade: Partial<Grade>): Promise<ApiResponse<Grade>> {
+		// If the payload includes fields that must be validated, do simple checks
+		if (grade) {
+			if (Object.prototype.hasOwnProperty.call(grade, 'enrollment_id')) {
+				if (!grade.enrollment_id) {
+					console.error('enrollment_id is required');
+					return { success: false, error: 'enrollment_id is required' };
+				}
+			}
+			if (Object.prototype.hasOwnProperty.call(grade, 'rubric_id')) {
+				if (!grade.rubric_id) {
+					console.error('rubric_id is required');
+					return { success: false, error: 'rubric_id is required' };
+				}
+			}
+			if (Object.prototype.hasOwnProperty.call(grade, 'details')) {
+				const details = (grade as Partial<Grade>).details;
+				if (!Array.isArray(details) || details.length === 0) {
+					console.error('at least one grade detail is required');
+					return { success: false, error: 'at least one grade detail is required' };
+				}
+				if (details.some(d => !d.scale_id)) {
+					console.error('each grade detail must include a scale_id');
+					return { success: false, error: 'each grade detail must include a scale_id' };
+				}
+			}
+		}
+
 		return apiService.put<Grade>(`${API_URL_GRADES}/${id}`, grade);
 	}
 }

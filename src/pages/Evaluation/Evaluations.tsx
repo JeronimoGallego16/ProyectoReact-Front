@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
+import FilterTable from "../../components/FilterTable";
 import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
@@ -40,6 +41,7 @@ const emptyForm = (): Omit<Evaluation, "id"> => ({
     name: "",
     description: "",
     weight: 0,
+    rubric_id: "",
     subject_id: "",
     group_id: "",
 });
@@ -51,8 +53,10 @@ const EvaluationsPage: React.FC = () => {
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
+    const [accessibleGroupIds, setAccessibleGroupIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
+    const [groupFilterId, setGroupFilterId] = useState("");
 
     const {
             crudMode,
@@ -82,6 +86,7 @@ const EvaluationsPage: React.FC = () => {
 
             const allEvaluations = Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : [];
             const accessibleSubjects = await evaluationAuthorizationService.getAccessibleSubjectIds(user);
+            const accessibleGroups = await evaluationAuthorizationService.getAccessibleGroupIds(user);
 
             const filteredEvaluations =
             user?.role === "ADMIN"
@@ -93,6 +98,7 @@ const EvaluationsPage: React.FC = () => {
             setEvaluations(filteredEvaluations);
             setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
             setGroups(Array.isArray(groupsData) ? groupsData : []);
+            setAccessibleGroupIds(Array.isArray(accessibleGroups) ? accessibleGroups : []);
         } finally {
             setLoading(false);
         }
@@ -123,6 +129,7 @@ const EvaluationsPage: React.FC = () => {
                 name: originalEvaluation.name ?? "",
                 description: originalEvaluation.description ?? "",
                 weight: originalEvaluation.weight ?? 0,
+                rubric_id: originalEvaluation.rubric_id ?? "",
                 subject_id: originalEvaluation.subject_id ?? "",
                 group_id: originalEvaluation.group_id ?? "",
             });
@@ -195,7 +202,7 @@ const EvaluationsPage: React.FC = () => {
                 label: "Grupo",
                 kind: "select",
                 value: form.group_id,
-                options: groups.map((group) => ({
+                options: groupsForFilter.map((group) => ({
                     label: `${group.name} - ${group.group_code} (${subjects.find((subject) => subject.id === group.subject_id)?.name ?? group.subject_id})`,
                     value: group.id,
                 })),
@@ -210,7 +217,7 @@ const EvaluationsPage: React.FC = () => {
     };
 
     const handleFormSave = async (values: Record<string, string>) => {
-        const selectedGroup = groups.find((group) => group.id === values.group_id);
+        const selectedGroup = groupsForFilter.find((group) => group.id === values.group_id);
         if (!selectedGroup) {
             closeCrudModal();
             showToast("Error", "Debes seleccionar un grupo válido para crear la evaluación.", 2);
@@ -222,6 +229,7 @@ const EvaluationsPage: React.FC = () => {
             name: values.name ?? form.name,
             description: values.description ?? form.description,
             weight: Number(values.weight) || 0,
+            rubric_id: form.rubric_id ?? "",
             subject_id: selectedGroup.subject_id,
             group_id: selectedGroup.id,
         };
@@ -255,11 +263,19 @@ const EvaluationsPage: React.FC = () => {
     };
 
     // ── Table data ────────────────────────────────────────────────────────────
-    const tableData = evaluations.map((e) => ({
+    const filteredEvaluations = groupFilterId
+        ? evaluations.filter((evaluation) => evaluation.group_id === groupFilterId)
+        : evaluations;
+
+    const tableData = filteredEvaluations.map((e) => ({
         ...e,
         subject_id: subjects.find((s) => s.id === e.subject_id)?.name ?? e.subject_id ?? "—",
         group_id: groups.find((g) => g.id === e.group_id)?.group_code ?? e.group_id ?? "—",
     }));
+
+    const groupsForFilter = role === "ADMIN"
+        ? groups
+        : groups.filter((group) => accessibleGroupIds.includes(group.id));
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
@@ -280,12 +296,28 @@ const EvaluationsPage: React.FC = () => {
                 } : undefined}
             />
 
+            <FilterTable
+                filters={[
+                    {
+                        id: "group_id",
+                        label: "Grupo",
+                        placeholder: "Todos los grupos",
+                        type: "select",
+                        options: groupsForFilter.map((group) => ({
+                            label: `${group.name} - ${group.group_code}`,
+                            value: group.id,
+                        })),
+                    },
+                ]}
+                onFilterChange={(filters) => setGroupFilterId(filters.group_id ?? "")}
+            />
+
             {/* Table — full height */}
             <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[70vh]">
                 <div className="h-full overflow-y-auto">
                     {loading ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">Cargando evaluaciones…</p>
-                    ) : evaluations.length === 0 ? (
+                    ) : tableData.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron evaluaciones.</p>
                     ) : (
                         <GenericTable

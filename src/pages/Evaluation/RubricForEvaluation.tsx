@@ -165,6 +165,7 @@ const RubricForEvaluationPage: React.FC = () => {
                             data={rubrics}
                             columns={COLUMNS}
                             actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
+                            selectedItemId={selectedRubric?.id}
                             onAction={(actionName, item) => {
                                 if (actionName === "select") {
                                     handleAction("select", item);

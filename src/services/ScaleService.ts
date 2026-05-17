@@ -31,6 +31,16 @@ class ScaleService {
             };
         }
 
+        if (!scale.name || String(scale.name).trim() === "") {
+            console.error('El nombre de la escala es obligatorio.');
+            return { success: false, error: 'El nombre de la escala es obligatorio.' };
+        }
+
+        if (scale.value === undefined || scale.value === null || Number.isNaN(Number(scale.value))) {
+            console.error('El valor de la escala es obligatorio y debe ser un número.');
+            return { success: false, error: 'El valor de la escala es obligatorio y debe ser un número.' };
+        }
+
         const criterionExists = await criterionService._CriterionExists(scale.criterion_id);
         if (!criterionExists) {
             return {
@@ -44,6 +54,20 @@ class ScaleService {
 
     // Método para modificar una escala existente.
     async updateScale(id: string, scale: Partial<Scale>): Promise<ApiResponse<Scale>> {
+        if (scale && Object.prototype.hasOwnProperty.call(scale, 'name')) {
+            if (!scale.name || String(scale.name).trim() === "") {
+                console.error('El nombre de la escala no puede estar vacío.');
+                return { success: false, error: 'El nombre de la escala no puede estar vacío.' };
+            }
+        }
+
+        if (scale && Object.prototype.hasOwnProperty.call(scale, 'value')) {
+            if (scale.value === undefined || scale.value === null || Number.isNaN(Number(scale.value))) {
+                console.error('El valor de la escala debe ser un número válido.');
+                return { success: false, error: 'El valor de la escala debe ser un número válido.' };
+            }
+        }
+
         return apiService.put<Scale>(`${API_URL_SCALES}/${id}`, scale);
     }
 

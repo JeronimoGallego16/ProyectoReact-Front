@@ -19,11 +19,50 @@ class EvaluationService {
 
     // Método para crear una nueva evaluación.
     async createEvaluation(evaluation: Omit<Evaluation, "id">): Promise<ApiResponse<Evaluation>> {
+        // Simple validation based on required model attributes
+        if (!evaluation) {
+            return { success: false, error: 'Payload de evaluación inválido.' };
+        }
+
+        if (!evaluation.name || String(evaluation.name).trim() === "") {
+            console.error('El nombre de la evaluación es obligatorio.');
+            return { success: false, error: 'El nombre de la evaluación es obligatorio.' };
+        }
+
+        if (!evaluation.group_id) {
+            console.error('El grupo (group_id) de la evaluación es obligatorio.');
+            return { success: false, error: 'El grupo (group_id) de la evaluación es obligatorio.' };
+        }
+
+        if (!evaluation.subject_id) {
+            console.error('La asignatura (subject_id) de la evaluación es obligatoria.');
+            return { success: false, error: 'La asignatura (subject_id) de la evaluación es obligatoria.' };
+        }
+
+        if (evaluation.weight === undefined || evaluation.weight === null || Number.isNaN(Number(evaluation.weight))) {
+            console.error('El peso de la evaluación es obligatorio y debe ser un número.');
+            return { success: false, error: 'El peso de la evaluación es obligatorio y debe ser un número.' };
+        }
+
         return apiService.post<Evaluation>(API_URL_EVALUATIONS, evaluation);
     }
 
     // Método para modificar una evaluación existente.
     async updateEvaluation(id: string, evaluation: Partial<Evaluation>): Promise<ApiResponse<Evaluation>> {
+        if (evaluation && Object.prototype.hasOwnProperty.call(evaluation, 'name')) {
+            if (!evaluation.name || String(evaluation.name).trim() === "") {
+                console.error('El nombre de la evaluación no puede estar vacío.');
+                return { success: false, error: 'El nombre de la evaluación no puede estar vacío.' };
+            }
+        }
+
+        if (evaluation && Object.prototype.hasOwnProperty.call(evaluation, 'weight')) {
+            if (evaluation.weight === undefined || evaluation.weight === null || Number.isNaN(Number(evaluation.weight))) {
+                console.error('El peso de la evaluación debe ser un número válido.');
+                return { success: false, error: 'El peso de la evaluación debe ser un número válido.' };
+            }
+        }
+
         return apiService.put<Evaluation>(`${API_URL_EVALUATIONS}/${id}`, evaluation);
     }
 
