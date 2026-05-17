@@ -75,8 +75,7 @@ const RubricsPage: React.FC = () => {
 
     const loadRubrics = async () => {
         setLoading(true);
-        const response = await rubricService.getRubrics();
-        const data = Array.isArray(response.data) ? response.data : [];
+        const data = await rubricService.getRubrics();
         setRubrics(data);
         setLoading(false);
     };
@@ -101,23 +100,21 @@ const RubricsPage: React.FC = () => {
         emptyForm: emptyForm(),
         loadData: loadRubrics,
         createItem: async (payload) => {
-            const response = await rubricService.createRubric(payload);
-            return response.data ?? null;
+            return await rubricService.createRubric(payload);
         },
         updateItem: async (id, payload) => {
-            const response = await rubricService.updateRubric(id, payload);
-            return response.data ?? null;
+            return await rubricService.updateRubric(id, payload);
         },
         deleteOrArchive: async (id, type) => {
-            let response;
             if (type === "delete") {
-                response = await rubricService.deleteRubric(id);
+                return await rubricService.deleteRubric(id);
             } else if (type === "archive") {
-                response = await rubricService.archiveRubric(id);
+                return await rubricService.archiveRubric(id);
             } else if (type === "publish") {
-                response = await rubricService.publishRubric(id);
+                const result = await rubricService.publishRubric(id);
+                return result !== null;
             }
-            return !response?.error;
+            return false;
         },
         buildFields: (f) => getFormFields(f),
         mapSaveValues: (values) => ({
@@ -233,3 +230,4 @@ const RubricsPage: React.FC = () => {
 };
 
 export default RubricsPage;
+

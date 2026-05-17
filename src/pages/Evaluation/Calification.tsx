@@ -47,29 +47,29 @@ const CalificationPage: React.FC = () => {
         if (!evaluationId) return;
         setLoading(true);
         try {
-            const evaluationResp = await evaluationService.getEvaluationById(evaluationId);
-            setEvaluation(evaluationResp.data || null);
+            const evaluation = await evaluationService.getEvaluationById(evaluationId);
+            setEvaluation(evaluation || null);
 
-            if (evaluationResp.data?.group_id) {
-                const enrollmentsResp = await enrollmentService.getEnrollmentsByGroup(evaluationResp.data.group_id);
+            if (evaluation?.group_id) {
+                const enrollmentsResp = await enrollmentService.getEnrollmentsByGroup(evaluation.group_id);
                 setStudents(Array.isArray(enrollmentsResp) ? enrollmentsResp : []);
             }
 
-            if (evaluationResp.data?.rubric_id) {
-                const criteriaResp = await rubricService.getCriteriaByRubricId(evaluationResp.data.rubric_id);
-                const critArray = Array.isArray(criteriaResp.data) ? criteriaResp.data : [];
+            if (evaluation?.rubric_id) {
+                const criteriaResp = await rubricService.getCriteriaByRubricId(evaluation.rubric_id);
+                const critArray = Array.isArray(criteriaResp) ? criteriaResp : [];
                 setCriteria(critArray);
 
                 // Load scales for each criterion
                 const scalesMap: Record<string, Scale[]> = {};
                 for (const criterion of critArray) {
                     const scalesResp = await rubricService.getScaleByCriterionId(criterion.id);
-                    scalesMap[criterion.id] = Array.isArray(scalesResp.data) ? scalesResp.data : [];
+                    scalesMap[criterion.id] = Array.isArray(scalesResp) ? scalesResp : [];
                 }
                 setScalesByCriterion(scalesMap);
 
                 // Load existing grades for this rubric
-                const gradesResp = await gradeService.getGradesByRubricId(evaluationResp.data.rubric_id);
+                const gradesResp = await gradeService.getGradesByRubricId(evaluation.rubric_id);
                 setExistingGrades(Array.isArray(gradesResp.data) ? gradesResp.data : []);
             }
         } catch (err) {

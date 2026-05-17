@@ -58,8 +58,7 @@ class EvaluationService {
     
             if (evaluation.rubric_id && evaluation.rubric_id !== rubricId) {
                 const grades = await gradeService.getGradesByRubricId(evaluation.rubric_id);
-                if (grades.length > 0) {
-                    console.log('La evaluación ya tiene notas asociadas a su rúbrica actual. No se puede cambiar la rúbrica.');
+                if (grades.data && grades.data.length > 0) {
                     return null;
                 }
             }

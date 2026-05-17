@@ -92,12 +92,12 @@ const ScalesByCriterionPage: React.FC = () => {
     const loadScalesByCriterion = async () => {
         if (!criterionId) return;
         setLoading(true);
-        const [criterionResponse, scalesResponse] = await Promise.all([
+        const [criterion, scales] = await Promise.all([
             rubricService.getCriterionById(criterionId),
             rubricService.getScaleByCriterionId(criterionId),
         ]);
-        setCriterion(criterionResponse.data || null);
-        setScales(Array.isArray(scalesResponse.data) ? scalesResponse.data : []);
+        setCriterion(criterion || null);
+        setScales(Array.isArray(scales) ? scales : []);
         setLoading(false);
     };
 
@@ -141,20 +141,18 @@ const ScalesByCriterionPage: React.FC = () => {
         loadData: loadScalesByCriterion,
         createItem: async (payload) => {
             const fullPayload = { ...payload, criterion_id: criterionId } as Omit<Scale, "id">;
-            const response = await rubricService.createScale(fullPayload);
-            return response.data ?? null;
+            return await rubricService.createScale(fullPayload);
         },
         updateItem: async (id, payload) => {
-            const response = await rubricService.updateScale(id, {
+            return await rubricService.updateScale(id, {
                 name: payload.name,
                 description: payload.description,
                 value: payload.value,
             });
-            return response.data ?? null;
         },
         deleteOrArchive: async (id) => {
             const response = await rubricService.updateScale(id, { criterion_id: undefined });
-            return !!response.data;
+            return response !== null;
         },
         buildFields: (f) => getFormFields(f),
         mapSaveValues: (values) => ({
@@ -339,3 +337,4 @@ const ScalesByCriterionPage: React.FC = () => {
 };
 
 export default ScalesByCriterionPage;
+

@@ -48,16 +48,15 @@ const RubricForEvaluationPage: React.FC = () => {
         if (!evaluationId) return;
         setLoading(true);
         try {
-            const [evaluationResponse, rubricsResponse] = await Promise.all([
+            const [evaluation, rubrics] = await Promise.all([
                 evaluationService.getEvaluationById(evaluationId),
                 rubricService.getRubrics(),
             ]);
 
-            setEvaluation(evaluationResponse.data || null);
+            setEvaluation(evaluation || null);
 
-            const allRubrics = Array.isArray(rubricsResponse.data) ? rubricsResponse.data : [];
             // mostrar solo rúbricas públicas y no archivadas
-            const available = allRubrics.filter(r => r.is_public && !r.is_archived);
+            const available = (Array.isArray(rubrics) ? rubrics : []).filter(r => r.is_public && !r.is_archived);
             setRubrics(available);
             setSelectedRubric(null);
         } catch (err) {
@@ -95,12 +94,12 @@ const RubricForEvaluationPage: React.FC = () => {
         setLoading(true);
         try {
             const response = await evaluationService.associateRubric(evaluation.id, rubricId);
-            if (response.data) {
+            if (response) {
                 showToast("Éxito", "Rúbrica asignada a la evaluación.", 0);
                 setSelectedRubric(null);
                 await loadData();
             } else {
-                showToast("Error", response.error || "No se pudo asignar la rúbrica.", 2);
+                showToast("Error", "No se pudo asignar la rúbrica.", 2);
             }
         } catch (err) {
             showToast("Error", "Ocurrió un error al asignar la rúbrica.", 2);

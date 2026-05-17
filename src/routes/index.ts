@@ -1,7 +1,8 @@
 import { lazy } from 'react';
-import SubjectsPage from '../pages/Academic/Subjects';
 
 const FormElements = lazy(() => import('../pages/Form/FormElements'));
+const SubjectsPage = lazy(() => import('../pages/Academic/Subjects'));
+const StudyPlansPage = lazy(() => import('../pages/Academic/StudyPlans'));
 const FormLayout = lazy(() => import('../pages/Form/FormLayout'));
 const Profile = lazy(() => import('../pages/Profile'));
 const TestUsers = lazy(() => import('../pages/TestUsers'));
@@ -17,7 +18,6 @@ const UsersPage = lazy(() => import('../pages/UsersPage'));
 const GroupsPage = lazy(() => import('../pages/GroupsPage'));
 const CareersPage = lazy(() => import('../pages/CareersPage'));
 const EnrollmentPage = lazy(() => import('../pages/EnrollmentPage'));
-const EvaluationPage = lazy(() => import('../pages/EvaluationPage'));
 
 
 const coreRoutes = [
@@ -55,6 +55,11 @@ const coreRoutes = [
     path: '/academic/subjects',
     title: 'Asignaturas',
     component: SubjectsPage,
+  },
+  {
+    path: '/academic/study-plans',
+    title: 'Plan de estudios',
+    component: StudyPlansPage,
   },
   {
     path: '/rubrics',
@@ -110,5 +115,3 @@ const coreRoutes = [
 
 const routes = [...coreRoutes];
 export default routes;
-
-

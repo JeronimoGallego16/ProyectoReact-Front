@@ -1,5 +1,5 @@
 import axios from "axios";
-import { User } from "../models/User";
+import { User } from "../models/user";
 import { StorageProvider } from "../storage/StorageProvider";
 import { LocalStorageProvider } from "../storage/LocalStorageProvider";
 import { store } from "../store/store";
@@ -8,7 +8,6 @@ import { setUser } from "../store/userSlice";
 class SecurityService extends EventTarget {
     private readonly keyToken: string;
     private readonly userKey: string;
-    private readonly API_URL: string;
     private user: User | null;
     //private theAuthProvider: any;
     private storage: StorageProvider;
@@ -20,7 +19,6 @@ class SecurityService extends EventTarget {
         this.storage = storage;
         this.keyToken = "token";
         this.userKey = "user";
-        this.API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
         
         // Crear instancia de axios con baseURL
         this.axios = axios.create({

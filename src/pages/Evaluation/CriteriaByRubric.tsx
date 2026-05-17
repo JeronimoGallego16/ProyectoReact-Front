@@ -90,12 +90,12 @@ const CriteriaByRubricPage: React.FC = () => {
     const loadCriteriaByRubric = async () => {
         if (!rubricId) return;
         setLoading(true);
-        const [rubricResponse, criteriaResponse] = await Promise.all([
+        const [rubric, criteria] = await Promise.all([
             rubricService.getRubricById(rubricId),
             rubricService.getCriteriaByRubricId(rubricId),
         ]);
-        setRubric(rubricResponse.data || null);
-        setCriteria(Array.isArray(criteriaResponse.data) ? criteriaResponse.data : []);
+        setRubric(rubric || null);
+        setCriteria(Array.isArray(criteria) ? criteria : []);
         setLoading(false);
     };
 
@@ -120,20 +120,18 @@ const CriteriaByRubricPage: React.FC = () => {
         loadData: loadCriteriaByRubric,
         createItem: async (payload) => {
             const fullPayload = { ...payload, rubric_id: rubricId } as Omit<Criterion, "id">;
-            const response = await rubricService.createCriterion(fullPayload);
-            return response.data ?? null;
+            return await rubricService.createCriterion(fullPayload);
         },
         updateItem: async (id, payload) => {
-            const response = await rubricService.updateCriterion(id, {
+            return await rubricService.updateCriterion(id, {
                 name: payload.name,
                 description: payload.description,
                 weight: payload.weight,
             });
-            return response.data ?? null;
         },
         deleteOrArchive: async (id) => {
             const response = await rubricService.deleteCriterion(id);
-            return !response?.error;
+            return response.success === true;
         },
         buildFields: (f) => getFormFields(f),
         mapSaveValues: (values) => ({

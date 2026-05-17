@@ -45,8 +45,8 @@ export function useCopyScaleModal({ criterionId, rubricId, onCopySuccess }: UseC
         setLoadingTargets(true);
 
         const response = await rubricService.getCriteriaByRubricId(rubricId);
-        const allCriteria = Array.isArray(response.data) ? response.data : [];
-        const availableTargets = allCriteria.filter((item) => item.id !== criterionId);
+        const allCriteria = Array.isArray(response) ? response : [];
+        const availableTargets = allCriteria.filter((item: Criterion) => item.id !== criterionId);
         setTargetCriteria(availableTargets);
         setLoadingTargets(false);
     };
@@ -68,7 +68,7 @@ export function useCopyScaleModal({ criterionId, rubricId, onCopySuccess }: UseC
 
         for (const targetCriterionId of selectedTargetIds) {
             const response = await rubricService.copyScaleToCriterion(sourceScale.id, targetCriterionId);
-            if (response.data) {
+            if (response) {
                 successCount += 1;
             } else {
                 failCount += 1;

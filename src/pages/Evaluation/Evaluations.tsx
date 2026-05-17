@@ -101,14 +101,14 @@ const EvaluationsPage: React.FC = () => {
 
     const loadData = async () => {
         setLoading(true);
-        const [evaluationsResponse, subjectsData, groupsData] = await Promise.all([
+        const [evaluations, subjects, groups] = await Promise.all([
             evaluationService.getEvaluations(),
             subjectService.getActiveSubjects(),
             groupService.getGroups(),
         ]);
-        setEvaluations(Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : []);
-        setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
-        setGroups(Array.isArray(groupsData) ? groupsData : []);
+        setEvaluations(Array.isArray(evaluations) ? evaluations : []);
+        setSubjects(Array.isArray(subjects) ? subjects : []);
+        setGroups(Array.isArray(groups) ? groups : []);
         setLoading(false);
     };
 
@@ -132,16 +132,13 @@ const EvaluationsPage: React.FC = () => {
         emptyForm: emptyForm(),
         loadData,
         createItem: async (payload) => {
-            const response = await evaluationService.createEvaluation(payload);
-            return response.data ?? null;
+            return await evaluationService.createEvaluation(payload);
         },
         updateItem: async (id, payload) => {
-            const response = await evaluationService.updateEvaluation(id, payload);
-            return response.data ?? null;
+            return await evaluationService.updateEvaluation(id, payload);
         },
         deleteOrArchive: async (id) => {
-            const result = await evaluationService.deleteEvaluation(id);
-            return result.success === true;
+            return await evaluationService.deleteEvaluation(id);
         },
         buildFields: (f) => getFormFields(f),
         mapSaveValues: (values, f) => {
@@ -267,3 +264,4 @@ const EvaluationsPage: React.FC = () => {
 };
 
 export default EvaluationsPage;
+

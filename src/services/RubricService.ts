@@ -3,6 +3,12 @@ import { Rubric } from '../models/Rubric';
 import { Criterion } from '../models/Criterion';
 import { Scale } from '../models/Scale';
 
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 const API_URL_RUBRICS = '/evaluation/rubrics'
 const API_URL_CRITERIA = '/evaluation/criteria'
 const API_URL_SCALES = '/evaluation/scales'
@@ -180,17 +186,27 @@ class RubricService {
 
     // Método para eliminar un criterio.
     async deleteCriterion(id: string): Promise<ApiResponse<any>> {
-        const criterionResponse = await this.getCriterionById(id);
-        const criterion = criterionResponse.data;
-        if (!criterion) {
-            console.error(`No existe el criterio con id ${id}`);
+        try {
+            const criterion = await this.getCriterionById(id);
+            if (!criterion) {
+                console.error(`No existe el criterio con id ${id}`);
+                return {
+                    success: false,
+                    error: `No existe el criterio con id ${id}`,
+                };
+            }
+
+            await apiClient.delete(`${API_URL_CRITERIA}/${id}`);
+            return {
+                success: true,
+                data: criterion,
+            };
+        } catch (error) {
             return {
                 success: false,
-                error: `No existe el criterio con id ${id}`,
+                error: error instanceof Error ? error.message : 'Error unknown',
             };
         }
-
-        return apiService.delete<any>(`${API_URL_CRITERIA}/${id}`);
     }
 
 
@@ -351,3 +367,4 @@ class RubricService {
 }
 
 export const rubricService = new RubricService();
+

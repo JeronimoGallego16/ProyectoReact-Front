@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { UserData } from '../models/User';
+import { UserData } from '../models/user';
 import ModalLauncher from '../components/ModalLauncher';
 import UserModal from '../components/UserModal';
 import SearchUserModal from '../components/SearchUserModal';
 import DeactivateUserModal from '../components/DeactivateUserModal';
 
 export default function TestUsers() {
+    const [createModalOpen, setCreateModalOpen] = useState(false);
+    const [editModalOpen, setEditModalOpen] = useState(false);
     const [editMode, setEditMode] = useState<'create' | 'edit'>('create');
     const [editUserId, setEditUserId] = useState<string>('');
+    const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
     const [deactivateUserId, setDeactivateUserId] = useState<string>('');
     const [searchAction, setSearchAction] = useState<'edit' | 'deactivate'>('edit');
 
@@ -15,8 +18,10 @@ export default function TestUsers() {
         if (searchAction === 'edit') {
             setEditMode('edit');
             setEditUserId(userId);
+            setEditModalOpen(true);
         } else if (searchAction === 'deactivate') {
             setDeactivateUserId(userId);
+            setDeactivateModalOpen(true);
         }
     };
 
@@ -31,77 +36,32 @@ export default function TestUsers() {
 
                 {/* Botones principales */}
                 <div className="mb-8 flex flex-col gap-4 sm:flex-row">
-                    <ModalLauncher
-                        trigger={(open) => (
-                            <button
-                                onClick={open}
-                                className="flex-1 rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-green-600 hover:to-green-700 transition-all"
-                            >
-                                ➕ Crear Usuario
-                            </button>
-                        )}
+                    <button
+                        onClick={() => setCreateModalOpen(true)}
+                        className="flex-1 rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-green-600 hover:to-green-700 transition-all"
                     >
-                        {(close) => (
-                            <UserModal
-                                isOpen={true}
-                                onClose={close}
-                                onSuccess={() => close()}
-                                mode="create"
-                            />
-                        )}
-                    </ModalLauncher>
+                        ➕ Crear Usuario
+                    </button>
 
-                    <ModalLauncher
-                        trigger={(open) => (
-                            <button
-                                onClick={() => {
-                                    setSearchAction('edit');
-                                    open();
-                                }}
-                                className="flex-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-blue-600 hover:to-blue-700 transition-all"
-                            >
-                                ✏️ Editar Usuario
-                            </button>
-                        )}
+                    <button
+                        onClick={() => {
+                            setSearchAction('edit');
+                            setEditModalOpen(true);
+                        }}
+                        className="flex-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-blue-600 hover:to-blue-700 transition-all"
                     >
-                        {(close) => (
-                            <SearchUserModal
-                                isOpen={true}
-                                onClose={close}
-                                onUserFound={(userId, userData) => {
-                                    close();
-                                    handleUserFound(userId, userData);
-                                }}
-                                action={searchAction}
-                            />
-                        )}
-                    </ModalLauncher>
+                        ✏️ Editar Usuario
+                    </button>
 
-                    <ModalLauncher
-                        trigger={(open) => (
-                            <button
-                                onClick={() => {
-                                    setSearchAction('deactivate');
-                                    open();
-                                }}
-                                className="flex-1 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-red-600 hover:to-red-700 transition-all"
-                            >
-                                🚫 Desactivar Usuario
-                            </button>
-                        )}
+                    <button
+                        onClick={() => {
+                            setSearchAction('deactivate');
+                            setDeactivateModalOpen(true);
+                        }}
+                        className="flex-1 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-8 py-4 text-lg font-bold text-white shadow-lg hover:shadow-xl hover:from-red-600 hover:to-red-700 transition-all"
                     >
-                        {(close) => (
-                            <SearchUserModal
-                                isOpen={true}
-                                onClose={close}
-                                onUserFound={(userId, userData) => {
-                                    close();
-                                    handleUserFound(userId, userData);
-                                }}
-                                action={searchAction}
-                            />
-                        )}
-                    </ModalLauncher>
+                        🚫 Desactivar Usuario
+                    </button>
                 </div>
 
                 {/* Información sobre el componente */}
@@ -168,12 +128,52 @@ export default function TestUsers() {
                 </div>
             </div>
 
-            {/* Modal Editar/Crear Usuario */}
-            {(editMode === 'edit' && editUserId) && (
+            {/* Modal Crear Usuario */}
+            <ModalLauncher
+                isOpen={createModalOpen && editMode === 'create'}
+                onClose={() => setCreateModalOpen(false)}
+            >
+                {(close) => (
+                    <UserModal
+                        isOpen={true}
+                        onClose={close}
+                        onSuccess={() => {
+                            close();
+                            setCreateModalOpen(false);
+                        }}
+                        mode="create"
+                    />
+                )}
+            </ModalLauncher>
+
+            {/* Modal Editar/Buscar Usuario */}
+            <ModalLauncher
+                isOpen={editModalOpen && editMode === 'create'}
+                onClose={() => {
+                    setEditModalOpen(false);
+                    setEditUserId('');
+                }}
+            >
+                {(close) => (
+                    <SearchUserModal
+                        isOpen={true}
+                        onClose={close}
+                        onUserFound={(userId, userData) => {
+                            handleUserFound(userId, userData);
+                            close();
+                        }}
+                        action={searchAction}
+                    />
+                )}
+            </ModalLauncher>
+
+            {/* Modal Editar Usuario (después de buscar) */}
+            {editUserId && editMode === 'edit' && (
                 <ModalLauncher
-                    trigger={(open) => {
-                        open();
-                        return null;
+                    isOpen={editModalOpen}
+                    onClose={() => {
+                        setEditModalOpen(false);
+                        setEditUserId('');
                     }}
                 >
                     {(close) => (
@@ -181,8 +181,9 @@ export default function TestUsers() {
                             isOpen={true}
                             onClose={close}
                             onSuccess={() => {
-                                setEditUserId('');
                                 close();
+                                setEditUserId('');
+                                setEditModalOpen(false);
                             }}
                             mode="edit"
                             userId={editUserId}
@@ -192,11 +193,30 @@ export default function TestUsers() {
             )}
 
             {/* Modal Desactivación */}
+            <ModalLauncher
+                isOpen={deactivateModalOpen && !deactivateUserId}
+                onClose={() => setDeactivateModalOpen(false)}
+            >
+                {(close) => (
+                    <SearchUserModal
+                        isOpen={true}
+                        onClose={close}
+                        onUserFound={(userId, userData) => {
+                            handleUserFound(userId, userData);
+                            close();
+                        }}
+                        action="deactivate"
+                    />
+                )}
+            </ModalLauncher>
+
+            {/* Modal Confirmar Desactivación */}
             {deactivateUserId && (
                 <ModalLauncher
-                    trigger={(open) => {
-                        open();
-                        return null;
+                    isOpen={deactivateModalOpen}
+                    onClose={() => {
+                        setDeactivateModalOpen(false);
+                        setDeactivateUserId('');
                     }}
                 >
                     {(close) => (
@@ -204,8 +224,9 @@ export default function TestUsers() {
                             isOpen={true}
                             onClose={close}
                             onSuccess={() => {
-                                setDeactivateUserId('');
                                 close();
+                                setDeactivateUserId('');
+                                setDeactivateModalOpen(false);
                             }}
                             userId={deactivateUserId}
                         />
@@ -215,4 +236,6 @@ export default function TestUsers() {
         </div>
     );
 }
+
+
 

@@ -207,6 +207,24 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                         Asignaturas
                       </NavLink>
                     </li>
+                    <li>
+                      <NavLink
+                        to="/academic/study-plans"
+                        className={({ isActive }) => `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${isActive ? 'bg-graydark dark:bg-meta-4' : ''}`}
+                      >
+                        <svg
+                          className="fill-current"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 18 18"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path d="M3 2h12v2H3zM3 5h12v2H3zM3 8h12v2H3zM3 11h12v2H3z" fill="" />
+                        </svg>
+                        Plan de estudios
+                      </NavLink>
+                    </li>
               {/* <!-- Menu Item Forms --> */}
               <SidebarLinkGroup
                 activeCondition={

@@ -1,9 +1,14 @@
-import React from "react";
 import { BsFillTrashFill, BsFillPencilFill } from "react-icons/bs";
-import dataJSON from '../../public/data.json';
 
-export const Table = ({ rows, deleteRow, editRow }) => {
-  const fields=Object.keys(Object.values(dataJSON)[0]).filter((item:any)=>!(item.startsWith("delta_")));
+interface TableRow {
+  id: string;
+  para: string;
+  criterion: string;
+  value: string;
+  type: string;
+}
+
+export const Table = ({ rows, deleteRow, editRow }: { rows: TableRow[]; deleteRow: (idx: number) => void; editRow: (idx: number) => void }) => {
   
   return (
    
@@ -66,3 +71,5 @@ export const Table = ({ rows, deleteRow, editRow }) => {
 
   );
 };
+
+
