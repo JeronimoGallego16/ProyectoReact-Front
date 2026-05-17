@@ -1,5 +1,5 @@
 import apiService, { ApiResponse } from './api';
-import { Admin } from '../models/Admin';
+import { Admin } from '../models/admin';
 import { CreateAdminPayload, UpdateAdminPayload } from '../models/AdminPayload';
 
 /**

@@ -35,7 +35,7 @@ function App() {
             const { path, component: Component } = routes;
             return (
               <Route
-                key={index}
+                key={index} 
                 path={path}
                 element={
                   <Suspense fallback={<Loader />}>

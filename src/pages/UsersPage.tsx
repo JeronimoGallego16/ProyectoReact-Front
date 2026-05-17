@@ -81,7 +81,7 @@ export default function UsersPage() {
     const loadUsers = async () => {
         setLoading(true);
         try {
-            const response = await apiService.get<any>('/users');
+            const response = await apiService.get<any>('/users/');
             if (response.data && Array.isArray(response.data)) {
                 setUsers(response.data);
                 transformUsersToTable(response.data);
