@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import GenericTable from "../../components/GenericTable";
-import TableScroll from "../../components/TableScroll";
 import ModalLauncher from "../../components/ModalLauncher";
 import PageHeader from "../../components/PageHeader";
+import { useNavigate } from 'react-router-dom';
 import { studyPlanService } from "../../services/StudyPlanService";
 import { studyPlanSubjectService } from "../../services/StudyPlanSubjectService";
 import { careerService } from "../../services/CareerService";
@@ -12,17 +11,13 @@ import { StudyPlan } from "../../models/StudyPlan";
 import { Subject } from "../../models/Subject";
 import { UserRole } from "../../models/user";
 import { showToast } from "../../hooks/fireToast";
+import CatalogPanel from './components/CatalogPanel';
+import TableScroll from '../../components/TableScroll';
+import GenericTable from '../../components/GenericTable';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-const STUDY_PLAN_SUBJECTS_COLUMNS = ["suggested_semester", "code", "name", "credits"];
-
-const EDIT_ACTIONS = [
-    { name: "edit", label: "Editar" },
-    { name: "delete", label: "Eliminar" },
-];
-
-const VIEW_ACTIONS: { name: string; label: string }[] = [];
+// component-level constants moved to subcomponents
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -38,11 +33,11 @@ const StudyPlansPage: React.FC = () => {
     const [studyPlanVersions, setStudyPlanVersions] = useState<StudyPlan[]>([]);
     const [draftPlan, setDraftPlan] = useState<StudyPlan | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<"structure" | "drafts">("structure");
+    const [activeTab, setActiveTab] = useState<"catalog" | "structure" | "drafts">("structure");
 
     // Subjects state
     const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
-    const [planSubjects, setPlanSubjects] = useState<Subject[]>([]);
+    const [planSubjects, setPlanSubjects] = useState<any[]>([]);
     const [loadingSubjects, setLoadingSubjects] = useState(false);
 
     // Subject catalog state
@@ -51,15 +46,20 @@ const StudyPlansPage: React.FC = () => {
     // Modal state
     const [isAddingSubject, setIsAddingSubject] = useState(false);
     const [selectedSubjectForEdit, setSelectedSubjectForEdit] = useState<Subject | null>(null);
-    const [selectedSemesterForEdit, setSelectedSemesterForEdit] = useState<number>(1);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
     const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null);
     const [isPublishingPlan, setIsPublishingPlan] = useState(false);
     const [newPlanYear, setNewPlanYear] = useState<string>(String(new Date().getFullYear() + 1));
 
+    // Subject detail modal
+    const [detailSubject, setDetailSubject] = useState<Subject | null>(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
+
     const role: UserRole = "ADMIN";
     const editable = canEdit(role);
+    const navigate = useNavigate();
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
     // ── Load Careers ──────────────────────────────────────────────────────────
 
@@ -135,7 +135,22 @@ const StudyPlansPage: React.FC = () => {
 
     const handleAddSubjectClick = (subject: Subject) => {
         setSelectedSubjectForEdit(subject);
-        setSelectedSemesterForEdit(1);
+        setIsAddingSubject(true);
+    };
+
+    const handleViewSubject = async (subject: Subject) => {
+        try {
+            const full = await subjectService.getSubjectById(subject.id);
+            setDetailSubject(full || subject);
+        } catch (err) {
+            setDetailSubject(subject);
+        }
+        setIsDetailOpen(true);
+    };
+
+    const handleEditSubject = (subject: Subject) => {
+        // Open the add/edit modal to allow adjusting suggested semester or quick edits
+        setSelectedSubjectForEdit(subject);
         setIsAddingSubject(true);
     };
 
@@ -149,8 +164,14 @@ const StudyPlansPage: React.FC = () => {
         }
 
         try {
-            setIsAddingSubject(false);
-            await studyPlanSubjectService.addSubjectToStudyPlan(planToAddTo.id, selectedSubjectForEdit.id);
+                setIsAddingSubject(false);
+                const alreadyLinked = planSubjects.some(ps => ps.id === selectedSubjectForEdit.id);
+                if (alreadyLinked) {
+                    showToast("Aviso", `La asignatura "${selectedSubjectForEdit.name}" ya está vinculada al plan.`, 1);
+                    return;
+                }
+
+                await studyPlanSubjectService.addSubjectToStudyPlan(planToAddTo.id, selectedSubjectForEdit.id);
             showToast("Éxito", `Asignatura "${selectedSubjectForEdit.name}" agregada exitosamente.`, 0);
             setCatalogSearchTerm("");
             await loadStudyPlansByCareer(selectedCareerId);
@@ -190,6 +211,7 @@ const StudyPlansPage: React.FC = () => {
         try {
             setIsConfirmingDelete(false);
             await studyPlanSubjectService.removeSubjectFromStudyPlan(planToDeleteFrom.id, subjectToDelete.id);
+            // no local mappings to remove (suggested_semester was removed)
             showToast("Éxito", `Asignatura "${subjectToDelete.name}" eliminada del plan.`, 0);
             await loadStudyPlansByCareer(selectedCareerId);
         } catch (error) {
@@ -264,37 +286,7 @@ const StudyPlansPage: React.FC = () => {
 
     // ── Render version history ──────────────────────────────────────────────
 
-    const renderVersionHistory = () => {
-        if (studyPlanVersions.length === 0) {
-            return <p className="p-4 text-sm text-body dark:text-bodydark">No hay versiones del plan.</p>;
-        }
-
-        return (
-            <div className="space-y-2">
-                {studyPlanVersions.map((version) => (
-                    <div
-                        key={version.id}
-                        className="flex items-center justify-between rounded border border-stroke bg-gray-2 p-3 dark:border-strokedark dark:bg-meta-4"
-                    >
-                        <div>
-                            <p className="font-medium text-black dark:text-white">{version.year}</p>
-                            <p className="text-xs text-body dark:text-bodydark">
-                                {version.is_published ? (
-                                    <span className="inline-block rounded bg-green-1 px-2 py-1 text-green dark:bg-green-1">
-                                        Publicado
-                                    </span>
-                                ) : (
-                                    <span className="inline-block rounded bg-yellow-1 px-2 py-1 text-yellow dark:bg-yellow-1">
-                                        Borrador
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
-    };
+    // version history rendering moved to dedicated page/section if needed
 
     // ── Render ────────────────────────────────────────────────────────────────
 
@@ -361,9 +353,7 @@ const StudyPlansPage: React.FC = () => {
 
                     <div className="flex items-end">
                         <button
-                            onClick={() => {
-                                // Open version history modal or side panel
-                            }}
+                            onClick={() => setIsHistoryOpen(true)}
                             className="w-full rounded-md border border-stroke bg-white px-4 py-2 text-sm font-medium text-black hover:bg-gray-2 dark:border-strokedark dark:bg-boxdark dark:text-white"
                         >
                             📋 Historial de versiones
@@ -372,27 +362,68 @@ const StudyPlansPage: React.FC = () => {
                 </div>
             )}
 
+            {/* Modal: Version History */}
+            {isHistoryOpen && (
+                <ModalLauncher isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)}>
+                    {() => (
+                        <div>
+                            <h3 className="mb-4 text-lg font-semibold text-black dark:text-white">Historial de versiones</h3>
+                            <div className="space-y-3">
+                                {studyPlanVersions.length === 0 ? (
+                                    <p className="text-sm text-body dark:text-bodydark">No hay versiones disponibles.</p>
+                                ) : (
+                                    studyPlanVersions.map((version) => (
+                                        <div key={version.id} className="flex items-center justify-between rounded border border-stroke bg-gray-2 p-3 dark:border-strokedark dark:bg-meta-4">
+                                            <div>
+                                                <p className="font-medium text-black dark:text-white">Versión {version.year}</p>
+                                                <p className="text-xs text-body dark:text-bodydark">{version.is_published ? 'Publicado' : 'Borrador'}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setIsHistoryOpen(false);
+                                                        navigate(`/academic/study-plans/${version.id}`);
+                                                    }}
+                                                    className="rounded bg-primary px-3 py-1 text-sm font-medium text-white hover:bg-opacity-90"
+                                                >
+                                                    Ver
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </ModalLauncher>
+            )}
+
             {/* Tabs */}
             {!loading && currentPlan && (
                 <div className="mb-6 border-b border-stroke dark:border-strokedark">
                     <div className="flex gap-4">
                         <button
-                            onClick={() => setActiveTab("structure")}
+                            onClick={() => setActiveTab('catalog')}
                             className={`px-4 py-2 font-medium transition-colors ${
-                                activeTab === "structure"
-                                    ? "border-b-2 border-primary text-primary dark:border-primary dark:text-primary"
-                                    : "text-body hover:text-primary dark:text-bodydark dark:hover:text-primary"
+                                activeTab === 'catalog' ? 'border-b-2 border-primary text-primary dark:border-primary dark:text-primary' : 'text-body hover:text-primary dark:text-bodydark dark:hover:text-primary'
+                            }`}
+                        >
+                            Catálogo
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('structure')}
+                            className={`px-4 py-2 font-medium transition-colors ${
+                                activeTab === 'structure' ? 'border-b-2 border-primary text-primary dark:border-primary dark:text-primary' : 'text-body hover:text-primary dark:text-bodydark dark:hover:text-primary'
                             }`}
                         >
                             Estructura del plan
                         </button>
                         {editable && (
                             <button
-                                onClick={() => setActiveTab("drafts")}
+                                onClick={() => setActiveTab('drafts')}
                                 className={`px-4 py-2 font-medium transition-colors ${
-                                    activeTab === "drafts"
-                                        ? "border-b-2 border-primary text-primary dark:border-primary dark:text-primary"
-                                        : "text-body hover:text-primary dark:text-bodydark dark:hover:text-primary"
+                                    activeTab === 'drafts' ? 'border-b-2 border-primary text-primary dark:border-primary dark:text-primary' : 'text-body hover:text-primary dark:text-bodydark dark:hover:text-primary'
                                 }`}
                             >
                                 Borradores
@@ -411,205 +442,89 @@ const StudyPlansPage: React.FC = () => {
                 <div className="rounded-sm border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
                     <p className="text-sm text-body dark:text-bodydark">No hay plan de estudios disponible para esta carrera.</p>
                 </div>
-            ) : activeTab === "structure" ? (
-                // ── STRUCTURE TAB ──
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-                    {/* Subject Catalog (left) */}
+            ) : activeTab === 'structure' ? (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     <div className="lg:col-span-1">
-                        <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-                            <div className="border-b border-stroke px-4 py-6 dark:border-strokedark">
-                                <h3 className="font-medium text-black dark:text-white">
-                                    Catálogo de asignaturas
-                                </h3>
-                            </div>
-                            <div className="p-4">
-                                <input
-                                    type="text"
-                                    placeholder="Buscar por nombre o código…"
-                                    value={catalogSearchTerm}
-                                    onChange={(e) => setCatalogSearchTerm(e.target.value)}
-                                    className="mb-4 w-full rounded border border-stroke bg-transparent px-3 py-2 text-sm text-black outline-none transition placeholder:text-bodydark dark:border-strokedark dark:text-white"
-                                />
-
-                                <div className="max-h-[60vh] overflow-y-auto space-y-2">
-                                    {filteredCatalog.length === 0 ? (
-                                        <p className="text-xs text-body dark:text-bodydark">
-                                            {catalogSearchTerm
-                                                ? "No se encontraron asignaturas"
-                                                : "Todas las asignaturas están agregadas"}
-                                        </p>
-                                    ) : (
-                                        filteredCatalog.map((subject) => (
-                                            <div
-                                                key={subject.id}
-                                                className="flex items-center justify-between rounded border border-stroke bg-gray-2 p-2 dark:border-strokedark dark:bg-meta-4"
-                                            >
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-medium text-black dark:text-white truncate">
-                                                        {subject.code}
-                                                    </p>
-                                                    <p className="text-xs text-body dark:text-bodydark truncate">
-                                                        {subject.name}
-                                                    </p>
-                                                </div>
-                                                {editable && (
-                                                    <button
-                                                        onClick={() => handleAddSubjectClick(subject)}
-                                                        className="ml-2 flex-shrink-0 rounded bg-primary px-2 py-1 text-white hover:bg-opacity-90"
-                                                    >
-                                                        +
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))
-                                    )}
+                        <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-4">
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-xs font-medium text-body dark:text-bodydark">Carrera</p>
+                                    <p className="text-sm text-black dark:text-white">{careers.find(c => c.id === selectedCareerId)?.name ?? '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-body dark:text-bodydark">Versión actual</p>
+                                    <p className="text-sm text-black dark:text-white">{currentPlan ? currentPlan.year : '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-body dark:text-bodydark">Estado</p>
+                                    <p className="text-sm text-black dark:text-white">{draftPlan ? 'Borrador' : (activeStudyPlan ? 'Publicado' : '—')}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-body dark:text-bodydark">Total asignaturas</p>
+                                    <p className="text-sm text-black dark:text-white">{planSubjects.length}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-body dark:text-bodydark">Total créditos</p>
+                                    <p className="text-sm text-black dark:text-white">{planSubjects.reduce((s, x) => s + (x.credits ?? 0), 0)}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Current Plan (center-right) */}
                     <div className="lg:col-span-2">
                         <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
                             <div className="border-b border-stroke px-4 py-6 dark:border-strokedark">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="font-medium text-black dark:text-white">
-                                            Plan de estudios — Versión {currentPlan.year}
-                                        </h3>
-                                        {currentPlan.is_published && (
-                                            <span className="inline-block rounded bg-green-1 px-2 py-1 text-xs font-medium text-green dark:bg-green-1 mt-1">
-                                                Publicado
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="text-sm text-body dark:text-bodydark">
-                                        {planSubjects.length} asignatura{planSubjects.length !== 1 ? "s" : ""}
-                                    </span>
-                                </div>
+                                <h3 className="font-medium text-black dark:text-white">Asignaturas del plan</h3>
                             </div>
-
-                            <TableScroll maxHeight="60vh">
+                            <TableScroll maxHeight="55vh">
                                 {planSubjects.length === 0 ? (
-                                    <div className="p-6 text-center text-sm text-body dark:text-bodydark">
-                                        <p>No hay asignaturas en el plan de estudios</p>
-                                        <p className="mt-2 text-xs">Agrega asignaturas desde el catálogo</p>
-                                    </div>
+                                    <div className="p-6 text-center text-sm text-body dark:text-bodydark">No hay asignaturas en este plan.</div>
                                 ) : (
                                     <GenericTable
                                         data={planSubjects}
-                                        columns={STUDY_PLAN_SUBJECTS_COLUMNS}
-                                        actions={editable ? EDIT_ACTIONS : VIEW_ACTIONS}
+                                        columns={[
+                                            { key: 'code', label: 'Código' },
+                                            { key: 'name', label: 'Nombre' },
+                                            { key: 'credits', label: 'Créditos' },
+                                        ]}
+                                        actions={editable ? [
+                                            { name: 'view', label: 'Ver' },
+                                            { name: 'edit', label: 'Editar' },
+                                            { name: 'delete', label: 'Eliminar' },
+                                        ] : [ { name: 'view', label: 'Ver' } ]}
                                         onAction={(actionName, item) => {
-                                            const subject = item as Subject;
-                                            if (actionName === "edit") {
-                                                // Edit action - could be used for future functionality
-                                                console.log("Edit subject", subject);
-                                            } else if (actionName === "delete") {
-                                                void handleDeleteClick(subject);
-                                            }
+                                            const s = item as Subject;
+                                            if (actionName === 'view') void handleViewSubject(s);
+                                            if (actionName === 'edit') handleEditSubject(s);
+                                            if (actionName === 'delete') void handleDeleteClick(s);
                                         }}
                                     />
                                 )}
                             </TableScroll>
                         </div>
                     </div>
-
-                    {/* Details Panel (right) */}
-                    <div className="lg:col-span-1">
-                        <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-                            <div className="border-b border-stroke px-4 py-6 dark:border-strokedark">
-                                <h3 className="font-medium text-black dark:text-white">
-                                    Detalles del plan (Versión {currentPlan.year})
-                                </h3>
-                            </div>
-                            <div className="p-4 space-y-4">
-                                <div>
-                                    <p className="text-xs font-medium text-body dark:text-bodydark">Carrera:</p>
-                                    <p className="text-sm text-black dark:text-white">
-                                        {careers.find(c => c.id === selectedCareerId)?.name}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-medium text-body dark:text-bodydark">Año (versión):</p>
-                                    <p className="text-sm text-black dark:text-white">{currentPlan.year}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-medium text-body dark:text-bodydark">Estado:</p>
-                                    <p className="text-sm text-black dark:text-white">
-                                        {currentPlan.is_published ? (
-                                            <span className="inline-block rounded bg-green-1 px-2 py-1 text-xs text-green">
-                                                Publicado
-                                            </span>
-                                        ) : (
-                                            <span className="inline-block rounded bg-yellow-1 px-2 py-1 text-xs text-yellow">
-                                                Borrador
-                                            </span>
-                                        )}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-medium text-body dark:text-bodydark">Total asignaturas:</p>
-                                    <p className="text-sm text-black dark:text-white">{planSubjects.length}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-medium text-body dark:text-bodydark">Total créditos:</p>
-                                    <p className="text-sm text-black dark:text-white">
-                                        {planSubjects.reduce((sum, s) => sum + s.credits, 0)}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-medium text-body dark:text-bodydark">Última actualización:</p>
-                                    <p className="text-xs text-body dark:text-bodydark">
-                                        {currentPlan.updated_at
-                                            ? new Date(currentPlan.updated_at).toLocaleDateString()
-                                            : "—"}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Version History */}
-                        <div className="mt-6 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-                            <div className="border-b border-stroke px-4 py-6 dark:border-strokedark">
-                                <h3 className="font-medium text-black dark:text-white">
-                                    Historial de versiones
-                                </h3>
-                            </div>
-                            <div className="max-h-[40vh] overflow-y-auto p-4">
-                                {renderVersionHistory()}
-                            </div>
-                        </div>
-                    </div>
                 </div>
+            ) : activeTab === 'catalog' ? (
+                <CatalogPanel subjects={filteredCatalog} searchTerm={catalogSearchTerm} onSearch={setCatalogSearchTerm} onAdd={handleAddSubjectClick} editable={editable} />
             ) : (
-                // ── DRAFTS TAB ──
+                // DRAFTS
                 <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
                     <div className="border-b border-stroke px-4 py-6 dark:border-strokedark">
                         <h3 className="font-medium text-black dark:text-white">Borradores</h3>
                     </div>
                     <div className="p-6">
                         {studyPlanVersions.filter(p => !p.is_published).length === 0 ? (
-                            <p className="text-sm text-body dark:text-bodydark">
-                                No hay borradores. Crea una nueva versión para empezar.
-                            </p>
+                            <p className="text-sm text-body dark:text-bodydark">No hay borradores. Crea una nueva versión para empezar.</p>
                         ) : (
                             <div className="space-y-3">
-                                {studyPlanVersions
-                                    .filter(p => !p.is_published)
-                                    .map((plan) => (
-                                        <div
-                                            key={plan.id}
-                                            className="flex items-center justify-between rounded border border-stroke bg-gray-2 p-4 dark:border-strokedark dark:bg-meta-4"
-                                        >
-                                            <div>
-                                                <p className="font-medium text-black dark:text-white">
-                                                    Versión {plan.year}
-                                                </p>
-                                                <p className="text-xs text-body dark:text-bodydark">Borrador</p>
-                                            </div>
+                                {studyPlanVersions.filter(p => !p.is_published).map((plan) => (
+                                    <div key={plan.id} className="flex items-center justify-between rounded border border-stroke bg-gray-2 p-4 dark:border-strokedark dark:bg-meta-4">
+                                        <div>
+                                            <p className="font-medium text-black dark:text-white">Versión {plan.year}</p>
+                                            <p className="text-xs text-body dark:text-bodydark">Borrador</p>
                                         </div>
-                                    ))}
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
@@ -636,22 +551,7 @@ const StudyPlansPage: React.FC = () => {
                                         {selectedSubjectForEdit.code} - {selectedSubjectForEdit.name}
                                     </p>
                                 </div>
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium text-black dark:text-white">
-                                        Semestre sugerido
-                                    </label>
-                                    <select
-                                        value={selectedSemesterForEdit}
-                                        onChange={(e) => setSelectedSemesterForEdit(parseInt(e.target.value, 10))}
-                                        className="w-full rounded border border-stroke bg-transparent px-3 py-2 text-black outline-none transition dark:border-strokedark dark:text-white"
-                                    >
-                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((sem) => (
-                                            <option key={sem} value={sem}>
-                                                Semestre {sem}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {/* Semestre sugerido removed per CU decision */}
                                 <div>
                                     <p className="text-xs text-body dark:text-bodydark">
                                         Créditos: <span className="font-medium">{selectedSubjectForEdit.credits}</span>
@@ -689,25 +589,27 @@ const StudyPlansPage: React.FC = () => {
                         <div>
                             {deleteBlockedReason ? (
                                 <>
-                                    <div className="mb-4 rounded-lg bg-red-50 p-4 text-center dark:bg-red-900/20">
-                                        <p className="text-lg font-semibold text-red-600 dark:text-red-400">⚠️</p>
+                                    <div className="mb-6 flex justify-center">
+                                        <div className="rounded-full bg-red-100 p-4 dark:bg-red-900/30">
+                                            <p className="text-3xl">⛔</p>
+                                        </div>
                                     </div>
-                                    <h3 className="mb-2 text-lg font-semibold text-black dark:text-white">
+                                    <h3 className="mb-2 text-center text-lg font-semibold text-black dark:text-white">
                                         No se puede eliminar
                                     </h3>
-                                    <p className="mb-4 text-sm text-body dark:text-bodydark">
+                                    <p className="mb-4 text-center text-sm text-body dark:text-bodydark">
                                         {deleteBlockedReason}
                                     </p>
-                                    <div className="text-sm text-body dark:text-bodydark">
-                                        <p className="mb-2">
-                                            Primero debes finalizar todas las inscripciones activas de esta asignatura.
+                                    <div className="mb-6 rounded-lg bg-blue-50 p-4 text-center dark:bg-blue-900/20">
+                                        <p className="text-sm text-blue-700 dark:text-blue-200">
+                                            💡 Primero debes finalizar todas las inscripciones activas de esta asignatura.
                                         </p>
                                     </div>
-                                    <div className="mt-6 flex justify-end">
+                                    <div className="flex justify-end">
                                         <button
                                             type="button"
                                             onClick={() => setIsConfirmingDelete(false)}
-                                            className="rounded bg-gray-400 px-4 py-2 text-sm font-medium text-white hover:bg-gray-500"
+                                            className="rounded bg-gray-400 px-6 py-2 text-sm font-medium text-white hover:bg-gray-500"
                                         >
                                             Entendido
                                         </button>
@@ -715,26 +617,30 @@ const StudyPlansPage: React.FC = () => {
                                 </>
                             ) : (
                                 <>
-                                    <h3 className="mb-4 text-lg font-semibold text-black dark:text-white">
+                                    <div className="mb-6 flex justify-center">
+                                        <div className="rounded-full bg-red-100 p-4 dark:bg-red-900/30">
+                                            <p className="text-3xl">⚠️</p>
+                                        </div>
+                                    </div>
+                                    <h3 className="mb-2 text-center text-lg font-semibold text-black dark:text-white">
                                         Confirmar eliminación
                                     </h3>
-                                    <p className="mb-4 text-sm text-body dark:text-bodydark">
-                                        ¿Estás seguro que deseas remover la asignatura{" "}
-                                        <span className="font-medium">"{subjectToDelete.name}"</span> del plan de
+                                    <p className="mb-6 text-center text-sm text-body dark:text-bodydark">
+                                        ¿Estás seguro que deseas remover <span className="font-semibold text-red">{subjectToDelete.name}</span> del plan de
                                         estudios?
                                     </p>
                                     <div className="flex justify-end gap-3">
                                         <button
                                             type="button"
                                             onClick={() => setIsConfirmingDelete(false)}
-                                            className="rounded border border-stroke px-4 py-2 text-sm font-medium text-body hover:bg-gray-2 dark:border-strokedark dark:text-bodydark"
+                                            className="rounded border border-stroke px-6 py-2 text-sm font-medium text-body hover:bg-gray-2 dark:border-strokedark dark:text-bodydark dark:hover:bg-meta-4"
                                         >
                                             Cancelar
                                         </button>
                                         <button
                                             type="button"
                                             onClick={handleConfirmDelete}
-                                            className="rounded bg-red px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
+                                            className="rounded bg-red px-6 py-2 text-sm font-medium text-white hover:bg-opacity-90"
                                         >
                                             Eliminar
                                         </button>
@@ -784,7 +690,7 @@ const StudyPlansPage: React.FC = () => {
                                             type="button"
                                             onClick={handlePublishPlan}
                                             disabled={planSubjects.length === 0}
-                                            className="rounded bg-green px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             Publicar
                                         </button>
@@ -824,6 +730,47 @@ const StudyPlansPage: React.FC = () => {
                                     </div>
                                 </>
                             )}
+                        </div>
+                    )}
+                </ModalLauncher>
+            )}
+
+            {isDetailOpen && detailSubject && (
+                <ModalLauncher isOpen={isDetailOpen} onClose={() => setIsDetailOpen(false)}>
+                    {() => (
+                        <div className="space-y-5 p-4">
+                            <div>
+                                <h3 className="text-xl font-semibold text-black dark:text-white">Detalles de la asignatura</h3>
+                                <p className="mt-1 text-sm text-body dark:text-bodydark">Revisa la información completa de la asignatura.</p>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Código</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{detailSubject.code}</p>
+                                </div>
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Nombre</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{detailSubject.name}</p>
+                                </div>
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Créditos</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{detailSubject.credits}</p>
+                                </div>
+                                <div className="sm:col-span-2 rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Descripción</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{detailSubject.description || 'Sin descripción'}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => setIsDetailOpen(false)}
+                                    className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-opacity-90"
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
                         </div>
                     )}
                 </ModalLauncher>
