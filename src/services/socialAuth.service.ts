@@ -26,7 +26,7 @@ class SocialAuthService {
   private async verifyUserInBackend(email: string): Promise<User> {
     try {
       // Obtiene la lista de todos los usuarios registrados
-      const response = await this.axios.get('/users');
+      const response = await this.axios.get('/users?email=' + email);
       
       if (!response.data?.data || !Array.isArray(response.data.data)) {
         throw new Error('Error al obtener usuarios');
