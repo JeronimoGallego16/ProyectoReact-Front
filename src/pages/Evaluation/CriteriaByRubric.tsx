@@ -14,7 +14,7 @@ import { rubricService } from "../../services/RubricService";
 import { criterionService } from "../../services/CriterionService";
 import { evaluationService } from "../../services/EvaluationService";
 import securityService from "../../services/segurity.service";
-import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
+import { canUserViewRubric, fetchCriteriaAndScalesByRubric, extractItem, extractList } from "../../utils/dataResolvers";
 
 import { Rubric } from "../../models/Rubric";
 import { Criterion } from "../../models/Criterion";
@@ -71,21 +71,16 @@ const CriteriaByRubricPage: React.FC = () => {
         setLoading(true);
 
         try {
-            const [rubricResponse, criteriaResponse, evaluationsResponse] = await Promise.all([
+            const [rubricResponse, evaluationsResponse, rubricContent] = await Promise.all([
                 rubricService.getRubricById(rubricId),
-                criterionService.getCriteriaByRubricId(rubricId),
                 evaluationService.getEvaluations(),
+                fetchCriteriaAndScalesByRubric(rubricId),
             ]);
 
-            const allEvaluations = Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : [];
-            const accessibleSubjects = await evaluationAuthorizationService.getAccessibleSubjectIds(user);
-            const currentEvaluation = allEvaluations.find((evaluation) => evaluation.rubric_id === rubricId);
+            const allEvaluations = extractList(evaluationsResponse);
 
-            const canAccess =
-                role === "ADMIN" ||
-                (currentEvaluation?.subject_id
-                    ? accessibleSubjects.includes(currentEvaluation.subject_id)
-                    : role === "TEACHER");
+            const rubricData = extractItem(rubricResponse);
+            const canAccess = await canUserViewRubric(user, rubricData, allEvaluations);
 
             if (!canAccess) {
                 showToast("Error", "No tienes permisos para ver esta rúbrica.", 2);
@@ -93,8 +88,8 @@ const CriteriaByRubricPage: React.FC = () => {
                 return;
             }
 
-            setRubric(rubricResponse.data || null);
-            setCriteria(Array.isArray(criteriaResponse.data) ? criteriaResponse.data : []);
+            setRubric(rubricData);
+            setCriteria(rubricContent.criteria);
         } finally {
             setLoading(false);
         }
@@ -149,6 +144,7 @@ const CriteriaByRubricPage: React.FC = () => {
         createItem: async (payload) => {
             const fullPayload = { ...payload, rubric_id: rubricId } as Omit<Criterion, "id">;
             const response = await criterionService.createCriterion(fullPayload);
+            if (response.success === false) throw new Error(response.error || "Error al crear criterio.");
             return response.data ?? null;
         },
         updateItem: async (id, payload) => {
@@ -157,11 +153,16 @@ const CriteriaByRubricPage: React.FC = () => {
                 description: payload.description,
                 weight: payload.weight,
             });
+            if (response.success === false) throw new Error(response.error || "Error al actualizar criterio.");
             return response.data ?? null;
         },
         deleteOrArchive: async (id) => {
             const response = await criterionService.deleteCriterion(id);
-            return response.success === true;
+            if (response.success === false) {
+                showToast("Error", response.error || "No se pudo eliminar el criterio.", 2);
+                return false;
+            }
+            return true;
         },
         buildFields: (f) => getFormFields(f),
         mapSaveValues: (values) => ({

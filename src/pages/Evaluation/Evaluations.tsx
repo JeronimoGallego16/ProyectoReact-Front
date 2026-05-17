@@ -8,6 +8,7 @@ import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
 import { useEntityCrud } from "../../hooks/useEntityCrud";
+import { showToast } from "../../hooks/fireToast";
 
 import { evaluationService } from "../../services/EvaluationService";
 import { groupService } from "../../services/GroupService";
@@ -166,15 +167,21 @@ const EvaluationsPage: React.FC = () => {
         loadData,
         createItem: async (payload) => {
             const response = await evaluationService.createEvaluation(payload);
+            if (response.success === false) throw new Error(response.error || "Error al crear evaluación.");
             return response.data ?? null;
         },
         updateItem: async (id, payload) => {
             const response = await evaluationService.updateEvaluation(id, payload);
+            if (response.success === false) throw new Error(response.error || "Error al actualizar evaluación.");
             return response.data ?? null;
         },
         deleteOrArchive: async (id) => {
             const response = await evaluationService.deleteEvaluation(id);
-            return response.success === true;
+            if (response.success === false) {
+                showToast("Error", response.error || "No se pudo eliminar la evaluación.", 2);
+                return false;
+            }
+            return true;
         },
         buildFields: (f) => getFormFields(f),
         mapSaveValues: (values, f) => {

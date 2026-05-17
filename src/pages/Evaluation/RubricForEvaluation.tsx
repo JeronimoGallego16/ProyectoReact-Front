@@ -8,8 +8,9 @@ import EntityHeader from "../../components/EntityHeader";
 import { showToast } from "../../hooks/fireToast";
 
 import { rubricService } from "../../services/RubricService";
-import securityService from "../../services/segurity.service";
 import { evaluationService } from "../../services/EvaluationService";
+import securityService from "../../services/segurity.service";
+import { extractList, canUserViewRubric, resolveEvaluationContext } from "../../utils/dataResolvers";
 
 import { Rubric } from "../../models/Rubric";
 import { Evaluation } from "../../models/Evaluation";
@@ -46,29 +47,35 @@ const RubricForEvaluationPage: React.FC = () => {
         if (!evaluationId) return;
         setLoading(true);
         try {
-            const [evaluationResp, rubricsResp] = await Promise.all([
-                evaluationService.getEvaluationById(evaluationId),
+            const [{ evaluation: evaluationData }, rubricsResp] = await Promise.all([
+                resolveEvaluationContext(evaluationId),
                 rubricService.getRubrics(),
             ]);
 
-            setEvaluation(evaluationResp.data ?? null);
+            setEvaluation(evaluationData);
 
             // mostrar solo rúbricas públicas y no archivadas
-            const allRubrics = Array.isArray(rubricsResp?.data) ? rubricsResp.data : [];
-            const available = allRubrics.filter(r => r.is_public && !r.is_archived);
+            const allRubrics = extractList<Rubric>(rubricsResp);
+            const available: Rubric[] = allRubrics.filter(
+                (rubric): rubric is Rubric => Boolean(rubric.is_public) && !Boolean(rubric.is_archived)
+            );
+
+            // aplicar visibilidad basada en permisos
+            const evaluationsList = evaluationData ? [evaluationData] : [];
+            const visiblePromises = available.map(async (rubric: Rubric) => (await canUserViewRubric(user, rubric, evaluationsList)) ? rubric : null);
+            const visible = (await Promise.all(visiblePromises)).filter((rubric): rubric is Rubric => rubric !== null);
 
             // Si el usuario es estudiante, mostrar únicamente la rúbrica asociada a la evaluación
             if (!editable) {
-                const rubricId = evaluationResp.data?.rubric_id;
+                const rubricId = evaluationData?.rubric_id;
                 if (rubricId) {
-                    const found = available.find(r => r.id === rubricId);
+                    const found = visible.find((rubric) => rubric.id === rubricId);
                     setRubrics(found ? [found] : []);
                 } else {
-                    // sin rúbrica asociada
                     setRubrics([]);
                 }
             } else {
-                setRubrics(available);
+                setRubrics(visible);
             }
             setSelectedRubric(null);
         } catch (err) {
@@ -105,12 +112,12 @@ const RubricForEvaluationPage: React.FC = () => {
         setLoading(true);
         try {
             const response = await evaluationService.associateRubric(evaluation.id, rubricId);
-            if (response) {
+            if (response.success) {
                 showToast("Éxito", "Rúbrica asignada a la evaluación.", 0);
                 setSelectedRubric(null);
                 await loadData();
             } else {
-                showToast("Error", "No se pudo asignar la rúbrica.", 2);
+                showToast("Error", response.error || "No se pudo asignar la rúbrica.", 2);
             }
         } catch (err) {
             showToast("Error", "Ocurrió un error al asignar la rúbrica.", 2);

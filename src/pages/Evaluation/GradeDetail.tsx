@@ -10,6 +10,7 @@ import { scaleService } from "../../services/ScaleService";
 import { criterionService } from "../../services/CriterionService";
 
 import { exportStudentDetailPDF } from "../../utils/pdfExporter";
+import { resolveStudentInfoByAcademicStudentId } from "../../utils/dataResolvers";
 
 import { Grade } from "../../models/Grade";
 import { GradeDetail } from "../../models/GradeDetail";
@@ -90,7 +91,12 @@ const GradeDetailPage: React.FC = () => {
 
             const firstStudentId = gradeData?.details?.[0]?.student_id;
             if (firstStudentId) {
-                setStudentCode(firstStudentId);
+                try {
+                    const info = await resolveStudentInfoByAcademicStudentId(firstStudentId);
+                    setStudentCode(info.student_code ?? firstStudentId);
+                } catch {
+                    setStudentCode(firstStudentId);
+                }
             }
         } catch (err) {
             console.warn("No se pudieron resolver los nombres de escala o criterios:", err);

@@ -13,12 +13,10 @@ import { Criterion } from "../../models/Criterion";
 import { Scale } from "../../models/Scale";
 
 import { evaluationService } from "../../services/EvaluationService";
-import { enrollmentService } from "../../services/EnrollmentService";
 import { gradeService } from "../../services/GradeService";
-import { criterionService } from "../../services/CriterionService";
-import { scaleService } from "../../services/ScaleService";
+import { enrollmentService } from "../../services/EnrollmentService";
 
-import { buildGradeDetails, resolveStudentInfo } from "../../utils/dataResolvers";
+import { buildGradeDetails, fetchCriteriaAndScalesByRubric, resolveStudentInfoByAcademicStudentId } from "../../utils/dataResolvers";
 
 const SCALE_COLUMNS = ["name", "description", "value"];
 
@@ -50,18 +48,9 @@ const CalificationDetailPage: React.FC = () => {
             setEvaluation(evaluationData);
 
             if (evaluationData?.rubric_id) {
-                const criteriaResp = await criterionService.getCriteriaByRubricId(evaluationData.rubric_id);
-
-                const rubricCriteria = Array.isArray(criteriaResp.data) ? criteriaResp.data : [];
+                const { criteria: rubricCriteria, scalesByCriterion: nextScalesByCriterion } = await fetchCriteriaAndScalesByRubric(evaluationData.rubric_id);
                 setCriteria(rubricCriteria);
-
-                const scalesMapEntries = await Promise.all(
-                    rubricCriteria.map(async (criterion) => {
-                        const scalesResp = await scaleService.getScaleByCriterionId(criterion.id);
-                        return [criterion.id, Array.isArray(scalesResp.data) ? scalesResp.data : []] as const;
-                    })
-                );
-                setScalesByCriterion(Object.fromEntries(scalesMapEntries));
+                setScalesByCriterion(nextScalesByCriterion);
 
                 const shouldLoadDraft = searchParams.get("draft") === "1";
                 if (shouldLoadDraft) {
@@ -87,13 +76,17 @@ const CalificationDetailPage: React.FC = () => {
                 setScalesByCriterion({});
             }
 
-            const enrollment = await enrollmentService.getEnrollmentById(enrollmentId);
+            const enrollments = evaluationData?.group_id
+                ? await enrollmentService.getEnrollmentsByGroup(evaluationData.group_id)
+                : [];
+
+            const enrollment = enrollments.find((currentEnrollment) => currentEnrollment.id === enrollmentId) ?? null;
             if (!enrollment) {
                 setStudent(null);
                 return;
             }
 
-            const info = await resolveStudentInfo(enrollment);
+            const info = await resolveStudentInfoByAcademicStudentId(enrollment.student_id);
             setStudent({
                 id: enrollment.id,
                 enrollment_id: enrollment.id,

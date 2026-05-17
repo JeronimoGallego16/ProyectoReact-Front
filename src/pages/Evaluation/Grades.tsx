@@ -12,7 +12,7 @@ import { enrollmentService } from "../../services/EnrollmentService";
 import { groupService } from "../../services/GroupService";
 import securityService from "../../services/segurity.service";
 import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
-import studentService from "../../services/student.service";
+import { resolveStudentInfoByAcademicStudentId } from "../../utils/dataResolvers";
 
 import { exportGroupGradesPDF } from "../../utils/pdfExporter";
 
@@ -37,16 +37,6 @@ const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACH
 
 const getActionsForRole = (isEditable: boolean) => (isEditable ? TEACHER_ACTIONS() : STUDENT_ACTIONS);
 
-const getStudentCode = async (studentDetailId?: string): Promise<string> => {
-    if (!studentDetailId) return "-";
-
-    const academicStudentResponse = await studentService.getAcademicStudentById(studentDetailId);
-    const academicStudent = academicStudentResponse.data;
-    if (!academicStudent?.user_id) return "-";
-
-    const studentResponse = await studentService.getStudentById(academicStudent.user_id);
-    return studentResponse.data?.code ?? studentResponse.data?.id ?? "-";
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const GradesPage: React.FC = () => {
@@ -98,7 +88,8 @@ const GradesPage: React.FC = () => {
             const nextTableData = await Promise.all(
                 filteredGrades.map(async (grade) => {
                     const studentDetailId = grade.details?.[0]?.student_id;
-                    const studentCode = await getStudentCode(studentDetailId);
+                    const studentInfo = await resolveStudentInfoByAcademicStudentId(studentDetailId);
+                    const studentCode = studentInfo.student_code ?? "-";
                     const enrollment = await enrollmentService.getEnrollmentById(grade.enrollment_id);
                     const groupId = enrollment?.group_id ?? "";
 
@@ -171,25 +162,31 @@ const GradesPage: React.FC = () => {
         let publishedCount = 0;
         const failedGrades: Grade[] = [];
 
+        const failedErrors: string[] = [];
         for (const grade of unlockedGrades) {
             const response = await gradeService.updateGrade(grade.id, { is_locked: true });
-            if (response.data) {
+            if (response && (response as any).success === true) {
                 publishedCount += 1;
             } else {
                 failedGrades.push(grade);
+                if (response && (response as any).error) failedErrors.push((response as any).error);
             }
         }
 
         if (failedGrades.length === 0) {
             showToast("Éxito", `${publishedCount} nota(s) publicadas y bloqueadas exitosamente.`, 0);
-        } else if (publishedCount > 0) {
-            showToast(
-                "Error",
-                `Se publicaron ${publishedCount} nota(s), pero ${failedGrades.length} no pudieron bloquearse.`,
-                2
-            );
         } else {
-            showToast("Error", "No se pudieron publicar las notas.", 2);
+            const uniqueErrors = Array.from(new Set(failedErrors.filter(Boolean))).slice(0, 3);
+            const errorSuffix = uniqueErrors.length ? ` Errores: ${uniqueErrors.join("; ")}` : "";
+            if (publishedCount > 0) {
+                showToast(
+                    "Error",
+                    `Se publicaron ${publishedCount} nota(s), pero ${failedGrades.length} no pudieron bloquearse.${errorSuffix}`,
+                    2
+                );
+            } else {
+                showToast("Error", `No se pudieron publicar las notas.${errorSuffix}`.trim(), 2);
+            }
         }
 
         await loadGrades();
@@ -213,6 +210,7 @@ const GradesPage: React.FC = () => {
             if (resp && (resp as any).data) {
                 showToast("Éxito", "Observaciones guardadas.", 0);
                 setGrades((prev) => prev.map((g) => (g.id === obsGrade.id ? { ...g, observations: obsValue } : g)));
+                setTableData((prev) => prev.map((row) => (row.id === obsGrade.id ? { ...row, observations: obsValue || "-" } : row)));
                 setObsGrade(null);
                 setObsModalOpen(false);
                 return;

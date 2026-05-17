@@ -145,10 +145,16 @@ const RubricsPage: React.FC = () => {
         loadData: loadRubrics,
         createItem: async (payload) => {
             const response = await rubricService.createRubric(payload);
+            if (!response.success) {
+                throw new Error(response.error ?? "No se pudo crear la rúbrica.");
+            }
             return response.data ?? null;
         },
         updateItem: async (id, payload) => {
             const response = await rubricService.updateRubric(id, payload);
+            if (!response.success) {
+                throw new Error(response.error ?? "No se pudo actualizar la rúbrica.");
+            }
             return response.data ?? null;
         },
         deleteOrArchive: async (id, type) => {
@@ -262,6 +268,15 @@ const RubricsPage: React.FC = () => {
                     onClick: startCreate,
                 } : undefined}
             />
+
+            {/* Informational note about deletion constraints */}
+            {editable && (
+            <div className="mb-4 rounded-sm border-l-4 border-yellow-400 bg-yellow-50 px-4 py-3">
+                <p className="text-sm text-body dark:text-bodydark">
+                    Atención: No se puede eliminar una rúbrica que ya fue usada para calificar una evaluación. Esto también aplica a sus criterios y escalas asociados.
+                </p>
+            </div>
+            )}
 
             <FilterTable
                 filters={[

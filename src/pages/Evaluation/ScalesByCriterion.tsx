@@ -16,6 +16,7 @@ import { criterionService } from "../../services/CriterionService";
 import { rubricService } from "../../services/RubricService";
 import { scaleService } from "../../services/ScaleService";
 import securityService from "../../services/segurity.service";
+import { canUserViewRubric, extractItem, fetchCriteriaAndScalesByRubric } from "../../utils/dataResolvers";
 
 import { Criterion } from "../../models/Criterion";
 import { Rubric } from "../../models/Rubric";
@@ -65,22 +66,32 @@ const ScalesByCriterionPage: React.FC = () => {
 
         setLoading(true);
         try {
-            const [criterionResponse, scalesResponse] = await Promise.all([
-                criterionService.getCriterionById(criterionId),
-                scaleService.getScaleByCriterionId(criterionId),
-            ]);
+            const criterionResponse = await criterionService.getCriterionById(criterionId);
 
-            const criterionData = criterionResponse.data || null;
+            const criterionData = extractItem(criterionResponse);
             setCriterion(criterionData);
 
             if (criterionData?.rubric_id) {
-                const rubricResponse = await rubricService.getRubricById(criterionData.rubric_id);
-                setRubric(rubricResponse.data || null);
+                const [rubricResponse, rubricContent] = await Promise.all([
+                    rubricService.getRubricById(criterionData.rubric_id),
+                    fetchCriteriaAndScalesByRubric(criterionData.rubric_id),
+                ]);
+                const rubricData = extractItem(rubricResponse);
+                const canAccess = await canUserViewRubric(user, rubricData);
+
+                if (!canAccess) {
+                    showToast("Error", "No tienes permisos para ver estas escalas.", 2);
+                    navigate(-1);
+                    return;
+                }
+
+                setRubric(rubricData);
+                setCriterion(rubricContent.criteria.find((current) => current.id === criterionId) ?? criterionData);
+                setScales(rubricContent.scalesByCriterion[criterionId] ?? []);
             } else {
                 setRubric(null);
+                setScales([]);
             }
-
-            setScales(Array.isArray(scalesResponse.data) ? scalesResponse.data : []);
         } finally {
             setLoading(false);
         }
@@ -159,6 +170,7 @@ const ScalesByCriterionPage: React.FC = () => {
         createItem: async (payload: Omit<Scale, "id">) => {
             const fullPayload = { ...payload, criterion_id: criterionId } as Omit<Scale, "id">;
             const response = await scaleService.createScale(fullPayload);
+            if (response.success === false) throw new Error(response.error || "Error al crear escala.");
             return response.data ?? null;
         },
         updateItem: async (id: string, payload: Omit<Scale, "id">) => {
@@ -167,11 +179,16 @@ const ScalesByCriterionPage: React.FC = () => {
                 description: payload.description,
                 value: payload.value,
             });
+            if (response.success === false) throw new Error(response.error || "Error al actualizar escala.");
             return response.data ?? null;
         },
         deleteOrArchive: async (id: string) => {
             const response = await scaleService.deleteScale(id);
-            return response.success === true;
+            if (response.success === false) {
+                showToast("Error", response.error || "No se pudo desvincular la escala.", 2);
+                return false;
+            }
+            return true;
         },
         buildFields: (f: Omit<Scale, "id">) => getFormFields(f),
         mapSaveValues: (values: Record<string, string>) => ({

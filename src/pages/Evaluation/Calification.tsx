@@ -12,15 +12,11 @@ import { Evaluation } from "../../models/Evaluation";
 import { Group } from "../../models/Group";
 import { Subject } from "../../models/Subject";
 import { Enrollment } from "../../models/Enrollment";
-
-import { evaluationService } from "../../services/EvaluationService";
-import { enrollmentService } from "../../services/EnrollmentService";
-import { groupService } from "../../services/GroupService";
-import { subjectService } from "../../services/SubjectService";
-
-import { resolveStudentInfo } from "../../utils/dataResolvers";
-import securityService from "../../services/segurity.service";
 import { UserRole } from "../../models/user";
+
+import securityService from "../../services/segurity.service";
+
+import { resolveEvaluationContext, resolveStudentInfoByAcademicStudentId } from "../../utils/dataResolvers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StudentRow = {
@@ -54,41 +50,28 @@ const CalificationPage: React.FC = () => {
         setLoading(true);
 
         try {
-            const evaluationResp = await evaluationService.getEvaluationById(evaluationId);
-            const evaluationData = evaluationResp.data || null;
+            const { evaluation: evaluationData, group: groupData, subject: subjectData, enrollments } = await resolveEvaluationContext(evaluationId);
             setEvaluation(evaluationData);
+            setGroup(groupData);
+            setSubject(subjectData);
 
-            const [groupResp, subjectResp] = await Promise.all([
-                evaluationData?.group_id ? groupService.getGroupById(evaluationData.group_id) : Promise.resolve(null),
-                evaluationData?.subject_id ? subjectService.getSubjectById(evaluationData.subject_id) : Promise.resolve(null),
-            ]);
+            const activeEnrollments = enrollments.filter((enrollment: Enrollment) => enrollment.status === "ACTIVE");
 
-            setGroup(groupResp);
-            setSubject(subjectResp);
+            const rows = await Promise.all(
+                activeEnrollments.map(async (enrollment) => {
+                    const info = await resolveStudentInfoByAcademicStudentId(enrollment.student_id);
 
-            const groupId = groupResp?.id ?? evaluationData?.group_id;
-            if (groupId) {
-                const enrollments = await enrollmentService.getEnrollmentsByGroup(groupId);
-                const activeEnrollments = enrollments.filter((enrollment: Enrollment) => enrollment.status === "ACTIVE");
+                    return {
+                        id: enrollment.id,
+                        student_code: info.student_code,
+                        email: info.email,
+                        enrollment_id: enrollment.id,
+                        hasDraft: evaluationData?.id ? hasDraft(evaluationData.id, enrollment.id) : false,
+                    };
+                })
+            );
 
-                const rows = await Promise.all(
-                    activeEnrollments.map(async (enrollment) => {
-                        const info = await resolveStudentInfo(enrollment);
-
-                        return {
-                            id: enrollment.id,
-                            student_code: info.student_code,
-                            email: info.email,
-                            enrollment_id: enrollment.id,
-                            hasDraft: evaluationData?.id ? hasDraft(evaluationData.id, enrollment.id) : false,
-                        };
-                    })
-                );
-
-                setStudents(rows);
-            } else {
-                setStudents([]);
-            }
+            setStudents(rows);
         } catch {
             showToast("Error", "No se pudo cargar la información de la evaluación.", 2);
         } finally {
@@ -126,6 +109,10 @@ const CalificationPage: React.FC = () => {
         navigate(useDraft ? `${basePath}?draft=1` : basePath);
     };
 
+    const getGradeActionLabel = (item: Record<string, any>) => {
+        return item.hasDraft ? "Continuar borrador" : "Calificar";
+    };
+
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
             {evaluation && (
@@ -158,12 +145,18 @@ const CalificationPage: React.FC = () => {
                     ) : (
                         <TableScroll maxHeight="55vh">
                             <GenericTable
-                                data={students.map((s) => ({ id: s.id, student_code: s.student_code, email: s.email }))}
+                                data={students.map((s) => ({
+                                    id: s.id,
+                                    student_code: s.student_code,
+                                    email: s.email,
+                                    enrollment_id: s.enrollment_id,
+                                    hasDraft: s.hasDraft,
+                                }))}
                                 columns={STUDENT_COLUMNS}
-                                actions={editable ? [{ name: "grade", label: "Calificar" }] : []}
+                                actions={editable ? [{ name: "grade", label: getGradeActionLabel }] : []}
                                 onAction={(actionName, item) => {
                                     const row = item as StudentRow;
-                                    if (actionName === "grade") goToGradeDetail(row, false);
+                                    if (actionName === "grade") goToGradeDetail(row, row.hasDraft);
                                 }}
                             />
                         </TableScroll>
