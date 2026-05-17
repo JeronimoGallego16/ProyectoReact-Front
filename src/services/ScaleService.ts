@@ -1,6 +1,7 @@
 import apiService, { ApiResponse } from './api';
 import { Scale } from '../models/Scale';
 import { criterionService } from './CriterionService';
+import { validatePositiveNumber, validateRequiredText } from '../utils/validation.ts';
 
 const API_URL_SCALES = '/evaluation/scales'
 
@@ -23,22 +24,28 @@ class ScaleService {
     
     // Método para crear una escala para un críterio.. 
     async createScale(scale: Omit<Scale, "id">): Promise<ApiResponse<Scale>> {
-        if (!scale.criterion_id) {
-            console.error("Se requiere el id de un criterio existente para asignar la escala.");
-            return {
-                success: false,
-                error: "Se requiere el id de un criterio existente para asignar la escala.",
-            };
+        const criterionIdError = validateRequiredText(
+            scale.criterion_id,
+            'Se requiere el id de un criterio existente para asignar la escala.'
+        );
+        if (criterionIdError) {
+            console.error(criterionIdError);
+            return { success: false, error: criterionIdError };
         }
 
-        if (!scale.name || String(scale.name).trim() === "") {
-            console.error('El nombre de la escala es obligatorio.');
-            return { success: false, error: 'El nombre de la escala es obligatorio.' };
+        const nameError = validateRequiredText(scale.name, 'El nombre de la escala es obligatorio.');
+        if (nameError) {
+            console.error(nameError);
+            return { success: false, error: nameError };
         }
 
-        if (scale.value === undefined || scale.value === null || Number.isNaN(Number(scale.value))) {
-            console.error('El valor de la escala es obligatorio y debe ser un número.');
-            return { success: false, error: 'El valor de la escala es obligatorio y debe ser un número.' };
+        const valueError = validatePositiveNumber(
+            scale.value,
+            'El valor de la escala es obligatorio y debe ser mayor que 0.'
+        );
+        if (valueError) {
+            console.error(valueError);
+            return { success: false, error: valueError };
         }
 
         const criterionExists = await criterionService._CriterionExists(scale.criterion_id);
@@ -55,16 +62,18 @@ class ScaleService {
     // Método para modificar una escala existente.
     async updateScale(id: string, scale: Partial<Scale>): Promise<ApiResponse<Scale>> {
         if (scale && Object.prototype.hasOwnProperty.call(scale, 'name')) {
-            if (!scale.name || String(scale.name).trim() === "") {
-                console.error('El nombre de la escala no puede estar vacío.');
-                return { success: false, error: 'El nombre de la escala no puede estar vacío.' };
+            const nameError = validateRequiredText(scale.name, 'El nombre de la escala no puede estar vacío.');
+            if (nameError) {
+                console.error(nameError);
+                return { success: false, error: nameError };
             }
         }
 
         if (scale && Object.prototype.hasOwnProperty.call(scale, 'value')) {
-            if (scale.value === undefined || scale.value === null || Number.isNaN(Number(scale.value))) {
-                console.error('El valor de la escala debe ser un número válido.');
-                return { success: false, error: 'El valor de la escala debe ser un número válido.' };
+            const valueError = validatePositiveNumber(scale.value, 'El valor de la escala debe ser mayor que 0.');
+            if (valueError) {
+                console.error(valueError);
+                return { success: false, error: valueError };
             }
         }
 

@@ -1,4 +1,4 @@
-import { User } from './User';
+import { User } from './user';
 
 /**
  * Interface Admin - Extiende User.

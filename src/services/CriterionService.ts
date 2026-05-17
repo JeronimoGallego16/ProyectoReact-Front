@@ -1,6 +1,7 @@
 import apiService, { ApiResponse } from './api';
 import { Criterion } from '../models/Criterion';
 import { rubricService } from './RubricService';
+import { validatePositiveNumber, validateRequiredText } from '../utils/validation.ts';
 
 const API_URL_CRITERIA = '/evaluation/criteria'
 
@@ -23,22 +24,28 @@ class CriterionService {
 
     // Método para crear un criterio para una rúbrica. 
     async createCriterion(criterion: Omit<Criterion, "id">): Promise<ApiResponse<Criterion>> {
-        if (!criterion.rubric_id) {
-            console.error("Se requiere el id de una rúbrica existente para asignar el criterio.");
-            return {
-                success: false,
-                error: "Se requiere el id de una rúbrica existente para asignar el criterio.",
-            };
+        const rubricIdError = validateRequiredText(
+            criterion.rubric_id,
+            "Se requiere el id de una rúbrica existente para asignar el criterio."
+        );
+        if (rubricIdError) {
+            console.error(rubricIdError);
+            return { success: false, error: rubricIdError };
         }
 
-        if (!criterion.name || String(criterion.name).trim() === "") {
-            console.error('El nombre del criterio es obligatorio.');
-            return { success: false, error: 'El nombre del criterio es obligatorio.' };
+        const nameError = validateRequiredText(criterion.name, 'El nombre del criterio es obligatorio.');
+        if (nameError) {
+            console.error(nameError);
+            return { success: false, error: nameError };
         }
 
-        if (criterion.weight === undefined || criterion.weight === null || Number.isNaN(Number(criterion.weight))) {
-            console.error('El peso del criterio es obligatorio y debe ser un número.');
-            return { success: false, error: 'El peso del criterio es obligatorio y debe ser un número.' };
+        const weightError = validatePositiveNumber(
+            criterion.weight,
+            'El peso del criterio es obligatorio y debe ser mayor que 0.'
+        );
+        if (weightError) {
+            console.error(weightError);
+            return { success: false, error: weightError };
         }
 
         const validation = await this.validateCriterionWeight(criterion.rubric_id, Number(criterion.weight) || 0);
@@ -64,16 +71,18 @@ class CriterionService {
     // Método para modificar un criterio existente.
     async updateCriterion(id: string, criterion: Partial<Criterion>): Promise<ApiResponse<Criterion>> {
         if (criterion && Object.prototype.hasOwnProperty.call(criterion, 'name')) {
-            if (!criterion.name || String(criterion.name).trim() === "") {
-                console.error('El nombre del criterio no puede estar vacío.');
-                return { success: false, error: 'El nombre del criterio no puede estar vacío.' };
+            const nameError = validateRequiredText(criterion.name, 'El nombre del criterio no puede estar vacío.');
+            if (nameError) {
+                console.error(nameError);
+                return { success: false, error: nameError };
             }
         }
 
         if (criterion && Object.prototype.hasOwnProperty.call(criterion, 'weight')) {
-            if (criterion.weight === undefined || criterion.weight === null || Number.isNaN(Number(criterion.weight))) {
-                console.error('El peso del criterio debe ser un número válido.');
-                return { success: false, error: 'El peso del criterio debe ser un número válido.' };
+            const weightError = validatePositiveNumber(criterion.weight, 'El peso del criterio debe ser mayor que 0.');
+            if (weightError) {
+                console.error(weightError);
+                return { success: false, error: weightError };
             }
         }
 

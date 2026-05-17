@@ -11,11 +11,12 @@ interface FilterOption {
 interface FilterTableProps {
     filters: FilterOption[];
     onFilterChange: (filters: Record<string, string>) => void;
+    initialValues?: Record<string, string>;
 }
 
-export default function FilterTable({ filters, onFilterChange }: FilterTableProps) {
+export default function FilterTable({ filters, onFilterChange, initialValues }: FilterTableProps) {
     const [filterValues, setFilterValues] = useState<Record<string, string>>(
-        filters.reduce((acc, filter) => ({ ...acc, [filter.id]: '' }), {})
+        initialValues || filters.reduce((acc, filter) => ({ ...acc, [filter.id]: '' }), {})
     );
 
     const handleInputChange = (filterId: string, value: string) => {

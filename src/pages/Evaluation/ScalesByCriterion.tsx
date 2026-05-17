@@ -1,24 +1,26 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import GenericTable from "../../components/GenericTable";
+import TableScroll from "../../components/TableScroll";
 import SelectableTable from "../../components/SelectableTable";
 import EntityHeader from "../../components/EntityHeader";
 import ModalLauncher from "../../components/ModalLauncher";
 import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import { showToast } from "../../hooks/fireToast";
-import { useCrudModal } from "../../hooks/useCrudModal";
 import { useCopyScaleModal } from "../../hooks/useCopyScaleModal";
+import { useEntityCrud } from "../../hooks/useEntityCrud";
 
 import { criterionService } from "../../services/CriterionService";
+import { rubricService } from "../../services/RubricService";
 import { scaleService } from "../../services/ScaleService";
 import securityService from "../../services/segurity.service";
 
 import { Criterion } from "../../models/Criterion";
+import { Rubric } from "../../models/Rubric";
 import { Scale } from "../../models/Scale";
-import { UserRole } from "../../models/User";
-
+import { UserRole } from "../../models/user";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["name", "description", "value"];
@@ -29,7 +31,6 @@ const ADMIN_TEACHER_ACTIONS = [
     { name: "copy", label: "Copiar a..." },
 ];
 
-// Students have no actions — table is read-only, radio is visual only
 const STUDENT_ACTIONS: { name: string; label: string }[] = [];
 
 const TARGET_CRITERIA_COLUMNS = ["name", "description", "weight"];
@@ -51,35 +52,78 @@ const ScalesByCriterionPage: React.FC = () => {
     const onBack = () => navigate(-1);
 
     const [criterion, setCriterion] = useState<Criterion | null>(null);
+    const [rubric, setRubric] = useState<Rubric | null>(null);
     const [scales, setScales] = useState<Scale[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
-
-    const {
-        crudMode,
-        selectedItem: selectedScale,
-        form,
-        setForm,
-        resetCrud,
-        startCreate,
-        startEdit,
-    } = useCrudModal<Scale>(emptyForm());
 
     const user = securityService.getUser();
     const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
 
-    // ── Data loading ──────────────────────────────────────────────────────────
     const loadData = async () => {
         if (!criterionId) return;
+
         setLoading(true);
-        const [criterionResponse, scalesResponse] = await Promise.all([
-            criterionService.getCriterionById(criterionId),
-            scaleService.getScaleByCriterionId(criterionId),
-        ]);
-        setCriterion(criterionResponse.data || null);
-        setScales(Array.isArray(scalesResponse.data) ? scalesResponse.data : []);
-        setLoading(false);
+        try {
+            const [criterionResponse, scalesResponse] = await Promise.all([
+                criterionService.getCriterionById(criterionId),
+                scaleService.getScaleByCriterionId(criterionId),
+            ]);
+
+            const criterionData = criterionResponse.data || null;
+            setCriterion(criterionData);
+
+            if (criterionData?.rubric_id) {
+                const rubricResponse = await rubricService.getRubricById(criterionData.rubric_id);
+                setRubric(rubricResponse.data || null);
+            } else {
+                setRubric(null);
+            }
+
+            setScales(Array.isArray(scalesResponse.data) ? scalesResponse.data : []);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadData();
+    }, [criterionId]);
+
+    const handleCreateScale = () => {
+        if (rubric?.is_public) {
+            showToast("Error", "No puedes crear escalas en una rúbrica publicada. Archívala primero.", 2);
+            return;
+        }
+
+        startCreate();
+    };
+
+    const getFormFields = (f: Omit<Scale, "id">): VerticalTextFormField[] => {
+        return [
+            {
+                name: "name",
+                label: "Name",
+                placeholder: "Enter scale name",
+                type: "text",
+                value: f.name,
+            },
+            {
+                name: "description",
+                label: "Description",
+                placeholder: "Enter scale description",
+                kind: "textarea",
+                rows: 3,
+                value: f.description,
+            },
+            {
+                name: "value",
+                label: "Value",
+                placeholder: "Enter scale value",
+                type: "number",
+                value: String(f.value),
+            },
+        ];
     };
 
     const {
@@ -99,137 +143,99 @@ const ScalesByCriterionPage: React.FC = () => {
         onCopySuccess: loadData,
     });
 
-    useEffect(() => {
-        loadData();
-    }, [criterionId]);
-
-    // ── CRUD handlers ─────────────────────────────────────────────────────────
-    const handleAction = (actionName: string, item: Record<string, any>) => {
-        const scale = item as Scale;
-
-        if (actionName === "edit") {
-            startEdit(scale);
-            setIsCrudModalOpen(true);
-        }
-
-        if (actionName === "delete") {
-             void handleDelete(scale);
-        }
-
-        if (actionName === "copy") {
-            void openCopyModal(scale);
-        }
-    };
-
-    const handleDelete = async (scale: Scale) => {
-        const ok = window.confirm(`Eliminar escala "${scale.name}" de este criterio?`);
-        if (!ok) return;
-        const response = await scaleService.deleteScale(scale.id);
-        if (!response.error) {
-            showToast("Éxito", "Escala eliminada correctamente.", 0);
-            await loadData();
-        } else {
-            showToast("Error", response.error || "No se pudo eliminar la escala.", 2);
-        }
-    };
-
-    const closeCrudModal = () => {
-        setIsCrudModalOpen(false);
-        resetCrud();
-    };
-
-    const getFormTitle = (): string => {
-        if (crudMode === "create") return "Crear Escala";
-        if (crudMode === "edit") return `Editar Escala: ${selectedScale?.name ?? selectedScale?.id}`;
-        return "";
-    };
-
-    const getFormDescription = (): string => {
-        if (selectedScale && crudMode === "edit") {
-            return `ID: ${selectedScale.id} • Value: ${selectedScale.value ?? "—"}`;
-        }
-        return "";
-    };
-
-    const getFormFields = (): VerticalTextFormField[] => {
-        return [
-            {
-                name: "name",
-                label: "Name",
-                placeholder: "Enter scale name",
-                type: "text",
-                value: form.name,
-            },
-            {
-                name: "description",
-                label: "Description",
-                placeholder: "Enter scale description",
-                kind: "textarea",
-                rows: 3,
-                value: form.description,
-            },
-            {
-                name: "value",
-                label: "Value",
-                placeholder: "Enter scale value",
-                type: "number",
-                value: String(form.value),
-            },
-        ];
-    };
-
-    const getFormSaveLabel = (): string => {
-        if (crudMode === "create") return "Create";
-        if (crudMode === "edit") return "Save Changes";
-        return "Save";
-    };
-
-    const handleFormSave = async (values: Record<string, string>) => {
-        const nextForm: Omit<Scale, "id"> = {
-            ...form,
-            name: values.name ?? form.name,
-            description: values.description ?? form.description,
-            value: Number(values.value) ?? form.value,
+    const {
+        isOpen: isCrudModalOpen,
+        close: closeCrudModal,
+        handleAction: handleCrudAction,
+        handleSave,
+        startCreate,
+        title: formTitle,
+        description: formDescription,
+        fields: formFields,
+        saveLabel,
+    } = useEntityCrud<Scale>({
+        emptyForm: emptyForm(),
+        loadData,
+        createItem: async (payload: Omit<Scale, "id">) => {
+            const fullPayload = { ...payload, criterion_id: criterionId } as Omit<Scale, "id">;
+            const response = await scaleService.createScale(fullPayload);
+            return response.data ?? null;
+        },
+        updateItem: async (id: string, payload: Omit<Scale, "id">) => {
+            const response = await scaleService.updateScale(id, {
+                name: payload.name,
+                description: payload.description,
+                value: payload.value,
+            });
+            return response.data ?? null;
+        },
+        deleteOrArchive: async (id: string) => {
+            const response = await scaleService.deleteScale(id);
+            return response.success === true;
+        },
+        buildFields: (f: Omit<Scale, "id">) => getFormFields(f),
+        mapSaveValues: (values: Record<string, string>) => ({
             criterion_id: criterionId ?? "",
-        };
-
-        setForm(nextForm);
-
-        if (crudMode === "create") {
-            const response = await scaleService.createScale(nextForm);
-            if (response.data) {
-                showToast("Éxito", "Escala creada exitosamente.", 0);
-                closeCrudModal();
-                await loadData();
-            } else {
-                closeCrudModal();
-                showToast("Error", "No se pudo crear la escala.", 2);
+            name: values.name,
+            description: values.description,
+            value: Number(values.value) ?? 0,
+        }),
+        getFormTitle: (mode, item) => {
+            if (mode === "create") return "Crear Escala";
+            if (mode === "edit") return `Editar Escala: ${item?.name ?? item?.id}`;
+            return "";
+        },
+        getFormDescription: (mode, item) => {
+            if (item && mode === "edit") {
+                return `ID: ${item.id} • Value: ${item.value ?? "—"}`;
             }
+            return "";
+        },
+        getConfirmMessage: (type, item) => {
+            if (type === "delete") {
+                return `Eliminar escala "${item.name}" de este criterio?`;
+            }
+            return "";
+        },
+        successMessages: {
+            create: "Escala creada exitosamente.",
+            update: "Escala actualizada exitosamente.",
+            delete: "Escala desvinculada del criterio.",
+        },
+        errorMessages: {
+            create: "No se pudo crear la escala.",
+            update: "No se pudo actualizar la escala.",
+            delete: "No se pudo desvincular la escala.",
+        },
+        onAction: async (actionName: string, item: Scale) => {
+            if (actionName === "copy") {
+                await openCopyModal(item);
+            }
+        },
+    });
+
+    const handleAction = async (actionName: string, item: Record<string, any>) => {
+        if (actionName === "copy") {
+            await openCopyModal(item as Scale);
             return;
         }
 
-        if (crudMode === "edit" && selectedScale) {
-            const response = await scaleService.updateScale(selectedScale.id, {
-                name: nextForm.name,
-                description: nextForm.description,
-                value: nextForm.value,
-            });
-            if (response.data) {
-                showToast("Éxito", "Escala actualizada exitosamente.", 0);
-                closeCrudModal();
-                await loadData();
-            } else {
-                closeCrudModal();
-                showToast("Error", "No se pudo actualizar la escala.", 2);
-            }
+        if ((actionName === "edit" || actionName === "delete") && rubric?.is_public) {
+            showToast(
+                "Error",
+                actionName === "edit"
+                    ? "No puedes editar escalas de una rúbrica publicada. Archívala primero."
+                    : "No puedes eliminar escalas de una rúbrica publicada. Archívala primero.",
+                2
+            );
+            return;
         }
+
+        await handleCrudAction(actionName, item as Scale);
     };
 
-    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
-
-            {/* Entity header with back button and criterion info */}
             {criterion && (
                 <EntityHeader
                     onBack={onBack}
@@ -244,7 +250,6 @@ const ScalesByCriterionPage: React.FC = () => {
                 </EntityHeader>
             )}
 
-            {/* Copy scale modal */}
             {isCopyModalOpen && (
                 <ModalLauncher isOpen={isCopyModalOpen} onClose={closeCopyModal}>
                     {() => (
@@ -262,12 +267,12 @@ const ScalesByCriterionPage: React.FC = () => {
                                 Selecciona uno o varios criterios destino para copiar la escala sin perder la original.
                             </p>
 
-                            <div className="max-h-[50vh] overflow-y-auto">
-                                {loadingTargets ? (
-                                    <p className="p-4 text-sm text-body dark:text-bodydark">Cargando criterios destino…</p>
-                                ) : targetCriteria.length === 0 ? (
-                                    <p className="p-4 text-sm text-body dark:text-bodydark">No hay criterios disponibles para copiar esta escala.</p>
-                                ) : (
+                            {loadingTargets ? (
+                                <p className="p-4 text-sm text-body dark:text-bodydark">Cargando criterios destino…</p>
+                            ) : targetCriteria.length === 0 ? (
+                                <p className="p-4 text-sm text-body dark:text-bodydark">No hay criterios disponibles para copiar esta escala.</p>
+                            ) : (
+                                <TableScroll maxHeight="50vh">
                                     <SelectableTable
                                         data={targetCriteria}
                                         columns={TARGET_CRITERIA_COLUMNS}
@@ -279,8 +284,8 @@ const ScalesByCriterionPage: React.FC = () => {
                                         }}
                                         selectionMode={2}
                                     />
-                                )}
-                            </div>
+                                </TableScroll>
+                            )}
 
                             <div className="mt-5 flex items-center justify-end gap-3">
                                 <button
@@ -304,20 +309,20 @@ const ScalesByCriterionPage: React.FC = () => {
                 </ModalLauncher>
             )}
 
-            {/* Page header */}
             <PageHeader
                 title="Escalas"
                 description={editable
                     ? "Gestiona tus escalas para este criterio. Selecciona una para asignarla."
                     : "Explora las escalas para este criterio."}
-                primaryAction={editable ? { label: "+ Nueva Escala", onClick: () => { startCreate(); setIsCrudModalOpen(true); } } : undefined}
-            >
-            </PageHeader>
+                primaryAction={editable ? {
+                    label: "+ Nueva Escala",
+                    onClick: handleCreateScale,
+                } : undefined}
+            />
 
-            {/* Table */}
             <div
                 className={`overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark transition-all duration-300 ${
-                    crudMode ? "max-h-80" : "max-h-[60vh]"
+                    isCrudModalOpen ? "max-h-80" : "max-h-[60vh]"
                 }`}
             >
                 <div className="h-full overflow-y-auto">
@@ -326,33 +331,33 @@ const ScalesByCriterionPage: React.FC = () => {
                     ) : scales.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se econtraron escalas para este criterio.</p>
                     ) : (
-                        <GenericTable
-                            data={scales}
-                            columns={COLUMNS}
-                            actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
-                            onAction={handleAction}
-                        />
+                        <TableScroll maxHeight={isCrudModalOpen ? "20vh" : "55vh"}>
+                            <GenericTable
+                                data={scales}
+                                columns={COLUMNS}
+                                actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
+                                onAction={handleAction}
+                            />
+                        </TableScroll>
                     )}
                 </div>
             </div>
 
-            {/* CRUD modal using ModalLauncher */}
-            {editable && crudMode && (
+            {editable && isCrudModalOpen && (
                 <ModalLauncher isOpen={isCrudModalOpen} onClose={closeCrudModal}>
                     {() => (
                         <VerticalTextFormCard
-                            title={getFormTitle()}
-                            description={getFormDescription()}
-                            fields={getFormFields()}
-                            saveLabel={getFormSaveLabel()}
+                            title={formTitle}
+                            description={formDescription}
+                            fields={formFields}
+                            saveLabel={saveLabel}
                             cancelLabel="Cancelar"
-                            onSave={handleFormSave}
+                            onSave={handleSave}
                             onCancel={closeCrudModal}
                         />
                     )}
                 </ModalLauncher>
             )}
-
         </div>
     );
 };

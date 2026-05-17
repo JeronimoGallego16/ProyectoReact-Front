@@ -18,7 +18,7 @@ import { exportGroupGradesPDF } from "../../utils/pdfExporter";
 
 import { Grade } from "../../models/Grade";
 import { Group } from "../../models/Group";
-import { UserRole } from "../../models/User"; 
+import { UserRole } from "../../models/user"; 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["final_score", "student_code", "observations", "is_locked"];
@@ -58,6 +58,8 @@ const GradesPage: React.FC = () => {
     const [groups, setGroups] = useState<Group[]>([]);
     const [accessibleGroupIds, setAccessibleGroupIds] = useState<string[]>([]);
     const [groupFilterId, setGroupFilterId] = useState("");
+    const [lockedFilter, setLockedFilter] = useState("");
+    const [studentCodeFilter, setStudentCodeFilter] = useState("");
 
     // Observations state
     const [obsModalOpen, setObsModalOpen] = useState(false);
@@ -105,7 +107,8 @@ const GradesPage: React.FC = () => {
                         student_code: studentCode,
                         group_id: groupId,
                         observations: grade.observations ? grade.observations : "-",
-                        is_locked: grade.is_locked ? "Bloqueada" : "No publicada",
+                                is_locked: grade.is_locked ? "Bloqueada" : "No publicada",
+                                is_locked_bool: !!grade.is_locked,
                     };
                 })
             );
@@ -139,9 +142,18 @@ const GradesPage: React.FC = () => {
         ? groups
         : groups.filter((group) => accessibleGroupIds.includes(group.id));
 
-    const filteredTableData = groupFilterId
-        ? tableData.filter((grade) => grade.group_id === groupFilterId)
-        : tableData;
+    const filteredTableData = tableData.filter((grade) => {
+        if (groupFilterId && grade.group_id !== groupFilterId) return false;
+        if (lockedFilter) {
+            if (lockedFilter === "locked" && !grade.is_locked_bool) return false;
+            if (lockedFilter === "unlocked" && grade.is_locked_bool) return false;
+        }
+        if (studentCodeFilter) {
+            const code = (grade.student_code ?? "").toString().toLowerCase();
+            if (!code.includes(studentCodeFilter.toLowerCase())) return false;
+        }
+        return true;
+    });
 
     const handlePublishAll = async () => {
         const unlockedGrades = grades.filter((grade) => !grade.is_locked);
@@ -243,8 +255,29 @@ const GradesPage: React.FC = () => {
                             value: group.id,
                         })),
                     },
+                    {
+                        id: "is_locked",
+                        label: "Estado",
+                        placeholder: "Todos",
+                        type: "select",
+                        options: [
+                            { value: "", label: "Todos" },
+                            { value: "locked", label: "Bloqueada" },
+                            { value: "unlocked", label: "No publicada" },
+                        ],
+                    },
+                    {
+                        id: "student_code",
+                        label: "Código estudiante",
+                        placeholder: "Buscar por código",
+                        type: "text",
+                    },
                 ]}
-                onFilterChange={(filters) => setGroupFilterId(filters.group_id ?? "")}
+                onFilterChange={(filters) => {
+                    setGroupFilterId(filters.group_id ?? "");
+                    setLockedFilter(filters.is_locked ?? "");
+                    setStudentCodeFilter(filters.student_code ?? "");
+                }}
             />
 
             {/* Table */}

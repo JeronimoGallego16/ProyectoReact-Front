@@ -3,6 +3,7 @@ import { Evaluation } from '../models/Evaluation';
 import { gradeService } from './GradeService';
 import { enrollmentService } from './EnrollmentService';
 import { rubricService } from './RubricService';
+import { validatePositiveNumber, validateRequiredText } from '../utils/validation.ts';
 
 const API_URL_EVALUATIONS = '/evaluation/evaluations';
 
@@ -24,24 +25,31 @@ class EvaluationService {
             return { success: false, error: 'Payload de evaluación inválido.' };
         }
 
-        if (!evaluation.name || String(evaluation.name).trim() === "") {
-            console.error('El nombre de la evaluación es obligatorio.');
-            return { success: false, error: 'El nombre de la evaluación es obligatorio.' };
+        const nameError = validateRequiredText(evaluation.name, 'El nombre de la evaluación es obligatorio.');
+        if (nameError) {
+            console.error(nameError);
+            return { success: false, error: nameError };
         }
 
-        if (!evaluation.group_id) {
-            console.error('El grupo (group_id) de la evaluación es obligatorio.');
-            return { success: false, error: 'El grupo (group_id) de la evaluación es obligatorio.' };
+        const groupIdError = validateRequiredText(evaluation.group_id, 'El grupo (group_id) de la evaluación es obligatorio.');
+        if (groupIdError) {
+            console.error(groupIdError);
+            return { success: false, error: groupIdError };
         }
 
-        if (!evaluation.subject_id) {
-            console.error('La asignatura (subject_id) de la evaluación es obligatoria.');
-            return { success: false, error: 'La asignatura (subject_id) de la evaluación es obligatoria.' };
+        const subjectIdError = validateRequiredText(evaluation.subject_id, 'La asignatura (subject_id) de la evaluación es obligatoria.');
+        if (subjectIdError) {
+            console.error(subjectIdError);
+            return { success: false, error: subjectIdError };
         }
 
-        if (evaluation.weight === undefined || evaluation.weight === null || Number.isNaN(Number(evaluation.weight))) {
-            console.error('El peso de la evaluación es obligatorio y debe ser un número.');
-            return { success: false, error: 'El peso de la evaluación es obligatorio y debe ser un número.' };
+        const weightError = validatePositiveNumber(
+            evaluation.weight,
+            'El peso de la evaluación es obligatorio y debe ser mayor que 0.'
+        );
+        if (weightError) {
+            console.error(weightError);
+            return { success: false, error: weightError };
         }
 
         return apiService.post<Evaluation>(API_URL_EVALUATIONS, evaluation);
@@ -50,16 +58,21 @@ class EvaluationService {
     // Método para modificar una evaluación existente.
     async updateEvaluation(id: string, evaluation: Partial<Evaluation>): Promise<ApiResponse<Evaluation>> {
         if (evaluation && Object.prototype.hasOwnProperty.call(evaluation, 'name')) {
-            if (!evaluation.name || String(evaluation.name).trim() === "") {
-                console.error('El nombre de la evaluación no puede estar vacío.');
-                return { success: false, error: 'El nombre de la evaluación no puede estar vacío.' };
+            const nameError = validateRequiredText(evaluation.name, 'El nombre de la evaluación no puede estar vacío.');
+            if (nameError) {
+                console.error(nameError);
+                return { success: false, error: nameError };
             }
         }
 
         if (evaluation && Object.prototype.hasOwnProperty.call(evaluation, 'weight')) {
-            if (evaluation.weight === undefined || evaluation.weight === null || Number.isNaN(Number(evaluation.weight))) {
-                console.error('El peso de la evaluación debe ser un número válido.');
-                return { success: false, error: 'El peso de la evaluación debe ser un número válido.' };
+            const weightError = validatePositiveNumber(
+                evaluation.weight,
+                'El peso de la evaluación debe ser mayor que 0.'
+            );
+            if (weightError) {
+                console.error(weightError);
+                return { success: false, error: weightError };
             }
         }
 

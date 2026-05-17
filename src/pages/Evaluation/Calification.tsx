@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import GenericTable from "../../components/GenericTable";
 import EntityHeader from "../../components/EntityHeader";
 import PageHeader from "../../components/PageHeader";
+import TableScroll from "../../components/TableScroll";
 import { showToast } from "../../hooks/fireToast";
 import useCalificationDraft from "../../hooks/useCalificationDraft";
 
@@ -18,6 +19,8 @@ import { groupService } from "../../services/GroupService";
 import { subjectService } from "../../services/SubjectService";
 
 import { resolveStudentInfo } from "../../utils/dataResolvers";
+import securityService from "../../services/segurity.service";
+import { UserRole } from "../../models/user";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StudentRow = {
@@ -41,13 +44,14 @@ const CalificationPage: React.FC = () => {
     const [subject, setSubject] = useState<Subject | null>(null);
     const [students, setStudents] = useState<StudentRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [tableLoading, setTableLoading] = useState(false);
+    const user = securityService.getUser();
+    const role: UserRole = user?.role ?? "STUDENT";
+    const editable = role === "ADMIN" || role === "TEACHER";
 
     const loadData = async () => {
         if (!evaluationId) return;
 
         setLoading(true);
-        setTableLoading(true);
 
         try {
             const evaluationResp = await evaluationService.getEvaluationById(evaluationId);
@@ -89,7 +93,6 @@ const CalificationPage: React.FC = () => {
             showToast("Error", "No se pudo cargar la información de la evaluación.", 2);
         } finally {
             setLoading(false);
-            setTableLoading(false);
         }
     };
 
@@ -145,43 +148,27 @@ const CalificationPage: React.FC = () => {
                 description="Selecciona un estudiante para abrir la pantalla de calificación."
             />
 
-            <div className="space-y-4">
-                {loading ? (
-                    <p className="text-sm text-body dark:text-bodydark">Cargando información de la evaluación…</p>
-                ) : evaluation ? (
-                    <div className="space-y-4">
-                        {tableLoading ? (
-                            <p className="p-6 text-sm text-body dark:text-bodydark">Cargando estudiantes…</p>
-                        ) : students.length === 0 ? (
-                            <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron estudiantes activos para este grupo.</p>
-                        ) : (
+            {/* Students table */}
+            <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[70vh]">
+                <div className="h-full overflow-y-auto">
+                    {loading ? (
+                        <p className="p-6 text-sm text-body dark:text-bodydark">Cargando estudiantes…</p>
+                    ) : students.length === 0 ? (
+                        <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron estudiantes en este grupo.</p>
+                    ) : (
+                        <TableScroll maxHeight="55vh">
                             <GenericTable
-                                data={students}
+                                data={students.map((s) => ({ id: s.id, student_code: s.student_code, email: s.email }))}
                                 columns={STUDENT_COLUMNS}
-                                actions={[
-                                    { name: "grade", label: "Calificar" },
-                                    {
-                                        name: "draft",
-                                        label: "Continuar borrador",
-                                        visible: (item) => Boolean(item.hasDraft),
-                                    },
-                                ]}
+                                actions={editable ? [{ name: "grade", label: "Calificar" }] : []}
                                 onAction={(actionName, item) => {
-                                    if (actionName === "grade") {
-                                        goToGradeDetail(item as StudentRow);
-                                        return;
-                                    }
-
-                                    if (actionName === "draft") {
-                                        goToGradeDetail(item as StudentRow, true);
-                                    }
+                                    const row = item as StudentRow;
+                                    if (actionName === "grade") goToGradeDetail(row, false);
                                 }}
                             />
-                        )}
-                    </div>
-                ) : (
-                    <p className="text-sm text-body dark:text-bodydark">No se encontró la evaluación solicitada.</p>
-                )}
+                        </TableScroll>
+                    )}
+                </div>
             </div>
         </div>
     );

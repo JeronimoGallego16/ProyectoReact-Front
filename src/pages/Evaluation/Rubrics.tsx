@@ -6,8 +6,8 @@ import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import ModalLauncher from "../../components/ModalLauncher";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
-import { showToast } from "../../hooks/fireToast";
-import { useCrudModal } from "../../hooks/useCrudModal";
+import { useEntityCrud } from "../../hooks/useEntityCrud";
+import TableScroll from "../../components/TableScroll";
 
 import { rubricService } from "../../services/RubricService";
 import { groupService } from "../../services/GroupService";
@@ -15,13 +15,12 @@ import { evaluationService } from "../../services/EvaluationService";
 import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
 import securityService from "../../services/segurity.service";
 
-import { UserRole } from "../../models/User";
+import { UserRole } from "../../models/user";
 import { Rubric } from "../../models/Rubric";
 import { Group } from "../../models/Group";
 import { Evaluation } from "../../models/Evaluation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
 const COLUMNS = ["title", "description", "created_at", "is_public", "is_archived"];
 
 const ADMIN_TEACHER_ACTIONS = [
@@ -54,17 +53,9 @@ const RubricsPage: React.FC = () => {
     const [groups, setGroups] = useState<Group[]>([]);
     const [accessibleGroupIds, setAccessibleGroupIds] = useState<string[]>([]);
     const [groupFilterId, setGroupFilterId] = useState("");
-   
-    const [isCrudModalOpen, setIsCrudModalOpen] = useState(false);
-    const {
-        crudMode,
-        selectedItem: selectedRubric,
-        form,
-        setForm,
-        resetCrud,
-        startCreate,
-        startEdit,
-    } = useCrudModal<Rubric>(emptyForm());
+    const [statusFilter, setStatusFilter] = useState("");
+    const [titleFilter, setTitleFilter] = useState("");
+    const [teacherHasGroups, setTeacherHasGroups] = useState(false);
     
     const user = securityService.getUser();
     const role: UserRole = user?.role ?? "STUDENT";
@@ -86,6 +77,7 @@ const RubricsPage: React.FC = () => {
 
             const user = securityService.getUser();
             const accessibleGroups = await evaluationAuthorizationService.getAccessibleGroupIds(user);
+            const teacherGroups = user?.id ? await groupService.getGroupsByTeacher(user.id) : [];
 
             const filteredRubrics = await Promise.all(
                 allRubrics.map(async (rubric) => {
@@ -106,6 +98,7 @@ const RubricsPage: React.FC = () => {
             setEvaluations(allEvaluations);
             setGroups(allGroups);
             setAccessibleGroupIds(Array.isArray(accessibleGroups) ? accessibleGroups : []);
+            setTeacherHasGroups(Array.isArray(teacherGroups) && teacherGroups.length > 0);
         } finally {
             setLoading(false);
         }
@@ -115,94 +108,15 @@ const RubricsPage: React.FC = () => {
         loadRubrics();
     }, []);
 
-    // ── CRUD handlers ─────────────────────────────────────────────────────────
-    const handleAction = (actionName: string, item: Record<string, any>) => {
-        const rubric = rubrics.find((currentRubric) => currentRubric.id === item.id) ?? (item as Rubric);
-
-        if (actionName === "view") {
-            navigate(`/rubrics/${rubric.id}/criteria`);
-            return;
-        }
-
-        if (actionName === "edit") {
-            startEdit(rubric);
-            setIsCrudModalOpen(true);
-        }
-
-        if (actionName === "delete") {
-            void handleDelete(rubric);
-        }
-
-        if (actionName === "archive") {
-            void handleArchive(rubric);
-        }
-
-        if (actionName === "publish") {
-            void handlePublish(rubric);
-        }
-    };
-
-    const handleDelete = async (rubric: Rubric) => {
-        const ok = window.confirm(`Eliminar la rúbrica "${rubric.title ?? rubric.id}"? Esta acción no se puede deshacer.`);
-        if (!ok) return;
-
-        const response = await rubricService.deleteRubric(rubric.id);
-        if (!response.error) {
-            showToast("Éxito", "Rúbrica eliminada exitosamente.", 0);
-            await loadRubrics();
-        } else {
-            showToast("Error", response.error || "No se pudo eliminar la rúbrica. Puede que ya esté publicada.", 2);
-        }
-    };
-
-    const handleArchive = async (rubric: Rubric) => {
-        const ok = window.confirm(`Archivar la rúbrica "${rubric.title ?? rubric.id}"? Se despublicará y quedará archivada.`);
-        if (!ok) return;
-
-        const response = await rubricService.archiveRubric(rubric.id);
-        if (!response.error) {
-            showToast("Éxito", "Rúbrica archivada exitosamente.", 0);
-            await loadRubrics();
-        } else {
-            showToast("Error", response.error || "No se pudo archivar la rúbrica.", 2);
-        }
-    };
-
-    const handlePublish = async (rubric: Rubric) => {
-        const ok = window.confirm(`Publicar la rúbrica "${rubric.title ?? rubric.id}"? Verifica que tenga los criterios necesarios.`);
-        if (!ok) return;
-
-        const response = await rubricService.publishRubric(rubric.id);
-        if (!response.error) {
-            showToast("Éxito", "Rúbrica publicada exitosamente.", 0);
-            await loadRubrics();
-        } else {
-            showToast("Error", response.error || "No se pudo publicar la rúbrica.", 2);
-        }
-    };
-
     // ── Helper functions for VerticalTextFormCard ──────────────────────────────
-    const getFormTitle = (): string => {
-        if (crudMode === "create") return "Crear Rúbrica";
-        if (crudMode === "edit") return `Editar Rúbrica`;
-        return "";
-    };
-
-    const getFormDescription = (): string => {
-        if (selectedRubric && crudMode === "edit") {
-            return `Título: ${selectedRubric.title ?? "—"}`;
-        }
-        return "";
-    };
-
-    const getFormFields = (): VerticalTextFormField[] => {
-        const baseFields: VerticalTextFormField[] = [
+    const getFormFields = (f: Omit<Rubric, "id">): VerticalTextFormField[] => {
+        return [
             {
                 name: "title",
                 label: "Título",
                 placeholder: "Ingrese el título de la rúbrica",
                 type: "text",
-                value: form.title,
+                value: f.title,
             },
             {
                 name: "description",
@@ -210,74 +124,121 @@ const RubricsPage: React.FC = () => {
                 placeholder: "Ingrese la descripción de la rúbrica",
                 kind: "textarea",
                 rows: 3,
-                value: form.description,
+                value: f.description,
             },
         ];
-
-        return baseFields;
     };
 
-    const getFormSaveLabel = (): string => {
-        if (crudMode === "create") return "Crear";
-        if (crudMode === "edit") return "Guardar Cambios";
-        return "Guardar";
-    };
-
-    const handleFormSave = async (values: Record<string, string>) => {
-        const nextForm: Omit<Rubric, "id"> = {
-            title: values.title ?? form.title,
-            description: values.description ?? form.description,
-        };
-
-        setForm(nextForm);
-
-        try {
-            if (crudMode === "create") {
-                const user = securityService.getUser();
-                const teacherId = user?.id;
-
-               const groups = await groupService.getGroupsByTeacher(teacherId as string);
-                if (!groups || groups.length === 0) {
-                    showToast("Error", "No puedes crear una rúbrica: debes tener al menos un grupo asignado.", 3);
-                    return;
-                }
-
-                const response = await rubricService.createRubric(nextForm);
-                if (response.data) {
-                    showToast("Éxito", "Rúbrica creada exitosamente.", 0);
-                    await loadRubrics();
-                } else {
-                    showToast("Error", "No se pudo crear la rúbrica.", 2);
-                }
-                return;
+    // ── useEntityCrud hook ────────────────────────────────────────────────────
+    const {
+        isOpen: isCrudModalOpen,
+        close: closeCrudModal,
+        handleAction,
+        handleSave,
+        startCreate,
+        title: formTitle,
+        description: formDescription,
+        fields: formFields,
+        saveLabel,
+    } = useEntityCrud<Rubric>({
+        emptyForm: emptyForm(),
+        loadData: loadRubrics,
+        createItem: async (payload) => {
+            const response = await rubricService.createRubric(payload);
+            return response.data ?? null;
+        },
+        updateItem: async (id, payload) => {
+            const response = await rubricService.updateRubric(id, payload);
+            return response.data ?? null;
+        },
+        deleteOrArchive: async (id, type) => {
+            if (type === "delete") {
+                const response = await rubricService.deleteRubric(id);
+                return response.success === true;
+            } else if (type === "archive") {
+                const response = await rubricService.archiveRubric(id);
+                return response.success === true;
+            } else if (type === "publish") {
+                const result = await rubricService.publishRubric(id);
+                return result.success === true;
             }
-
-            if (crudMode === "edit" && selectedRubric) {
-                const response = await rubricService.updateRubric(selectedRubric.id, nextForm);
-                if (response.data) {
-                    showToast("Éxito", "Rúbrica actualizada exitosamente.", 0);
-                    await loadRubrics();
-                } else {
-                    showToast("Error", "No se pudo actualizar la rúbrica.", 2);
-                }
+            return false;
+        },
+        buildFields: (f) => getFormFields(f),
+        mapSaveValues: (values) => ({
+            title: values.title,
+            description: values.description,
+        }),
+        validateSave: (_values, _form, mode) => {
+            if (mode === "create" && !teacherHasGroups) {
+                return "No puedes crear una rúbrica: debes tener al menos un grupo asignado.";
             }
-        } catch (err) {
-            showToast("Error", "Ocurrió un error al procesar la solicitud.", 2);
-        } finally {
-            // Close the modal regardless of success or error
-            setIsCrudModalOpen(false);
-            resetCrud();
-        }
-    };
+            return null;
+        },
+        getFormTitle: (mode) => {
+            if (mode === "create") return "Crear Rúbrica";
+            if (mode === "edit") return "Editar Rúbrica";
+            return "";
+        },
+        getFormDescription: (mode, item) => {
+            if (item && mode === "edit") {
+                return `Título: ${item.title ?? "—"}`;
+            }
+            return "";
+        },
+        getConfirmMessage: (type, item) => {
+            if (type === "delete") {
+                return `Eliminar la rúbrica "${item.title ?? item.id}"? Esta acción no se puede deshacer.`;
+            } else if (type === "archive") {
+                return `Archivar la rúbrica "${item.title ?? item.id}"? Se despublicará y quedará archivada.`;
+            } else if (type === "publish") {
+                return `Publicar la rúbrica "${item.title ?? item.id}"? Verifica que tenga los criterios necesarios.`;
+            }
+            return "";
+        },
+        successMessages: {
+            create: "Rúbrica creada exitosamente.",
+            update: "Rúbrica actualizada exitosamente.",
+            delete: "Rúbrica eliminada exitosamente.",
+            archive: "Rúbrica archivada exitosamente.",
+            publish: "Rúbrica publicada exitosamente.",
+        },
+        errorMessages: {
+            create: "No se pudo crear la rúbrica.",
+            update: "No se pudo actualizar la rúbrica.",
+            delete: "No se pudo eliminar la rúbrica. Puede que ya esté publicada.",
+            archive: "No se pudo archivar la rúbrica.",
+            publish: "No se pudo publicar la rúbrica.",
+        },
+        onAction: async (actionName, item) => {
+            if (actionName === "view") {
+                navigate(`/rubrics/${item.id}/criteria`);
+            }
+        },
+    });
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    // ── Data transformations ────────────────────────────────────────────────────
     const groupsForFilter = role === "ADMIN"
         ? groups
         : groups.filter((group) => accessibleGroupIds.includes(group.id));
 
-    const filteredRubrics = groupFilterId
-        ? rubrics.filter((rubric) => evaluations.some((evaluation) => evaluation.rubric_id === rubric.id && evaluation.group_id === groupFilterId))
-        : rubrics;
+    const filteredRubrics = rubrics.filter((rubric) => {
+        if (groupFilterId && !evaluations.some((evaluation) => evaluation.rubric_id === rubric.id && evaluation.group_id === groupFilterId)) {
+            return false;
+        }
+
+        if (statusFilter) {
+            if (statusFilter === "public" && !rubric.is_public) return false;
+            if (statusFilter === "archived" && !rubric.is_archived) return false;
+        }
+
+        if (titleFilter) {
+            const title = (rubric.title ?? "").toLowerCase();
+            if (!title.includes(titleFilter.toLowerCase())) return false;
+        }
+
+        return true;
+    });
 
     const tableData = filteredRubrics.map((r) => ({
         ...r,
@@ -286,6 +247,7 @@ const RubricsPage: React.FC = () => {
         is_archived: r.is_archived ? "Sí" : "No",
     }));
 
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
 
@@ -295,7 +257,10 @@ const RubricsPage: React.FC = () => {
                 description={editable
                     ? "Gestiona tus rúbricas: crea, edita, archiva o elimina"
                     : "Busca y navega por las rúbricas disponibles."}
-                primaryAction={editable ? { label: "+ Nueva Rúbrica", onClick: () => { startCreate(); setIsCrudModalOpen(true); } } : undefined}
+                primaryAction={editable ? {
+                    label: "+ Nueva Rúbrica",
+                    onClick: startCreate,
+                } : undefined}
             />
 
             <FilterTable
@@ -310,8 +275,29 @@ const RubricsPage: React.FC = () => {
                             value: group.id,
                         })),
                     },
+                    {
+                        id: "status",
+                        label: "Estado",
+                        placeholder: "Todas",
+                        type: "select",
+                        options: [
+                            { value: "", label: "Todas" },
+                            { value: "public", label: "Pública" },
+                            { value: "archived", label: "Archivada" },
+                        ],
+                    },
+                    {
+                        id: "title",
+                        label: "Título",
+                        placeholder: "Buscar por título",
+                        type: "text",
+                    },
                 ]}
-                onFilterChange={(filters) => setGroupFilterId(filters.group_id ?? "")}
+                onFilterChange={(filters) => {
+                    setGroupFilterId(filters.group_id ?? "");
+                    setStatusFilter(filters.status ?? "");
+                    setTitleFilter(filters.title ?? "");
+                }}
             />
 
             {/* Table — full height */}
@@ -319,34 +305,36 @@ const RubricsPage: React.FC = () => {
                 <div className="h-full overflow-y-auto">
                     {loading ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">Cargando rúbricas…</p>
-                    ) : tableData.length === 0 ? (
+                    ) : rubrics.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron rúbricas.</p>
                     ) : (
-                        <GenericTable
-                            data={tableData}
-                            columns={COLUMNS}
-                            actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
-                            onAction={handleAction}
-                        />
+                        <TableScroll maxHeight="55vh">
+                            <GenericTable
+                                data={tableData}
+                                columns={COLUMNS}
+                                actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
+                                onAction={handleAction}
+                            />
+                        </TableScroll>
                     )}
                 </div>
             </div>
 
             {/* CRUD modal using ModalLauncher */}
-            {editable && crudMode && (
+            {editable && isCrudModalOpen && (
                 <ModalLauncher
                     isOpen={isCrudModalOpen}
-                    onClose={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                    onClose={closeCrudModal}
                 >
                     {() => (
                         <VerticalTextFormCard
-                            title={getFormTitle()}
-                            description={getFormDescription()}
-                            fields={getFormFields()}
-                            saveLabel={getFormSaveLabel()}
+                            title={formTitle}
+                            description={formDescription}
+                            fields={formFields}
+                            saveLabel={saveLabel}
                             cancelLabel="Cancelar"
-                            onSave={handleFormSave}
-                            onCancel={() => { setIsCrudModalOpen(false); resetCrud(); }}
+                            onSave={handleSave}
+                            onCancel={closeCrudModal}
                         />
                     )}
                 </ModalLauncher>

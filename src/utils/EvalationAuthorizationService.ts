@@ -1,5 +1,5 @@
 // src/services/AuthorizationService.ts
-import { User } from '../models/User';
+import { User } from '../models/user';
 import { Grade } from '../models/Grade';
 import { enrollmentService } from '../services/EnrollmentService';
 import { groupService } from '../services/GroupService';

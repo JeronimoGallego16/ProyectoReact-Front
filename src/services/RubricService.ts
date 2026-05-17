@@ -2,6 +2,7 @@ import apiService, { ApiResponse } from './api';
 import { Rubric } from '../models/Rubric';
 import { criterionService } from './CriterionService';
 import { scaleService } from './ScaleService';
+import { validateRequiredText } from '../utils/validation.ts';
 
 const API_URL_RUBRICS = '/evaluation/rubrics'
 
@@ -19,9 +20,10 @@ class RubricService {
 
     // Método para crear una nueva rúbrica.
     async createRubric(rubric: Omit<Rubric, "id">): Promise<ApiResponse<Rubric>> {
-        if (!rubric || !rubric.title || String(rubric.title).trim() === "") {
-            console.error('El título de la rúbrica es obligatorio.');
-            return { success: false, error: 'El título de la rúbrica es obligatorio.' };
+        const titleError = validateRequiredText(rubric?.title, 'El título de la rúbrica es obligatorio.');
+        if (titleError) {
+            console.error(titleError);
+            return { success: false, error: titleError };
         }
 
         return apiService.post<Rubric>(API_URL_RUBRICS, rubric);
@@ -30,10 +32,10 @@ class RubricService {
     // Método para modificar una rúbrica existente.
     async updateRubric(id: string, rubric: Partial<Rubric>): Promise<ApiResponse<Rubric>> {
         if (rubric && Object.prototype.hasOwnProperty.call(rubric, 'title')) {
-            const title = (rubric as Partial<Rubric>).title;
-            if (!title || String(title).trim() === "") {
-                console.error('El título de la rúbrica no puede estar vacío.');
-                return { success: false, error: 'El título de la rúbrica no puede estar vacío.' };
+            const titleError = validateRequiredText(rubric.title, 'El título de la rúbrica no puede estar vacío.');
+            if (titleError) {
+                console.error(titleError);
+                return { success: false, error: titleError };
             }
         }
 
@@ -127,3 +129,4 @@ class RubricService {
 }
 
 export const rubricService = new RubricService();
+

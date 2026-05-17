@@ -6,7 +6,7 @@ import studentRegistrationService from '../services/StudentRegistrationService';
 import student from '../services/student.service';
 import { toast } from 'react-hot-toast';
 import { Career } from '../models/Career';
-import { Student } from '../models/Student';
+import { Student } from '../models/student';
 import { EnrollmentFormData } from '../models/Enrollment';
 
 export default function EnrollmentPage() {

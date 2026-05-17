@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import SelectableTable from "../../components/SelectableTable";
+import TableScroll from "../../components/TableScroll";
 import PageHeader from "../../components/PageHeader";
 import EntityHeader from "../../components/EntityHeader";
 import { showToast } from "../../hooks/fireToast";
@@ -12,7 +13,7 @@ import { evaluationService } from "../../services/EvaluationService";
 
 import { Rubric } from "../../models/Rubric";
 import { Evaluation } from "../../models/Evaluation";
-import { UserRole } from "../../models/User";
+import { UserRole } from "../../models/user";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const COLUMNS = ["title", "description"];
@@ -45,17 +46,30 @@ const RubricForEvaluationPage: React.FC = () => {
         if (!evaluationId) return;
         setLoading(true);
         try {
-            const [evaluationResponse, rubricsResponse] = await Promise.all([
+            const [evaluationResp, rubricsResp] = await Promise.all([
                 evaluationService.getEvaluationById(evaluationId),
                 rubricService.getRubrics(),
             ]);
 
-            setEvaluation(evaluationResponse.data || null);
+            setEvaluation(evaluationResp.data ?? null);
 
-            const allRubrics = Array.isArray(rubricsResponse.data) ? rubricsResponse.data : [];
             // mostrar solo rúbricas públicas y no archivadas
+            const allRubrics = Array.isArray(rubricsResp?.data) ? rubricsResp.data : [];
             const available = allRubrics.filter(r => r.is_public && !r.is_archived);
-            setRubrics(available);
+
+            // Si el usuario es estudiante, mostrar únicamente la rúbrica asociada a la evaluación
+            if (!editable) {
+                const rubricId = evaluationResp.data?.rubric_id;
+                if (rubricId) {
+                    const found = available.find(r => r.id === rubricId);
+                    setRubrics(found ? [found] : []);
+                } else {
+                    // sin rúbrica asociada
+                    setRubrics([]);
+                }
+            } else {
+                setRubrics(available);
+            }
             setSelectedRubric(null);
         } catch (err) {
             showToast("Error", "No se pudo cargar la evaluación o las rúbricas.", 2);
@@ -91,12 +105,12 @@ const RubricForEvaluationPage: React.FC = () => {
         setLoading(true);
         try {
             const response = await evaluationService.associateRubric(evaluation.id, rubricId);
-            if (response.data) {
+            if (response) {
                 showToast("Éxito", "Rúbrica asignada a la evaluación.", 0);
                 setSelectedRubric(null);
                 await loadData();
             } else {
-                showToast("Error", response.error || "No se pudo asignar la rúbrica.", 2);
+                showToast("Error", "No se pudo asignar la rúbrica.", 2);
             }
         } catch (err) {
             showToast("Error", "Ocurrió un error al asignar la rúbrica.", 2);
@@ -161,20 +175,22 @@ const RubricForEvaluationPage: React.FC = () => {
                     ) : rubrics.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se econtraron rúbricas.</p>
                     ) : (
-                        <SelectableTable
-                            data={rubrics}
-                            columns={COLUMNS}
-                            actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
-                            selectedItemId={selectedRubric?.id}
-                            onAction={(actionName, item) => {
-                                if (actionName === "select") {
-                                    handleAction("select", item);
-                                    return;
-                                }
-                                handleAction(actionName, item);
-                            }}
-                            selectionMode={1}
-                        />
+                        <TableScroll maxHeight="55vh">
+                            <SelectableTable
+                                data={rubrics}
+                                columns={COLUMNS}
+                                actions={editable ? ADMIN_TEACHER_ACTIONS : STUDENT_ACTIONS}
+                                onAction={(actionName, item) => {
+                                    if (actionName === "select") {
+                                        handleAction("select", item);
+                                        return;
+                                    }
+                                    handleAction(actionName, item);
+                                }}
+                                selectionMode={1}
+                                selectedItemId={selectedRubric?.id}
+                            />
+                        </TableScroll>
                     )}
                 </div>
             </div>

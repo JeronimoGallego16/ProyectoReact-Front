@@ -228,8 +228,11 @@ const CalificationDetailPage: React.FC = () => {
     const selectedCriteriaCount = Object.keys(selectedScales).length;
     const canSaveGrade = criteria.length > 0 && selectedCriteriaCount === criteria.length && !savingGrade;
 
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
+
+             {/* Entity header with back button */}
             {student && (
                 <EntityHeader
                     onBack={goBackToList}
@@ -247,6 +250,7 @@ const CalificationDetailPage: React.FC = () => {
                 </EntityHeader>
             )}
 
+            {/* Page header */}
             <PageHeader
                 title="Calificar estudiante"
                 description="Completa cada criterio seleccionando una escala y, si lo necesitas, añade comentarios opcionales antes de guardar o continuar más tarde."
@@ -262,6 +266,7 @@ const CalificationDetailPage: React.FC = () => {
                 ) : (
                     criteria.map((criterion) => (
                         <section key={criterion.id} className="space-y-4 rounded-sm border border-stroke p-4 dark:border-strokedark">
+                            {/* Criterion header with comment toggle */}
                             <PageHeader
                                 title={criterion.name ?? "Criterio"}
                                 description={criterion.description || "Sin descripción"}
@@ -272,7 +277,8 @@ const CalificationDetailPage: React.FC = () => {
                             >
                                 <p className="text-xs text-body dark:text-bodydark">Peso: {criterion.weight ?? 0}%</p>
                             </PageHeader>
-
+                            
+                            {/* Seltable Table by criterion scales */}
                             {scalesByCriterion[criterion.id]?.length ? (
                                 <SelectableTable
                                     data={scalesByCriterion[criterion.id]}
@@ -291,6 +297,7 @@ const CalificationDetailPage: React.FC = () => {
                                 <p className="text-sm text-body dark:text-bodydark">Cargando escalas…</p>
                             )}
 
+                            {/* Criterion comment box */}
                             <CriterionCommentBox
                                 isOpen={openCommentCriterionId === criterion.id}
                                 comment={criterionComments[criterion.id] ?? ""}
