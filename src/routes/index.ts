@@ -15,6 +15,7 @@ const RubricForEvaluationPage = lazy(() => import('../pages/Evaluation/RubricFor
 const CalificationPage = lazy(() => import('../pages/Evaluation/Calification'));
 const AcademicPage = lazy(() => import('../pages/Academic/AcademicPage'));
 const StudyPlanDetailsPage = lazy(() => import('../pages/Academic/StudyPlanDetails'));
+const EnrollInGroupPage = lazy(() => import('../pages/Academic/EnrollInGroup'));
 const UsersPage = lazy(() => import('../pages/UsersPage'));
 const GroupsPage = lazy(() => import('../pages/GroupsPage'));
 const CareersPage = lazy(() => import('../pages/CareersPage'));
@@ -66,6 +67,11 @@ const coreRoutes = [
     path: '/academic/study-plans/:studyPlanId',
     title: 'Study Plan Details',
     component: StudyPlanDetailsPage,
+  },
+  {
+    path: '/academic/enroll-student',
+    title: 'Inscribir estudiante en grupo',
+    component: EnrollInGroupPage,
   },
   {
     path: '/rubrics',

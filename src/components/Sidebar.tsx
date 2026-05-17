@@ -466,6 +466,29 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
               </li>
               {/* <!-- Menu Item Matricula --> */}
 
+              {/* <!-- Menu Item Inscribir en Grupo (CU-07) --> */}
+              <li>
+                <NavLink
+                  to="/academic/enroll-student"
+                  className={`group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${pathname === '/academic/enroll-student' &&
+                    'bg-graydark dark:bg-meta-4'
+                    }`}
+                >
+                  <svg
+                    className="fill-current"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 18 18"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M9 2.25C5.02031 2.25 1.875 5.39531 1.875 9.375C1.875 13.3547 5.02031 16.5 9 16.5C12.9797 16.5 16.125 13.3547 16.125 9.375C16.125 5.39531 12.9797 2.25 9 2.25ZM9 15C5.51016 15 2.75 12.2398 2.75 8.75C2.75 5.26016 5.51016 2.5 9 2.5C12.4898 2.5 15.25 5.26016 15.25 8.75C15.25 12.2398 12.4898 15 9 15Z" fill="" />
+                    <path d="M6 7.5H12V9H6zM6 10.5H12V12H6z" fill="" />
+                  </svg>
+                  Inscribir en Grupo
+                </NavLink>
+              </li>
+
               {/* Tables removed */}
 
               {/* Settings removed */}
