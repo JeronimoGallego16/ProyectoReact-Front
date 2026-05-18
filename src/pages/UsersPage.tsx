@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import FilterTable from '../components/FilterTable';
-import InputTable from '../components/InputTable';
+import GenericTable from '../components/GenericTable';
+import ModalLauncher from '../components/ModalLauncher';
 import UserModal from '../components/UserModal';
 import DeactivateUserModal from '../components/DeactivateUserModal';
 import apiService from '../services/api';
+import { registrationService } from '../services/RegistrationService';
+import { careerService } from '../services/CareerService';
 
 interface User {
     id: string;
@@ -15,51 +18,70 @@ interface User {
     profile?: {
         first_name?: string;
         last_name?: string;
+        identification?: string;
+        phone?: string;
+        specialty?: string;
     };
     created_at?: string;
     career?: {
+        id?: string;
         name?: string;
     };
 }
 
 interface TableUser extends Record<string, any> {
     id: string;
-    Código: string;
-    Nombre: string;
-    Email: string;
-    Rol: string;
-    Carrera: string;
-    Estado: string;
-    'Fecha creación': string;
+    code: string;
+    name: string;
+    email: string;
+    role: string;
+    career: string;
+    created_at: string;
+    is_active: string;
 }
 
 export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
+    const [careers, setCareers] = useState<any[]>([]);
     const [tableData, setTableData] = useState<TableUser[]>([]);
     const [loading, setLoading] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [editUserId, setEditUserId] = useState<string>('');
     const [deactivateUserId, setDeactivateUserId] = useState<string>('');
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [filteredTableData, setFilteredTableData] = useState<TableUser[]>([]);
-    const [filters, setFilters] = useState<Record<string, string>>({});
+    const [filters, setFilters] = useState<Record<string, string>>({});;
 
-    const columns = ['Código', 'Nombre', 'Email', 'Rol', 'Carrera', 'Estado', 'Fecha creación'];
+    const columns = [
+        { key: 'code', label: 'Código' },
+        { key: 'name', label: 'Nombre' },
+        { key: 'email', label: 'Email' },
+        { key: 'role', label: 'Rol' },
+        { key: 'career', label: 'Carrera' },
+        { key: 'created_at', label: 'Fecha Creación' },
+        { key: 'is_active', label: 'Estado' }
+    ];
     const actions = [
+        { name: 'view', label: 'Ver' },
         { name: 'edit', label: 'Editar' },
         { name: 'deactivate', label: 'Desactivar' },
-        { name: 'view', label: 'Ver detalle' },
     ];
 
-    const filterOptions = [
+    const filterOptions: any[] = [
         { id: 'code', label: 'Código', type: 'text' as const },
-        { id: 'email', label: 'Email', type: 'text' as const },
+        {
+            id: 'carrera',
+            label: 'Carrera',
+            type: 'select' as const,
+            options: careers.length > 0 ? careers.map(c => ({ value: c.id, label: c.name })) : [{ value: '', label: 'Cargando carreras...' }]
+        },
         {
             id: 'role', label: 'Rol', type: 'select' as const, options: [
                 { value: 'STUDENT', label: 'Estudiante' },
                 { value: 'TEACHER', label: 'Docente' },
-                { value: 'ADMIN', label: 'Administrador' },
             ]
         },
         {
@@ -71,8 +93,18 @@ export default function UsersPage() {
     ];
 
     useEffect(() => {
+        loadCareers();
         loadUsers();
     }, []);
+
+    const loadCareers = async () => {
+        try {
+            const allCareers = await careerService.getCareers();
+            setCareers(allCareers);
+        } catch (error) {
+            console.error('Error al cargar carreras:', error);
+        }
+    };
 
     useEffect(() => {
         applyFilters();
@@ -82,12 +114,48 @@ export default function UsersPage() {
         setLoading(true);
         try {
             const response = await apiService.get<any>('/users/');
+            response.data?.forEach((u: any) => {
+            });
+
             if (response.data && Array.isArray(response.data)) {
-                setUsers(response.data);
-                transformUsersToTable(response.data);
+                // Los usuarios ya vienen con career desde la API
+                // Solo necesitamos enriquecer si falta la carrera para estudiantes
+                const usersWithCareers = await Promise.all(
+                    response.data.map(async (user) => {
+                        if (user.role === 'STUDENT') {
+
+                            if (!user.career || !user.career.name) {
+                                try {
+                                    // Usar profile.id como student_id en registrations
+                                    const studentProfileId = user.profile?.id;
+                                    if (studentProfileId) {
+                                        const registrations = await registrationService.getRegistrationsByStudent(studentProfileId);
+
+                                        if (registrations.length > 0 && registrations[0].career_id) {
+
+                                            const career = await careerService.getCareerById(registrations[0].career_id);
+
+                                            if (career) {
+                                                user.career = { id: career.id, name: career.name };
+                                            }
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error(`  ❌ Error obteniendo carrera:`, err);
+                                }
+                            } else {
+                                console.log(`  ✅ Ya tiene carrera: ${user.career.name}`);
+                            }
+                        }
+                        return user;
+                    })
+                );
+
+
+                setUsers(usersWithCareers);
+                transformUsersToTable(usersWithCareers);
             }
         } catch (error) {
-            toast.error('Error al cargar usuarios');
             console.error(error);
         } finally {
             setLoading(false);
@@ -95,18 +163,21 @@ export default function UsersPage() {
     };
 
     const transformUsersToTable = (users: User[]) => {
-        const transformed: TableUser[] = users.map(user => ({
-            id: user.id,
-            Código: user.code || '',
-            Nombre: user.profile?.first_name && user.profile?.last_name
-                ? `${user.profile.first_name} ${user.profile.last_name}`
-                : user.email,
-            Email: user.email || '',
-            Rol: getRoleLabel(user.role),
-            Carrera: user.career?.name || '-',
-            Estado: user.is_active ? '✅ Activo' : '🚫 Inactivo',
-            'Fecha creación': formatDate(user.created_at),
-        }));
+        const transformed: TableUser[] = users.map(user => {
+            const careerDisplay = user.career?.name ? user.career.name : '-';
+            return {
+                id: user.id,
+                code: user.code || '',
+                name: user.profile?.first_name && user.profile?.last_name
+                    ? `${user.profile.first_name} ${user.profile.last_name}`
+                    : user.email,
+                email: user.email || '',
+                role: getRoleLabel(user.role),
+                career: careerDisplay,
+                is_active: user.is_active ? '✅ Activo' : '🚫 Inactivo',
+                created_at: formatDate(user.created_at),
+            };
+        });
         setTableData(transformed);
     };
 
@@ -115,42 +186,48 @@ export default function UsersPage() {
 
         if (filters.code) {
             filtered = filtered.filter(u =>
-                u.Código?.toLowerCase().includes(filters.code.toLowerCase())
+                u.code?.toLowerCase().includes(filters.code.toLowerCase())
             );
         }
 
-        if (filters.email) {
-            filtered = filtered.filter(u =>
-                u.Email?.toLowerCase().includes(filters.email.toLowerCase())
-            );
+        if (filters.carrera) {
+            // El filtro carrera ahora es por ID, buscar por nombre de carrera
+            const selectedCareer = careers.find(c => c.id === filters.carrera);
+            if (selectedCareer) {
+                filtered = filtered.filter(u =>
+                    u.career?.toLowerCase().includes(selectedCareer.name.toLowerCase())
+                );
+            }
         }
 
         if (filters.role) {
             const roleLabel = getRoleLabel(filters.role);
-            filtered = filtered.filter(u => u.Rol === roleLabel);
+            filtered = filtered.filter(u => u.role === roleLabel);
         }
 
         if (filters.is_active) {
             const isActive = filters.is_active === 'true' ? '✅ Activo' : '🚫 Inactivo';
-            filtered = filtered.filter(u => u.Estado === isActive);
+            filtered = filtered.filter(u => u.is_active === isActive);
         }
 
         setFilteredTableData(filtered);
-    };
+    };;
 
     const handleFilterChange = (newFilters: Record<string, string>) => {
         setFilters(newFilters);
     };
 
-    const handleInputChange = (rowIndex: number, column: string, value: string) => {
-        // Por ahora solo es lectura, pero puedes agregar lógica de edición aquí
-        console.log(`Row ${rowIndex}, Column ${column}, Value ${value}`);
-    };
-
-    const handleAction = (name: string, item: TableUser) => {
+    const handleAction = (name: string, item: Record<string, any>) => {
         const userId = item.id;
+        const user = users.find(u => u.id === userId);
 
         switch (name) {
+            case 'view':
+                if (user) {
+                    setSelectedUser(user);
+                    setIsDetailModalOpen(true);
+                }
+                break;
             case 'edit':
                 setEditUserId(userId);
                 setIsEditModalOpen(true);
@@ -159,9 +236,6 @@ export default function UsersPage() {
                 setDeactivateUserId(userId);
                 setIsDeactivateModalOpen(true);
                 break;
-            case 'view':
-                toast.info(`Detalle del usuario: ${userId}`);
-                break;
             default:
                 break;
         }
@@ -169,8 +243,6 @@ export default function UsersPage() {
 
     const getRoleLabel = (role: string) => {
         switch (role) {
-            case 'ADMIN':
-                return 'Administrador';
             case 'TEACHER':
                 return 'Docente';
             case 'STUDENT':
@@ -197,10 +269,10 @@ export default function UsersPage() {
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-black dark:text-white">
-                        👥
+                        Usuarios
                     </h1>
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Administra administradores, docentes y estudiantes
+                        Gestiona estudiantes y docentes
                     </p>
                 </div>
                 <button
@@ -224,12 +296,11 @@ export default function UsersPage() {
                     <p className="text-gray-600 dark:text-gray-400">No se encontraron usuarios</p>
                 </div>
             ) : (
-                <InputTable
+                        <GenericTable
                     data={filteredTableData}
                     columns={columns}
                     actions={actions}
-                    onAction={handleAction}
-                    onInputChange={handleInputChange}
+                            onAction={handleAction}
                 />
             )}
 
@@ -283,6 +354,114 @@ export default function UsersPage() {
                 }}
                 userId={deactivateUserId || undefined}
             />
+
+            {/* Modal detalle usuario */}
+            {selectedUser && (
+                <ModalLauncher
+                    isOpen={isDetailModalOpen}
+                    onClose={() => {
+                        setIsDetailModalOpen(false);
+                        setSelectedUser(null);
+                    }}
+                >
+                    {() => (
+                        <div className="space-y-5 p-4">
+                            <div>
+                                <h3 className="text-xl font-semibold text-black dark:text-white">
+                                    Detalles del {selectedUser.role === 'STUDENT' ? 'Estudiante' : selectedUser.role === 'TEACHER' ? 'Docente' : 'Usuario'}
+                                </h3>
+                                <p className="mt-1 text-sm text-body dark:text-bodydark">
+                                    Información completa del usuario.
+                                </p>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                {/* Cédula */}
+                                {selectedUser.profile?.identification && (
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Cédula</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile.identification}</p>
+                                    </div>
+                                )}
+
+                                {/* Nombre */}
+                                {selectedUser.profile?.first_name && (
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Nombre</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile.first_name}</p>
+                                    </div>
+                                )}
+
+                                {/* Apellido */}
+                                {selectedUser.profile?.last_name && (
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Apellido</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile.last_name}</p>
+                                    </div>
+                                )}
+
+                                {/* Código */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Código</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{selectedUser.code}</p>
+                                </div>
+
+                                {/* Rol */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Rol</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{getRoleLabel(selectedUser.role)}</p>
+                                </div>
+
+                                {/* Correo */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Correo</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{selectedUser.email}</p>
+                                </div>
+
+                                {/* Especialidad (solo para TEACHER) */}
+                                {selectedUser.role === 'TEACHER' && (
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Especialidad</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile?.specialty || '-'}</p>
+                                    </div>
+                                )}
+
+                                {/* Teléfono (solo para TEACHER) */}
+                                {selectedUser.role === 'TEACHER' && (
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Teléfono</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile?.phone || '-'}</p>
+                                    </div>
+                                )}
+
+                                {/* Carrera/Matrícula (solo para STUDENT) */}
+                                {selectedUser.role === 'STUDENT' && selectedUser.career?.name && (
+                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                        <p className="text-sm font-medium text-body dark:text-bodydark">Carrera</p>
+                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.career.name}</p>
+                                    </div>
+                                )}
+
+                                {/* Estado */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Estado</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">
+                                        {selectedUser.is_active ? '✅ Activo' : '🚫 Inactivo'}
+                                    </p>
+                                </div>
+
+                                {/* Fecha de Creación */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Fecha de Creación</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">
+                                        {formatDate(selectedUser.created_at)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </ModalLauncher>
+            )}
         </div>
     );
 }

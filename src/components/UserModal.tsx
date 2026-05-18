@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import adminService from '../services/admin.service';
+import { showToast } from '../hooks/fireToast';
 import studentService from '../services/student.service';
 import teacherService from '../services/teacher.service';
 import apiService from '../services/api';
@@ -13,7 +13,7 @@ interface UserModalProps {
     userId?: string;
 }
 
-type UserRole = 'ADMIN' | 'STUDENT' | 'TEACHER';
+type UserRole = 'STUDENT' | 'TEACHER';
 
 export default function UserModal({
     isOpen,
@@ -104,19 +104,19 @@ export default function UserModal({
 
     const validateStep1 = (): boolean => {
         if (!email || !email.includes('@')) {
-            toast.error('Email inválido');
+            showToast('Validación', 'Email inválido', 2);
             return false;
         }
         if (mode === 'create' && !password) {
-            toast.error('Contraseña requerida');
+            showToast('Validación', 'Contraseña requerida', 2);
             return false;
         }
         if (password && password.length < 8) {
-            toast.error('La contraseña debe tener mínimo 8 caracteres');
+            showToast('Validación', 'La contraseña debe tener mínimo 8 caracteres', 2);
             return false;
         }
         if (!code) {
-            toast.error('Código requerido');
+            showToast('Validación', 'Código requerido', 2);
             return false;
         }
         return true;
@@ -124,23 +124,61 @@ export default function UserModal({
 
     const validateStep2 = (): boolean => {
         if (!firstName || !lastName || !identification) {
-            toast.error('Nombre, apellido e identificación son requeridos');
+            showToast('Validación', 'Nombre, apellido e identificación son requeridos', 2);
             return false;
         }
         if (role === 'TEACHER' && !phone) {
-            toast.error('Teléfono requerido para docente');
+            showToast('Validación', 'Teléfono requerido para docente', 2);
             return false;
         }
         return true;
     };
 
-    const handleNext = () => {
-        if (role === 'ADMIN') {
-            handleSubmit();
-        } else {
-            if (validateStep1()) {
-                setCurrentTab(1);
+    const checkDuplicates = async (): Promise<boolean> => {
+        try {
+            const response = await apiService.get<any>('/users/');
+            const users = response.data || [];
+
+            // Validar email duplicado (excepto en modo edit del mismo usuario)
+            const emailExists = users.some((u: any) =>
+                u.email.toLowerCase() === email.toLowerCase() &&
+                (mode === 'create' || u.id !== userId)
+            );
+            if (emailExists) {
+                showToast('Error', 'El correo ya está registrado en el sistema', 2);
+                return false;
             }
+
+            // Validar código duplicado (excepto en modo edit del mismo usuario)
+            const codeExists = users.some((u: any) =>
+                u.code === code &&
+                (mode === 'create' || u.id !== userId)
+            );
+            if (codeExists) {
+                showToast('Error', 'El código ya está registrado en el sistema', 2);
+                return false;
+            }
+
+            // Validar cédula/identification duplicada (excepto en modo edit del mismo usuario)
+            const identificationExists = users.some((u: any) =>
+                u.profile?.identification === identification &&
+                (mode === 'create' || u.id !== userId)
+            );
+            if (identificationExists) {
+                showToast('Error', 'La cédula ya está registrada en el sistema', 2);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            showToast('Error', 'Error al validar duplicados', 2);
+            return false;
+        }
+    };
+
+    const handleNext = () => {
+        if (validateStep1()) {
+            setCurrentTab(1);
         }
     };
 
@@ -157,21 +195,13 @@ export default function UserModal({
         // Luego validar step 2 si es aplicable
         if (currentTab === 1 && !validateStep2()) return;
 
+        // Validar duplicados antes de enviar
+        const noDuplicates = await checkDuplicates();
+        if (!noDuplicates) return;
+
         setLoading(true);
         try {
-            if (role === 'ADMIN') {
-                if (mode === 'create') {
-                    await adminService.createAdmin({
-                        email,
-                        password,
-                        code,
-                    });
-                    toast.success('Admin creado exitosamente');
-                } else {
-                    await adminService.updateAdmin(userId!, { email, is_active: isActive });
-                    toast.success('Admin actualizado exitosamente');
-                }
-            } else if (role === 'STUDENT') {
+            if (role === 'STUDENT') {
                 if (mode === 'create') {
                     await studentService.createStudent({
                         email,
@@ -181,16 +211,15 @@ export default function UserModal({
                         last_name: lastName,
                         identification,
                     });
-                    toast.success('Estudiante creado exitosamente');
+                    showToast('Éxito', 'Estudiante creado exitosamente', 0);
                 } else {
                     await studentService.updateStudent(userId!, {
                         email,
                         first_name: firstName,
                         last_name: lastName,
                         identification,
-                        is_active: isActive,
                     });
-                    toast.success('Estudiante actualizado exitosamente');
+                    showToast('Éxito', 'Estudiante actualizado exitosamente', 0);
                 }
             } else if (role === 'TEACHER') {
                 if (mode === 'create') {
@@ -204,7 +233,7 @@ export default function UserModal({
                         phone,
                         specialty,
                     });
-                    toast.success('Docente creado exitosamente');
+                    showToast('Éxito', 'Docente creado exitosamente', 0);
                 } else {
                     await teacherService.updateTeacher(userId!, {
                         email,
@@ -213,9 +242,8 @@ export default function UserModal({
                         identification,
                         phone,
                         specialty,
-                        is_active: isActive,
                     });
-                    toast.success('Docente actualizado exitosamente');
+                    showToast('Éxito', 'Docente actualizado exitosamente', 0);
                 }
             }
 
@@ -223,7 +251,7 @@ export default function UserModal({
             onSuccess?.();
             onClose();
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Error al guardar el usuario');
+            showToast('Error', error.response?.data?.message || 'Error al guardar el usuario', 2);
             console.error(error);
         } finally {
             setLoading(false);
@@ -259,17 +287,15 @@ export default function UserModal({
                     >
                         Datos de usuario
                     </button>
-                    {role !== 'ADMIN' && (
-                        <button
-                            onClick={() => setCurrentTab(1)}
-                            className={`px-4 py-3 font-medium transition-colors ${currentTab === 1
-                                    ? 'border-b-2 border-green-600 text-green-600'
-                                    : 'text-gray-600 hover:text-gray-900'
-                                }`}
-                        >
-                            Datos de perfil
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setCurrentTab(1)}
+                        className={`px-4 py-3 font-medium transition-colors ${currentTab === 1
+                            ? 'border-b-2 border-green-600 text-green-600'
+                            : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                    >
+                        Datos de perfil
+                    </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
@@ -371,7 +397,7 @@ export default function UserModal({
                             )}
 
                             {/* Mensaje informativo */}
-                            {role !== 'ADMIN' && (
+                            {(
                                 <div className="rounded-md border border-blue-200 bg-blue-50 p-4">
                                     <div className="flex">
                                         <div className="flex-shrink-0">
@@ -399,7 +425,7 @@ export default function UserModal({
                     )}
 
                     {/* TAB 2: Datos de perfil */}
-                    {currentTab === 1 && role !== 'ADMIN' && (
+                    {currentTab === 1 && (
                         <div className="space-y-4">
                             {/* Nombre y Apellido */}
                             <div className="grid grid-cols-2 gap-3">

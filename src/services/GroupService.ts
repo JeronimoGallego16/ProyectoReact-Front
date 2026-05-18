@@ -58,23 +58,26 @@ class GroupService {
   }
 
   // Método para crear un nuevo grupo.
-  // Requisitos: teacher_id, subject_id, semester_id, group_code único.
+  // Requisitos: subject_id, semester_id, group_code único.
+  // El teacher_id es opcional al crear, se asigna después.
   // Validación: un docente no puede repetir asignatura en el mismo semestre.
   async createGroup(payload: GroupCreateInput): Promise<Group | null> {
     try {
-      if (!payload.teacher_id || !payload.subject_id || !payload.semester_id || !payload.group_code) {
-        throw new Error('Teacher, subject, semester, and group code are required');
+      if (!payload.subject_id || !payload.semester_id || !payload.group_code) {
+        throw new Error('Subject, semester, and group code are required');
       }
 
-      // Validar que el docente no tenga ya un grupo con la misma asignatura en este semestre
-      const teacherGroups = await this.getGroupsByTeacher(payload.teacher_id);
-      const conflict = teacherGroups.find(
-        g => g.subject_id === payload.subject_id && g.semester_id === payload.semester_id
-      );
-      if (conflict) {
-        throw new Error(
-          `Teacher already has a group for this subject in this semester (Group: ${conflict.group_code})`
+      // Validar que el docente no tenga ya un grupo con la misma asignatura en este semestre (solo si se proporciona)
+      if (payload.teacher_id) {
+        const teacherGroups = await this.getGroupsByTeacher(payload.teacher_id);
+        const conflict = teacherGroups.find(
+          g => g.subject_id === payload.subject_id && g.semester_id === payload.semester_id
         );
+        if (conflict) {
+          throw new Error(
+            `Teacher already has a group for this subject in this semester (Group: ${conflict.group_code})`
+          );
+        }
       }
 
       // Validar group_code único

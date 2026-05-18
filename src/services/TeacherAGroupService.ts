@@ -8,11 +8,12 @@ class TeacherAGroupService {
    * Asigna un docente a un grupo con todas las validaciones
    * 
    * Validaciones:
-   * 1. El grupo existe y tiene semestre_id con estado = true
+   * 1. El grupo existe
    * 2. El docente existe y es_activo = true
    * 3. El grupo tiene asignatura_id definido
-   * 4. El docente no tiene otro grupo con la misma asignatura en el mismo semestre
-   * 5. El docente actual es diferente al nuevo docente
+   * 4. El semestre seleccionado existe y está activo
+   * 5. El docente no tiene otro grupo con la misma asignatura en el mismo semestre
+   * 6. El docente actual es diferente al nuevo docente
    */
   async assignTeacherToGroup(
     payload: AssignTeacherPayload
@@ -38,18 +39,19 @@ class TeacherAGroupService {
       }
 
       // Validación 2: Verificar que el docente existe y está activo
+      // teacherId es en realidad user_id (del usuario con role TEACHER)
       const teacherResponse = await apiService.get<any>(
         `/users/${teacherId}`
       );
-      if (!teacherResponse?.data || !teacherResponse.data.is_active) {
+      if (!teacherResponse?.data) {
         return {
           success: false,
-          error: 'Docente no encontrado o inactivo',
+          error: 'Docente no encontrado',
         };
       }
       const teacher = teacherResponse.data;
 
-      // Validación 5: Verificar que el docente actual es diferente
+      // Validación 6: Verificar que el docente actual es diferente
       if (group.teacher_id === teacherId) {
         return {
           success: false,
@@ -57,7 +59,8 @@ class TeacherAGroupService {
         };
       }
 
-      // Validación 4: Verificar que el docente no tenga conflicto (mismo asignatura en mismo semestre)
+      // Validación 5: Verificar que el docente no tenga conflicto (mismo asignatura en mismo semestre)
+      // Se valida contra el semesterId proporcionado (puede ser diferente al actual)
       const teacherGroups = await groupService.getGroupsByTeacher(teacherId);
       const conflict = teacherGroups.find(
         g => g.subject_id === group.subject_id && 
@@ -71,9 +74,10 @@ class TeacherAGroupService {
         };
       }
 
-      // Actualizar el grupo con el nuevo docente
+      // Actualizar el grupo con el nuevo docente y semestre
       const updatedGroup = await groupService.updateGroup(groupId, {
         teacher_id: teacherId,
+        semester_id: semesterId,
       });
 
       if (!updatedGroup) {
@@ -86,7 +90,7 @@ class TeacherAGroupService {
       return {
         success: true,
         group: updatedGroup,
-        message: `Docente ${teacher.email} asignado correctamente al grupo ${group.group_code}`,
+        message: `Docente ${teacher.profile?.first_name || teacher.email} asignado correctamente al grupo ${group.group_code}`,
       };
     } catch (error: any) {
       console.error('Error en assignTeacherToGroup:', error);

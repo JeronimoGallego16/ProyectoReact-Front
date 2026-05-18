@@ -1,26 +1,35 @@
 import { useState, useEffect } from 'react';
 import FilterTable from '../components/FilterTable';
+import GenericTable from '../components/GenericTable';
+import ModalLauncher from '../components/ModalLauncher';
 import { groupService } from '../services/GroupService';
 import { subjectService } from '../services/SubjectService';
+import { semesterService } from '../services/SemesterService';
 import teacherService from '../services/teacher.service';
 import TeacherAGroupService from '../services/TeacherAGroupService';
 import DeactivateUserModal from '../components/DeactivateUserModal';
 import { toast } from 'react-hot-toast';
-import { Group, GroupWithDetails, FilterOptionType } from '../models/Group';
+import { GroupWithDetails, FilterOptionType } from '../models/Group';
 import { Subject, TeacherData } from '../models/Subject';
 
 export default function GroupsPage() {
     const [groupsData, setGroupsData] = useState<GroupWithDetails[]>([]);
+    const [tableData, setTableData] = useState<Record<string, any>[]>([]);
     const [subjectsData, setSubjectsData] = useState<Subject[]>([]);
     const [teachersData, setTeachersData] = useState<TeacherData[]>([]);
+    const [semestersData, setSemestersData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<Record<string, string>>({});
+    const [filteredTableData, setFilteredTableData] = useState<Record<string, any>[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<GroupWithDetails | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeactivateModal, setShowDeactivateModal] = useState(false);
     const [selectedTeacher, setSelectedTeacher] = useState<string>('');
-    const [selectedGroup, setSelectedGroup] = useState<string>('');
+    const [selectedGroup2, setSelectedGroup2] = useState<string>('');
+    const [selectedSemesterAssign, setSelectedSemesterAssign] = useState<string>('');
     const [groupToDeactivate, setGroupToDeactivate] = useState<string>('');
     const [isAssigning, setIsAssigning] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
@@ -31,6 +40,7 @@ export default function GroupsPage() {
         groupName: '',
         subjectId: '',
         semesterId: '',
+        teacherId: '',
         capacity: '',
     });
     const [editFormData, setEditFormData] = useState({
@@ -38,6 +48,23 @@ export default function GroupsPage() {
         groupName: '',
         capacity: '',
     });
+
+    const columns = [
+        { key: 'group_code', label: 'Código Grupo' },
+        { key: 'name', label: 'Nombre Grupo' },
+        { key: 'subject_name', label: 'Asignatura' },
+        { key: 'subject_code', label: 'Código Asignatura' },
+        { key: 'semester_name', label: 'Semestre' },
+        { key: 'capacity', label: 'Cupos' },
+        { key: 'teacher_name', label: 'Docente' },
+    ];
+
+    const actions = [
+        { name: 'view', label: 'Ver' },
+        { name: 'edit', label: 'Editar' },
+        { name: 'assign', label: 'Asignar Docente' },
+        { name: 'deactivate', label: 'Desactivar' },
+    ];
 
     const filterOptions: FilterOptionType[] = [
         { id: 'code', label: 'Código Grupo', placeholder: 'Buscar por código...' },
@@ -49,25 +76,29 @@ export default function GroupsPage() {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [groupsRes, subjectsRes, teachersRes] = await Promise.all([
+                const [groupsRes, subjectsRes, teachersRes, semestersRes] = await Promise.all([
                     groupService.getGroups(),
                     subjectService.getSubjects(),
-                    teacherService.getAllTeachers()
+                    teacherService.getAllTeachers(),
+                    semesterService.getSemesters()
                 ]);
 
                 // Mapear respuestas al tipo correcto
                 setGroupsData((groupsRes as GroupWithDetails[]) || []);
                 setSubjectsData(subjectsRes || []);
+                setSemestersData(semestersRes || []);
 
-                // Extrae los docentes - apiService.get() devuelve {success, data: [...]}
-                const teachers: Teacher[] = [];
-                if (teachersRes?.data && Array.isArray(teachersRes.data)) {
-                    teachers.push(...teachersRes.data.map((t: any) => ({
-                        id: t.id,
-                        name: `${t.profile?.first_name || ''} ${t.profile?.last_name || ''}`.trim() || t.email || t.name || 'Sin nombre',
+                // Extrae los docentes - teachersRes devuelve { success, data: [...] } desde /academic/teachers/search
+                const teachers: TeacherData[] = [];
+                const teacherArray = Array.isArray(teachersRes) ? teachersRes : (teachersRes?.data || []);
+                if (Array.isArray(teacherArray)) {
+                    teachers.push(...teacherArray.map((t: any) => ({
+                        id: t.user_id,  // Usar user_id que es lo que guardan los grupos como teacher_id
+                        name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || t.name || 'Sin nombre',
                     })));
                 }
                 setTeachersData(teachers);
+                transformGroupsToTable((groupsRes as GroupWithDetails[]) || [], subjectsRes || [], semestersRes || [], teachers);
             } catch (error) {
                 console.error('Error cargando datos:', error);
                 toast.error('Error cargando los datos');
@@ -80,61 +111,94 @@ export default function GroupsPage() {
         fetchData();
     }, []);
 
-    const handleFilterChange = (filters: Record<string, string>) => {
-        setFilters(filters);
+    const transformGroupsToTable = (groups: GroupWithDetails[], subjects: Subject[], semesters: any[], teachers: TeacherData[]) => {
+        const transformed: Record<string, any>[] = groups.map(group => {
+            const subjectName = subjectService.findSubjectName(group.subject_id, subjects);
+            const subjectCode = subjectService.findSubjectCode(group.subject_id, subjects);
+            const semesterName = semesterService.findSemesterName(group.semester_id, semesters);
+            const teacherName = teacherService.findTeacherName(group.teacher_id, teachers);
+
+            return {
+                id: group.id,
+                group_code: group.group_code || group.code || '',
+                name: group.name || '',
+                subject_name: subjectName,
+                subject_code: subjectCode,
+                semester_name: semesterName,
+                capacity: group.capacity,
+                teacher_name: teacherName,
+                subject_id: group.subject_id,
+                semester_id: group.semester_id,
+                teacher_id: group.teacher_id,
+            };
+        });
+        setTableData(transformed);
     };
 
-    const filteredTableData = groupsData.filter(group => {
-        const groupCode = group.group_code || group.code;
-        return (
-            (!filters.code || groupCode?.toLowerCase().includes(filters.code.toLowerCase())) &&
-            (!filters.name || group.name?.toLowerCase().includes(filters.name.toLowerCase())) &&
-            (!filters.subject_id || group.subject_id === filters.subject_id)
-        );
-    });
+    useEffect(() => {
+        applyFilters();
+    }, [tableData, filters]);
 
-    const getSubjectName = (subjectId: string) => {
-        return subjectsData.find(s => s.id === subjectId)?.name || '-';
-    };
+    const applyFilters = () => {
+        let filtered = tableData;
 
-    const getSubjectCode = (subjectId: string) => {
-        return subjectsData.find(s => s.id === subjectId)?.code || '-';
-    };
+        if (filters.code) {
+            filtered = filtered.filter(g =>
+                g.group_code?.toLowerCase().includes(filters.code.toLowerCase())
+            );
+        }
 
-    const getTeacherName = (teacherId?: string) => {
-        if (!teacherId) return 'Sin asignar';
-        return teachersData.find(t => t.id === teacherId)?.name || 'Sin asignar';
+        if (filters.name) {
+            filtered = filtered.filter(g =>
+                g.name?.toLowerCase().includes(filters.name.toLowerCase())
+            );
+        }
+
+        if (filters.subject_id) {
+            filtered = filtered.filter(g => g.subject_id === filters.subject_id);
+        }
+
+        setFilteredTableData(filtered);
     };
 
     const handleAssignTeacher = async () => {
-        if (!selectedTeacher || !selectedGroup) {
-            toast.error('Por favor selecciona un docente y un grupo');
+        if (!selectedTeacher || !selectedGroup2 || !selectedSemesterAssign) {
+            toast.error('Por favor selecciona un docente, un grupo y un semestre');
             return;
         }
 
         setIsAssigning(true);
         try {
             // Obtener datos del grupo seleccionado
-            const group = groupsData.find(g => g.id === selectedGroup);
+            const group = groupsData.find(g => g.id === selectedGroup2);
             if (!group) {
                 toast.error('Grupo no encontrado');
                 return;
             }
 
+            // Validar que el semestre seleccionado esté activo
+            if (!await semesterService.isSemesterActive(selectedSemesterAssign)) {
+                toast.error('No se puede asignar un docente en un semestre inactivo');
+                setIsAssigning(false);
+                return;
+            }
+
             const result = await TeacherAGroupService.assignTeacherToGroup({
-                semesterId: group.semester_id,
-                groupId: selectedGroup,
+                semesterId: selectedSemesterAssign,
+                groupId: selectedGroup2,
                 teacherId: selectedTeacher,
             });
 
             if (result.success) {
                 toast.success(result.message || 'Docente asignado correctamente');
-                // Actualizar la lista de grupos
+                // Actualizar solo la lista de grupos (como hacía el archivo viejo)
                 const groupsRes = await groupService.getGroups();
                 setGroupsData((groupsRes as GroupWithDetails[]) || []);
+                transformGroupsToTable((groupsRes as GroupWithDetails[]) || [], subjectsData, semestersData, teachersData);
                 setShowAssignModal(false);
                 setSelectedTeacher('');
-                setSelectedGroup('');
+                setSelectedGroup2('');
+                setSelectedSemesterAssign('');
             } else {
                 toast.error(result.error || 'Error al asignar el docente');
             }
@@ -146,8 +210,39 @@ export default function GroupsPage() {
         }
     };
 
+    const handleFilterChange = (newFilters: Record<string, string>) => {
+        setFilters(newFilters);
+    };
+
+    const handleAction = (name: string, item: Record<string, any>) => {
+        const groupId = item.id;
+        const group = groupsData.find(g => g.id === groupId);
+
+        switch (name) {
+            case 'view':
+                if (group) {
+                    setSelectedGroup(group);
+                    setIsDetailModalOpen(true);
+                }
+                break;
+            case 'edit':
+                handleOpenEditModal(group!);
+                break;
+            case 'assign':
+                setSelectedGroup2(groupId);
+                setShowAssignModal(true);
+                break;
+            case 'deactivate':
+                setGroupToDeactivate(groupId);
+                setShowDeactivateModal(true);
+                break;
+            default:
+                break;
+        }
+    };
+
     const handleCreateGroup = async () => {
-        if (!createFormData.groupCode || !createFormData.groupName || !createFormData.subjectId || !createFormData.semesterId || !createFormData.capacity) {
+        if (!createFormData.groupCode || !createFormData.groupName || !createFormData.subjectId || !createFormData.semesterId || !createFormData.teacherId || !createFormData.capacity) {
             toast.error('Por favor completa todos los campos');
             return;
         }
@@ -160,7 +255,7 @@ export default function GroupsPage() {
                 subject_id: createFormData.subjectId,
                 semester_id: createFormData.semesterId,
                 capacity: parseInt(createFormData.capacity),
-                teacher_id: '',
+                teacher_id: createFormData.teacherId,
             });
 
             if (result) {
@@ -168,12 +263,14 @@ export default function GroupsPage() {
                 // Actualizar la lista de grupos
                 const groupsRes = await groupService.getGroups();
                 setGroupsData((groupsRes as GroupWithDetails[]) || []);
+                transformGroupsToTable((groupsRes as GroupWithDetails[]) || [], subjectsData, semestersData, teachersData);
                 setShowCreateModal(false);
                 setCreateFormData({
                     groupCode: '',
                     groupName: '',
                     subjectId: '',
                     semesterId: '',
+                    teacherId: '',
                     capacity: '',
                 });
             } else {
@@ -216,6 +313,7 @@ export default function GroupsPage() {
                 // Actualizar la lista de grupos
                 const groupsRes = await groupService.getGroups();
                 setGroupsData((groupsRes as GroupWithDetails[]) || []);
+                transformGroupsToTable((groupsRes as GroupWithDetails[]) || [], subjectsData, semestersData, teachersData);
                 setShowEditModal(false);
                 setEditingGroupId('');
                 setEditFormData({
@@ -234,16 +332,12 @@ export default function GroupsPage() {
         }
     };
 
-    const handleOpenDeactivateModal = (groupId: string) => {
-        setGroupToDeactivate(groupId);
-        setShowDeactivateModal(true);
-    };
-
     const handleDeactivateGroupSuccess = async () => {
         try {
             // Actualizar la lista de grupos después de desactivar
             const groupsRes = await groupService.getGroups();
             setGroupsData((groupsRes as GroupWithDetails[]) || []);
+            transformGroupsToTable((groupsRes as GroupWithDetails[]) || [], subjectsData, semestersData, teachersData);
             setShowDeactivateModal(false);
             setGroupToDeactivate('');
             toast.success('Grupo desactivado correctamente');
@@ -258,32 +352,22 @@ export default function GroupsPage() {
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-black dark:text-white">
-                        📚
+                        Asignar un docente a un grupo
                     </h1>
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Administra los grupos de clase y docentes
+                        Administra los grupos de clase y asignación de docentes
                     </p>
                 </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="rounded-lg !bg-green-700 px-6 py-2.5 font-medium !text-white hover:!bg-green-800 transition shadow-md"
-                    >
-                        ➕ Crear Grupo
-                    </button>
-                    <button
-                        onClick={() => setShowAssignModal(true)}
-                        className="rounded-lg !bg-blue-700 px-6 py-2.5 font-medium !text-white hover:!bg-blue-800 transition shadow-md"
-                    >
-                        👨‍🏫 Asignar Docente
-                    </button>
-                </div>
+                <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="rounded-lg !bg-green-700 px-6 py-2.5 font-medium !text-white hover:!bg-green-800 transition shadow-md"
+                >
+                    ➕ Crear Grupo
+                </button>
             </div>
 
             {/* Filters */}
-            <div className="mb-6">
-                <FilterTable filters={filterOptions} onFilterChange={handleFilterChange} />
-            </div>
+            <FilterTable filters={filterOptions} onFilterChange={handleFilterChange} />
 
             {/* Tabla de grupos */}
             {loading ? (
@@ -295,56 +379,89 @@ export default function GroupsPage() {
                     <p className="text-gray-600 dark:text-gray-400">No se encontraron grupos</p>
                 </div>
             ) : (
-                <div className="overflow-hidden rounded-lg border border-gray-300 shadow-default dark:border-strokedark dark:bg-boxdark">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="bg-gray-100 dark:bg-meta-4">
-                                <th className="px-4 py-5 text-left text-sm font-medium text-black dark:text-white">Código Grupo</th>
-                                <th className="px-4 py-5 text-left text-sm font-medium text-black dark:text-white">Nombre Grupo</th>
-                                <th className="px-4 py-5 text-left text-sm font-medium text-black dark:text-white">Asignatura</th>
-                                <th className="px-4 py-5 text-left text-sm font-medium text-black dark:text-white">Código Asignatura</th>
-                                <th className="px-4 py-5 text-left text-sm font-medium text-black dark:text-white">Carrera / Programa</th>
-                                <th className="px-4 py-5 text-left text-sm font-medium text-black dark:text-white">Cupos</th>
-                                <th className="px-4 py-5 text-left text-sm font-medium text-black dark:text-white">Docente Actual</th>
-                                <th className="px-4 py-5 text-left text-sm font-medium text-black dark:text-white">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredTableData.map((group, index) => (
-                                <tr key={group.id} className={index % 2 === 0 ? 'bg-white dark:bg-boxdark' : 'bg-gray-50 dark:bg-meta-4'}>
-                                    <td className="px-4 py-5 text-sm text-black dark:text-white">{group.group_code || group.code}</td>
-                                    <td className="px-4 py-5 text-sm text-black dark:text-white">{group.name}</td>
-                                    <td className="px-4 py-5 text-sm text-black dark:text-white">{getSubjectName(group.subject_id)}</td>
-                                    <td className="px-4 py-5 text-sm text-black dark:text-white">{getSubjectCode(group.subject_id)}</td>
-                                    <td className="px-4 py-5 text-sm text-black dark:text-white">-</td>
-                                    <td className="px-4 py-5 text-sm text-black dark:text-white">{group.capacity}</td>
-                                    <td className="px-4 py-5 text-sm">
-                                        <span className={`inline-block rounded px-3 py-1 text-xs font-medium ${group.teacher_id
-                                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                            }`}>
-                                            {getTeacherName(group.teacher_id)}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-5 text-sm flex gap-2">
-                                        <button
-                                            onClick={() => handleOpenEditModal(group)}
-                                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
-                                        >
-                                            ✏️ Editar
-                                        </button>
-                                        <button
-                                            onClick={() => handleOpenDeactivateModal(group.id)}
-                                            className="text-red-600 hover:text-red-800 dark:text-red-400"
-                                        >
-                                            🗑️ Desactivar
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <GenericTable
+                    data={filteredTableData}
+                    columns={columns}
+                    actions={actions}
+                    onAction={handleAction}
+                />
+            )}
+
+            {/* Información de paginación */}
+            {filteredTableData.length > 0 && (
+                <div className="mt-4 rounded-lg border border-gray-300 bg-white p-4 shadow-default dark:border-strokedark dark:bg-boxdark">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Mostrando {filteredTableData.length} de {tableData.length} grupos
+                    </p>
                 </div>
+            )}
+
+            {/* Modal detalle grupo */}
+            {selectedGroup && (
+                <ModalLauncher
+                    isOpen={isDetailModalOpen}
+                    onClose={() => {
+                        setIsDetailModalOpen(false);
+                        setSelectedGroup(null);
+                    }}
+                >
+                    {() => (
+                        <div className="space-y-5 p-4">
+                            <div>
+                                <h3 className="text-xl font-semibold text-black dark:text-white">
+                                    Detalles del Grupo
+                                </h3>
+                                <p className="mt-1 text-sm text-body dark:text-bodydark">
+                                    Información completa del grupo.
+                                </p>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                {/* Código Grupo */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Código Grupo</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{selectedGroup.group_code || selectedGroup.code || '-'}</p>
+                                </div>
+
+                                {/* Nombre Grupo */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Nombre Grupo</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{selectedGroup.name || '-'}</p>
+                                </div>
+
+                                {/* Asignatura */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Asignatura</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{subjectService.findSubjectName(selectedGroup.subject_id, subjectsData)}</p>
+                                </div>
+
+                                {/* Código Asignatura */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Código Asignatura</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{subjectService.findSubjectCode(selectedGroup.subject_id, subjectsData)}</p>
+                                </div>
+
+                                {/* Semestre */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Semestre</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{semesterService.findSemesterName(selectedGroup.semester_id, semestersData)}</p>
+                                </div>
+
+                                {/* Capacidad */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Capacidad</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{selectedGroup.capacity}</p>
+                                </div>
+
+                                {/* Docente */}
+                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark sm:col-span-2">
+                                    <p className="text-sm font-medium text-body dark:text-bodydark">Docente Asignado</p>
+                                    <p className="mt-2 text-base text-black dark:text-white">{teacherService.findTeacherName(selectedGroup.teacher_id, teachersData)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </ModalLauncher>
             )}
 
             {/* Modal Asignar Docente */}
@@ -357,17 +474,26 @@ export default function GroupsPage() {
 
                         <div className="mb-4">
                             <label className="mb-2 block text-sm font-medium text-black dark:text-white">
-                                Seleccionar Grupo
+                                Grupo Seleccionado
+                            </label>
+                            <div className="w-full rounded border border-gray-300 bg-gray-100 px-4 py-2 text-black dark:border-strokedark dark:bg-gray-700 dark:text-white">
+                                {groupsData.find(g => g.id === selectedGroup2)?.group_code || groupsData.find(g => g.id === selectedGroup2)?.code} - {groupsData.find(g => g.id === selectedGroup2)?.name}
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="mb-2 block text-sm font-medium text-black dark:text-white">
+                                Seleccionar Semestre
                             </label>
                             <select
-                                value={selectedGroup}
-                                onChange={(e) => setSelectedGroup(e.target.value)}
+                                value={selectedSemesterAssign}
+                                onChange={(e) => setSelectedSemesterAssign(e.target.value)}
                                 className="w-full rounded border border-gray-300 bg-white px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
                             >
-                                <option value="">-- Selecciona un grupo --</option>
-                                {groupsData.map((group) => (
-                                    <option key={group.id} value={group.id}>
-                                        {group.group_code || group.code} - {group.name}
+                                <option value="">-- Selecciona un semestre --</option>
+                                {semestersData.map((semester) => (
+                                    <option key={semester.id} value={semester.id}>
+                                        {semester.name || semester.codigo}
                                     </option>
                                 ))}
                             </select>
@@ -396,7 +522,8 @@ export default function GroupsPage() {
                                 onClick={() => {
                                     setShowAssignModal(false);
                                     setSelectedTeacher('');
-                                    setSelectedGroup('');
+                                    setSelectedGroup2('');
+                                    setSelectedSemesterAssign('');
                                 }}
                                 disabled={isAssigning}
                                 className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-black hover:bg-gray-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
@@ -472,13 +599,36 @@ export default function GroupsPage() {
                                 <label className="mb-2 block text-sm font-medium text-black dark:text-white">
                                     Semestre <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    placeholder="ID del semestre"
+                                <select
                                     value={createFormData.semesterId}
                                     onChange={(e) => setCreateFormData({ ...createFormData, semesterId: e.target.value })}
                                     className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
-                                />
+                                >
+                                    <option value="">-- Selecciona un semestre --</option>
+                                    {semestersData.map((semester) => (
+                                        <option key={semester.id} value={semester.id}>
+                                            {semester.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
+                                    Docente <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    value={createFormData.teacherId}
+                                    onChange={(e) => setCreateFormData({ ...createFormData, teacherId: e.target.value })}
+                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                >
+                                    <option value="">-- Selecciona un docente --</option>
+                                    {teachersData.map((teacher) => (
+                                        <option key={teacher.id} value={teacher.id}>
+                                            {teacher.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div>
@@ -505,6 +655,7 @@ export default function GroupsPage() {
                                         groupName: '',
                                         subjectId: '',
                                         semesterId: '',
+                                        teacherId: '',
                                         capacity: '',
                                     });
                                 }}

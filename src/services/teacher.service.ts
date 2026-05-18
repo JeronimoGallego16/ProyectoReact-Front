@@ -7,13 +7,14 @@ import { CreateTeacherPayload, UpdateTeacherPayload } from '../models/TeacherPay
  */
 class TeacherService {
   private endpoint = '/users';
-  private searchEndpoint = '/users/search';
+  private teacherEndpoint = '/academic/teachers';
+  private searchEndpoint = '/academic/teachers/search';
 
   /**
    * Listar todos los docentes
    */
   async getAllTeachers(): Promise<ApiResponse<Teacher[]>> {
-    return apiService.get<Teacher[]>(this.searchEndpoint, { role: 'TEACHER' });
+    return apiService.get<Teacher[]>(this.searchEndpoint);
   }
 
   /**
@@ -55,6 +56,14 @@ class TeacherService {
    */
   async deleteTeacher(teacherId: string): Promise<ApiResponse<any>> {
     return apiService.delete<any>(`${this.endpoint}/${teacherId}`);
+  }
+
+  /**
+   * Método helper para encontrar el nombre de un docente en un array (búsqueda síncrona)
+   */
+  findTeacherName(teacherId: string | undefined, teachers: any[]): string {
+    if (!teacherId) return 'Sin asignar';
+    return teachers.find(t => t.id === teacherId)?.name || 'Sin asignar';
   }
 }
 

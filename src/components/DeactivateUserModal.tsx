@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import adminService from '../services/admin.service';
 import studentService from '../services/student.service';
 import teacherService from '../services/teacher.service';
 import apiService from '../services/api';
@@ -83,9 +82,7 @@ export default function DeactivateUserModal({
             const role = userData.role || 'STUDENT';
             let response: any;
 
-            if (role === 'ADMIN') {
-                response = await adminService.deactivateAdmin(userData.id);
-            } else if (role === 'STUDENT') {
+            if (role === 'STUDENT') {
                 response = await studentService.deactivateStudent(userData.id);
             } else if (role === 'TEACHER') {
                 response = await teacherService.deactivateTeacher(userData.id);

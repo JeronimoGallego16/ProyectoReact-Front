@@ -127,6 +127,16 @@ class SubjectService {
     }
   }
 
+  // Método helper para encontrar el código de una asignatura en un array (búsqueda síncrona)
+  findSubjectCode(subjectId: string, subjects: Subject[]): string {
+    return subjects.find(s => s.id === subjectId)?.code || '-';
+  }
+
+  // Método helper para encontrar el nombre de una asignatura en un array (búsqueda síncrona)
+  findSubjectName(subjectId: string, subjects: Subject[]): string {
+    return subjects.find(s => s.id === subjectId)?.name || '-';
+  }
+
   // Helpers
   private _handleError(error: any): any {
     if (error.response?.data?.error) {

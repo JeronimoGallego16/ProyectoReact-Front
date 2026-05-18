@@ -18,7 +18,6 @@ const StudyPlanDetailsPage = lazy(() => import('../pages/Academic/StudyPlanDetai
 const EnrollInGroupPage = lazy(() => import('../pages/Academic/EnrollInGroup'));
 const UsersPage = lazy(() => import('../pages/UsersPage'));
 const GroupsPage = lazy(() => import('../pages/GroupsPage'));
-const CareersPage = lazy(() => import('../pages/CareersPage'));
 const EnrollmentPage = lazy(() => import('../pages/EnrollmentPage'));
 
 
@@ -37,11 +36,6 @@ const coreRoutes = [
     path: '/grupos',
     title: 'Grupos',
     component: GroupsPage,
-  },
-  {
-    path: '/carreras',
-    title: 'Carreras',
-    component: CareersPage,
   },
   {
     path: '/matricula',

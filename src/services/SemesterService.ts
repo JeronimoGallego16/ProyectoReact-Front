@@ -129,6 +129,36 @@ class SemesterService {
     }
   }
 
+  // Método para obtener el nombre de un semestre por ID.
+  async getSemesterName(id: string): Promise<string> {
+    try {
+      const semester = await this.getSemesterById(id);
+      return semester?.name || '-';
+    } catch (error) {
+      return this._handleError(error) || '-';
+    }
+  }
+
+  // Método para verificar si un semestre está activo.
+  async isSemesterActive(id: string): Promise<boolean> {
+    try {
+      const semester = await this.getSemesterById(id);
+      return semester?.is_active === true;
+    } catch (error) {
+      return this._handleError(error) || false;
+    }
+  }
+
+  // Método helper para encontrar el nombre de un semestre en un array (búsqueda síncrona)
+  findSemesterName(semesterId: string, semesters: Semester[]): string {
+    return semesters.find(s => s.id === semesterId)?.name || '-';
+  }
+
+  // Método helper para verificar si un semestre está activo en un array (búsqueda síncrona)
+  findSemesterActive(semesterId: string, semesters: Semester[]): boolean {
+    return semesters.find(s => s.id === semesterId)?.is_active === true;
+  }
+
   // Helpers
   private _getErrorMessage(error: any): string {
     if (error.response?.data?.error) return error.response.data.error;
