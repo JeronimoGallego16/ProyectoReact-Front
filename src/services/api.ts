@@ -48,7 +48,8 @@ class ApiService {
         if (error.response?.status === 401) {
           // Token inválido o expirado
           localStorage.removeItem('token');
-          window.location.href = '/signin';
+          localStorage.removeItem('user'); 
+          window.location.href = '/auth/signin';
         }
         return Promise.reject(error);
       }

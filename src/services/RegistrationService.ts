@@ -105,13 +105,18 @@ class RegistrationService {
   }
 
   // Método para cambiar el estado académico de una matrícula (ej: de activo a retirado).
-  async updateAcademicStatus(registrationId: string, academicStatus: string): Promise<Registration | null> {
-    try {
-      return await this.updateRegistration(registrationId, { academic_status: academicStatus });
-    } catch (error) {
-      return this._handleError(error);
-    }
+async updateAcademicStatus(registrationId: string, academicStatus: string): Promise<Registration | null> {
+  try {
+    // Si el estado es ACTIVE, también reactiva is_active
+    const payload: RegistrationUpdateInput = academicStatus === 'ACTIVE'
+      ? { academic_status: academicStatus, is_active: true }
+      : { academic_status: academicStatus };
+
+    return await this.updateRegistration(registrationId, payload);
+  } catch (error) {
+    return this._handleError(error);
   }
+}
 
   // Método para desactivar una matrícula (sin eliminar el registro).
   async deactivateRegistration(registrationId: string): Promise<Registration | null> {

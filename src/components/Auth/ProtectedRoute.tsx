@@ -10,10 +10,10 @@ interface Props {
 export default function ProtectedRoute({ children, roles }: Props) {
     const user = useSelector((state: RootState) => state.user.user);
 
-    // No está logueado
+    console.log('ProtectedRoute - user:', user); // 👈 agrega esto temporalmente
+
     if (!user) return <Navigate to="/auth/signin" replace />;
 
-    // No tiene el rol requerido
     if (!roles.includes(user.role)) {
         return <Navigate to="/unauthorized" replace />;
     }

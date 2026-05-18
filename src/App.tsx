@@ -1,19 +1,44 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom'; // ← quita useNavigate
 import { Toaster } from 'react-hot-toast';
+import { jwtDecode } from 'jwt-decode';
+import { useDispatch } from 'react-redux';
+import { clearUser } from './store/userSlice';
 
 import SignIn from './pages/Authentication/SignIn';
 import SignUp from './pages/Authentication/SignUp';
 import Loader from './common/Loader';
 import routes from './routes';
-import ProtectedRoute from './components/Auth/ProtectedRoute'; // ajusta la ruta si es diferente
+import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 const DefaultLayout = lazy(() => import('./layout/DefaultLayout'));
 
 function App() {
   const [loading, setLoading] = useState<boolean>(true);
+  const dispatch = useDispatch();
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+
+    if (token) {
+      try {
+        const decoded: any = jwtDecode(token);
+        const now = Date.now() / 1000;
+
+        if (decoded.exp && decoded.exp < now) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          dispatch(clearUser());
+        }
+      } catch (error) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        dispatch(clearUser());
+      }
+    } else {
+      dispatch(clearUser());
+    }
+
     setTimeout(() => setLoading(false), 1000);
   }, []);
 
@@ -36,7 +61,15 @@ function App() {
           </div>
         } />
         <Route element={<DefaultLayout />}>
-          <Route index element={<div className="py-10 text-center">Welcome</div>} />
+          {/* ← index ahora también está protegido */}
+          <Route
+            index
+            element={
+              <ProtectedRoute roles={['ADMIN', 'TEACHER', 'STUDENT']}>
+                <div className="py-10 text-center">Welcome</div>
+              </ProtectedRoute>
+            }
+          />
           {routes.map((route, index) => {
             const { path, component: Component, roles } = route;
             return (
