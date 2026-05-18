@@ -38,7 +38,24 @@ class EnrollmentService {
   async getActiveEnrollmentsByStudent(studentId: string): Promise<Enrollment[]> {
     try {
       const enrollments = await this.getEnrollmentsByStudent(studentId);
-      return enrollments.filter(e => e.status === 'ACTIVE');
+      // Intentar filtrar por semestre activo: solo devolver inscripciones activas cuyo grupo
+      // pertenece al semestre activo. Si no hay semestre activo, volver al comportamiento previo.
+      const activeSem = await semesterService.getActiveSemester();
+      // (no derivamos año aquí; solo necesitamos activeSem.id para filtrar grupos)
+      if (!activeSem) {
+        return enrollments.filter(e => e.status === 'ACTIVE');
+      }
+
+      const result: Enrollment[] = [];
+      for (const e of (enrollments || []).filter(en => en.status === 'ACTIVE')) {
+        try {
+          const g = await groupService.getGroupById(e.group_id);
+          if (g && g.semester_id === activeSem.id) result.push(e);
+        } catch (err) {
+          // Si no se puede obtener el grupo, ignorar esa inscripción (evita romper flujo)
+        }
+      }
+      return result;
     } catch (error) {
       return this._handleError(error) || [];
     }
@@ -67,20 +84,51 @@ class EnrollmentService {
 
   private async getCareerRegistrationForGroup(studentId: string, subjectId: string): Promise<{ careerId: string; registrationId: string } | null> {
     try {
-      const activeRegistrations = await registrationService.getActiveRegistrationsByStudent(studentId);
+      const activeSem = await semesterService.getActiveSemester();
+      // derive semester year from name/code if possible
+      let semYear: number | null = null;
+      if (activeSem) {
+        const hay = (activeSem.name || '') + ' ' + (activeSem.code || '');
+        const m = hay.match(/(19|20)\d{2}/);
+        if (m) semYear = parseInt(m[0], 10);
+      }
+      // Buscar todas las matrículas (activas e inactivas) y reactivar si hace falta
+      const registrations = await registrationService.getRegistrationsByStudent(studentId);
 
-      for (const registration of activeRegistrations) {
+      for (const registration of registrations || []) {
         const activeStudyPlan = await studyPlanService.getActiveStudyPlan(registration.career_id);
-        if (!activeStudyPlan) {
+        // Enforce that the study plan year matches the active semester year (if we can derive it)
+        if (semYear !== null && activeStudyPlan && typeof activeStudyPlan.year === 'number') {
+          if (activeStudyPlan.year !== semYear) {
+            continue; // ignore plans that are not for the active semester year
+          }
+        }
+        if (!activeStudyPlan) continue;
+
+        const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activeStudyPlan.id);
+        if (!subjects.some(subject => subject.id === subjectId)) {
           continue;
         }
 
-        const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activeStudyPlan.id);
-        if (subjects.some(subject => subject.id === subjectId)) {
+        // Si la matrícula ya está activa, devolvemos la coincidencia
+        if (registration.is_active) {
           return {
             careerId: registration.career_id,
             registrationId: registration.id,
           };
+        }
+
+        // Si existe una matrícula inactiva que corresponde al plan, intentamos reactivarla
+        try {
+          const updated = await registrationService.updateAcademicStatus(registration.id, 'ACTIVE');
+          if (updated) {
+            return {
+              careerId: updated.career_id || registration.career_id,
+              registrationId: updated.id || registration.id,
+            };
+          }
+        } catch (err) {
+          // si falla la reactivación, continuar buscando otras opciones
         }
       }
 

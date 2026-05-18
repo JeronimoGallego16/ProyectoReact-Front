@@ -22,12 +22,15 @@ const EnrollInGroupPage: React.FC = () => {
 
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [registrations, setRegistrations] = useState<any[]>([]);
-  const [activeRegistration, setActiveRegistration] = useState<any | null>(null);
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupSubjectsMap, setGroupSubjectsMap] = useState<Record<string, any>>({});
+  const [groupEnrollmentCountMap, setGroupEnrollmentCountMap] = useState<Record<string, number>>({});
   const [selectedGroups, setSelectedGroups] = useState<Record<string, boolean>>({});
   const [currentCredits, setCurrentCredits] = useState<number>(0);
+  
+  const [allowedGroupIds, setAllowedGroupIds] = useState<Set<string>>(new Set());
+  const [currentEnrollments, setCurrentEnrollments] = useState<any[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -71,36 +74,133 @@ const EnrollInGroupPage: React.FC = () => {
 
   const selectStudent = async (student: Student) => {
     setSelectedStudent(student);
+    const academicStudentId = student.profile?.id || student.id;
+    
+    // Get active semester and derive its year (used to restrict study plans)
+    const activeSem = await semesterService.getActiveSemester();
+    let semYear: number | null = null;
+    if (activeSem) {
+      const hay = (activeSem.name || '') + ' ' + (activeSem.code || '');
+      const m = hay.match(/(19|20)\d{2}/);
+      if (m) semYear = parseInt(m[0], 10);
+    }
     // load active registrations for student
-    const regs = await registrationService.getActiveRegistrationsByStudent(student.id);
+    const regs = await registrationService.getActiveRegistrationsByStudent(academicStudentId);
     setRegistrations(regs || []);
-    setActiveRegistration(regs && regs.length > 0 ? regs[0] : null);
+    
+    // load current enrollments to show what's already enrolled
+    const currentEnrols = await enrollmentService.getActiveEnrollmentsByStudent(academicStudentId);
+    setCurrentEnrollments(currentEnrols || []);
 
+    
+    
     // load current enrolled credits
-    const credits = await enrollmentService.getTotalCreditsEnrolled(student.id);
+    const credits = await enrollmentService.getTotalCreditsEnrolled(academicStudentId);
     setCurrentCredits(credits || 0);
 
-    // prepare group -> subject info map
+    // prepare group -> subject info map AND count enrollments per group
     const map: Record<string, any> = {};
+    const countMap: Record<string, number> = {};
     for (const g of groups) {
       const subj = await subjectService.getSubjectById(g.subject_id);
       map[g.id] = subj || null;
+      
+      // Count current enrollments for this group
+      const groupEnrols = await enrollmentService.getEnrollmentsByGroup(g.id);
+      countMap[g.id] = (groupEnrols || []).filter(e => e.status === 'ACTIVE').length;
     }
     setGroupSubjectsMap(map);
-    setSelectedGroups({});
-    // Diagnostic logging to help debug enrollment issues
+    setGroupEnrollmentCountMap(countMap);
+
+    // Ensure groups list includes any groups referenced by the student's enrollments
     try {
-      console.debug('[EnrollInGroup] selected student registrations:', regs);
-      for (const reg of regs || []) {
-        const activePlan = await studyPlanService.getActiveStudyPlan(reg.career_id);
-        console.debug(`[EnrollInGroup] registration ${reg.id} -> activePlan:`, activePlan);
-        if (activePlan) {
-          const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activePlan.id);
-          console.debug(`[EnrollInGroup] subjects in active plan ${activePlan.id}:`, subjects.map(s => s.id));
+      const existingGroupIds = new Set(groups.map(g => g.id));
+      const missingGroupIds = (currentEnrols || []).
+        map((e: any) => e.group_id)
+        .filter((gid: string) => gid && !existingGroupIds.has(gid));
+
+      if (missingGroupIds.length > 0) {
+        const fetched: Group[] = [];
+        const newMap: Record<string, any> = { ...map };
+        const newCountMap: Record<string, number> = { ...countMap };
+
+        for (const gid of missingGroupIds) {
+          try {
+            const g = await groupService.getGroupById(gid);
+            // Include the group only if it belongs to the active semester
+            if (g && activeSem && g.semester_id === activeSem.id) {
+              fetched.push(g);
+              const subj = await subjectService.getSubjectById(g.subject_id);
+              newMap[g.id] = subj || null;
+              const groupEnrols = await enrollmentService.getEnrollmentsByGroup(g.id);
+              newCountMap[g.id] = (groupEnrols || []).filter((e: any) => e.status === 'ACTIVE').length;
+            }
+          } catch (err) {
+            console.warn('[EnrollInGroup] could not fetch missing group', gid, err);
+          }
+        }
+
+        if (fetched.length > 0) {
+          setGroups(prev => {
+            const mapPrev = new Map(prev.map(g => [g.id, g]));
+            for (const fg of fetched) mapPrev.set(fg.id, fg);
+            return Array.from(mapPrev.values());
+          });
+
+          setGroupSubjectsMap(newMap);
+          setGroupEnrollmentCountMap(newCountMap);
         }
       }
-    } catch (diagErr) {
-      console.warn('[EnrollInGroup] diagnostic error', diagErr);
+    } catch (err) {
+      console.warn('[EnrollInGroup] error ensuring missing groups', err);
+    }
+
+    // Determine which groups are allowed for this student (based on their career study plans)
+    const allowedIds = new Set<string>();
+    if (regs && regs.length > 0) {
+      for (const reg of regs) {
+        const activePlan = await studyPlanService.getActiveStudyPlan(reg.career_id);
+        if (!activePlan) continue;
+        // Only consider study plans that match the active semester year (if derivable)
+        if (semYear !== null && typeof activePlan.year === 'number' && activePlan.year !== semYear) {
+          continue;
+        }
+        const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activePlan.id);
+        const subjectIds = new Set((subjects || []).map(s => s.id));
+        
+        // Find all groups whose subject is in this study plan
+        for (const g of groups) {
+          if (subjectIds.has(g.subject_id)) {
+            allowedIds.add(g.id);
+          }
+        }
+      }
+    }
+    setAllowedGroupIds(allowedIds);
+    setSelectedGroups({});
+  };
+
+  const ensureActiveRegistrationForGroup = async (studentId: string, groupId: string) => {
+    try {
+      const group = await groupService.getGroupById(groupId);
+      if (!group) return;
+
+      const regs = await registrationService.getRegistrationsByStudent(studentId);
+      for (const reg of regs || []) {
+        const activePlan = await studyPlanService.getActiveStudyPlan(reg.career_id);
+        if (!activePlan) continue;
+        const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activePlan.id);
+        if (subjects.some(s => s.id === group.subject_id)) {
+          if (!reg.is_active) {
+            await registrationService.updateAcademicStatus(reg.id, 'ACTIVE');
+            const newRegs = await registrationService.getRegistrationsByStudent(studentId);
+            setRegistrations(newRegs || []);
+          }
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[EnrollInGroup] could not ensure active registration', err);
     }
   };
 
@@ -120,8 +220,8 @@ const EnrollInGroupPage: React.FC = () => {
 
   const handleConfirmEnroll = async () => {
     if (!selectedStudent) return showToast('Error', 'Selecciona un estudiante', 2);
-    if (!activeRegistration) return showToast('Error', 'El estudiante no tiene matrícula activa', 2);
 
+    const academicStudentId = selectedStudent.profile?.id || selectedStudent.id;
     const chosen = Object.keys(selectedGroups).filter(k => selectedGroups[k]);
     if (chosen.length === 0) return showToast('Error', 'Selecciona al menos un grupo', 2);
 
@@ -133,7 +233,7 @@ const EnrollInGroupPage: React.FC = () => {
     // validate availability and duplicates
     for (const gid of chosen) {
       try {
-        const can = await enrollmentService.canEnrollInGroup(selectedStudent.id, gid);
+        const can = await enrollmentService.canEnrollInGroup(academicStudentId, gid);
         if (!can.canEnroll) return showToast('Error', `No se puede inscribir en grupo ${gid}: ${can.reason}`, 2);
       } catch (err) {
         return showToast('Error', `Error validando grupo ${gid}`, 2);
@@ -143,22 +243,61 @@ const EnrollInGroupPage: React.FC = () => {
     // All good: create enrollments
     try {
       for (const gid of chosen) {
-        const created = await enrollmentService.createEnrollment({ student_id: selectedStudent.id, group_id: gid, status: 'ACTIVE' });
+        // Ensure student has an active registration for the career that contains this subject
+        await ensureActiveRegistrationForGroup(academicStudentId, gid);
+
+        const created = await enrollmentService.createEnrollment({ student_id: academicStudentId, group_id: gid, status: 'ACTIVE' });
         if (!created) {
-          // createEnrollment returns null on failure and logs details to console
-          console.error(`[EnrollInGroup] createEnrollment failed for student ${selectedStudent.id} group ${gid}`);
           return showToast('Error', `No se pudo crear la inscripción para el grupo ${gid}. Revisa la consola para más detalles.`, 2);
         }
       }
       showToast('Éxito', 'Inscripciones creadas correctamente', 0);
-      // refresh
-      const credits = await enrollmentService.getTotalCreditsEnrolled(selectedStudent.id);
+      
+      // REFRESH: Reload all data for the student and CLEAR selected groups
+      const currentEnrols = await enrollmentService.getActiveEnrollmentsByStudent(academicStudentId);
+      setCurrentEnrollments(currentEnrols || []);
+      
+      const credits = await enrollmentService.getTotalCreditsEnrolled(academicStudentId);
       setCurrentCredits(credits || 0);
+      
+      // Clear selected groups after successful inscription
       setSelectedGroups({});
+      
+      // Update enrollment counts
+      const countMap: Record<string, number> = {};
+      for (const g of groups) {
+        const groupEnrols = await enrollmentService.getEnrollmentsByGroup(g.id);
+        countMap[g.id] = (groupEnrols || []).filter(e => e.status === 'ACTIVE').length;
+      }
+      setGroupEnrollmentCountMap(countMap);
+
+      // IMPORTANT: Recalculate allowedGroupIds to prevent -1 counter bug
+      // This ensures allowedGroupIds matches the new enrollment state
+      // Use the SAME logic as in selectStudent()
+      const regs = await registrationService.getActiveRegistrationsByStudent(academicStudentId);
+      const allowedIds = new Set<string>();
+      if (regs && regs.length > 0) {
+        for (const reg of regs) {
+          const activePlan = await studyPlanService.getActiveStudyPlan(reg.career_id);
+          if (!activePlan) continue;
+          const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activePlan.id);
+          const subjectIds = new Set((subjects || []).map(s => s.id));
+          
+          // Find all groups whose subject is in this study plan
+          for (const g of groups) {
+            if (subjectIds.has(g.subject_id)) {
+              allowedIds.add(g.id);
+            }
+          }
+        }
+      }
+      setAllowedGroupIds(allowedIds);
     } catch (err: any) {
       showToast('Error', `No se pudo crear inscripciones: ${err?.message || String(err)}`, 2);
     }
   };
+
+  const availableCount = Array.from(allowedGroupIds).filter(id => !currentEnrollments.some(e => e.group_id === id)).length;
 
   return (
     <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
@@ -181,12 +320,23 @@ const EnrollInGroupPage: React.FC = () => {
               ) : filteredStudents.length === 0 ? (
                 <div className="text-sm text-body dark:text-bodydark">No se encontraron estudiantes.</div>
               ) : (
-                filteredStudents.map(s => (
-                  <div key={s.id} className={`p-2 rounded hover:bg-gray-50 cursor-pointer ${selectedStudent?.id === s.id ? 'bg-gray-100' : ''}`} onClick={() => void selectStudent(s)}>
-                    <div className="text-sm font-medium text-black dark:text-white">{s.profile?.first_name} {s.profile?.last_name}</div>
-                    <div className="text-xs text-body dark:text-bodydark">{s.profile?.identification || '-'}</div>
-                  </div>
-                ))
+                filteredStudents.map(s => {
+                  // Mostrar diferenciador solo si es el estudiante seleccionado y está completo
+                  const availableForStudent = Array.from(allowedGroupIds).filter(id => !currentEnrollments.some(e => e.group_id === id)).length;
+                  const isSelectedAndComplete = selectedStudent?.id === s.id && allowedGroupIds.size > 0 && availableForStudent === 0;
+
+                  return (
+                    <div key={s.id} className={`p-2 rounded hover:bg-gray-50 cursor-pointer flex justify-between items-center ${selectedStudent?.id === s.id ? 'bg-gray-100' : ''}`} onClick={() => void selectStudent(s)}>
+                      <div>
+                        <div className="text-sm font-medium text-black dark:text-white">{s.profile?.first_name} {s.profile?.last_name}</div>
+                        <div className="text-xs text-body dark:text-bodydark">{s.profile?.identification || '-'}</div>
+                      </div>
+                      {isSelectedAndComplete && (
+                        <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded font-medium">Completo</span>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -196,66 +346,160 @@ const EnrollInGroupPage: React.FC = () => {
           <div className="rounded-sm border border-stroke bg-white p-4 shadow-default dark:border-strokedark dark:bg-boxdark">
             <h3 className="font-medium text-black dark:text-white mb-3">Datos del estudiante</h3>
             {selectedStudent ? (
-              <div className="space-y-3">
-                <div className="flex justify-between">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 border-b pb-4">
                   <div>
                     <p className="text-xs text-body dark:text-bodydark">Nombre</p>
-                    <p className="text-sm text-black dark:text-white">{selectedStudent.profile?.first_name} {selectedStudent.profile?.last_name}</p>
+                    <p className="text-sm font-medium text-black dark:text-white">{selectedStudent.profile?.first_name} {selectedStudent.profile?.last_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-body dark:text-bodydark">Cédula</p>
+                    <p className="text-sm font-medium text-black dark:text-white">{selectedStudent.profile?.identification || '-'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-body dark:text-bodydark">Créditos inscritos</p>
-                    <p className="text-sm text-black dark:text-white">{currentCredits}</p>
+                    <p className="text-sm font-medium text-black dark:text-white">{currentCredits} / {MAX_CREDITS}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-body dark:text-bodydark">Grupos inscritos</p>
+                    <p className="text-sm font-medium text-black dark:text-white">{currentEnrollments.length}</p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs text-body dark:text-bodydark">Matrículas activas</p>
+                  <p className="text-xs text-body dark:text-bodydark font-medium mb-2">Matrículas activas</p>
                   {registrations.length > 0 ? (
                     <div className="space-y-2">
-                      {registrations.map(reg => (
-                        <div key={reg.id} className="text-sm text-black dark:text-white">
-                          Carrera: {reg.career_id} — Estado: {reg.academic_status} — Activa: {reg.is_active ? 'Sí' : 'No'}
-                        </div>
-                      ))}
+                      {registrations.map((reg, idx) => {
+                        const careerName = reg.career_id ? reg.career_id.substring(0, 8) : 'Unknown';
+                        return (
+                          <div key={reg.id} className="text-sm bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
+                            <div className="font-medium text-blue-900 dark:text-blue-100">Carrera {idx + 1}: {careerName}</div>
+                            <div className="text-xs text-blue-800 dark:text-blue-200">Estado: {reg.academic_status} {reg.is_active && '✓'}</div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div className="text-sm text-body dark:text-bodydark">No tiene matrícula activa</div>
+                    <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                      ⚠️ No tiene matrículas registradas. Contacte con admisión.
+                    </div>
                   )}
                 </div>
 
-                <div>
-                  <p className="text-xs text-body dark:text-bodydark">Grupos disponibles (semestre activo)</p>
-                  <div className="overflow-auto max-h-[40vh] mt-2">
-                    <table className="w-full">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-3 py-2 text-left">Sel</th>
-                          <th className="px-3 py-2 text-left">Código Grupo</th>
-                          <th className="px-3 py-2 text-left">Asignatura</th>
-                          <th className="px-3 py-2 text-left">Cupo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {groups.map(g => (
-                          <tr key={g.id} className="border-t">
-                            <td className="px-3 py-2">
-                              <input type="checkbox" checked={!!selectedGroups[g.id]} onChange={() => toggleGroup(g.id)} />
-                            </td>
-                            <td className="px-3 py-2">{g.group_code}</td>
-                            <td className="px-3 py-2">{groupSubjectsMap[g.id]?.name || '-'}</td>
-                            <td className="px-3 py-2">{g.capacity || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <div className="space-y-4">
+                  {/* SECCIÓN 1: Grupos ya inscritos */}
+                  {currentEnrollments.length > 0 && (
+                    <div>
+                      <p className="text-xs text-body dark:text-bodydark font-medium mb-2">Grupos en los que ya está inscrito/a ({currentEnrollments.length})</p>
+                      <div className="overflow-auto border border-green-200 dark:border-green-800 rounded bg-green-50 dark:bg-green-900/20">
+                        <table className="w-full">
+                          <thead className="bg-green-100 dark:bg-green-900/50 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left">Código</th>
+                              <th className="px-3 py-2 text-left">Asignatura</th>
+                              <th className="px-3 py-2 text-center">Créditos</th>
+                              <th className="px-3 py-2 text-center">Inscritos</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groups
+                              .filter(g => currentEnrollments.some(e => e.group_id === g.id))
+                              .map(g => {
+                                const enrolled = groupEnrollmentCountMap[g.id] || 0;
+                                return (
+                                  <tr key={g.id} className="border-t">
+                                    <td className="px-3 py-2 text-sm font-medium">{g.group_code}</td>
+                                    <td className="px-3 py-2 text-sm">{groupSubjectsMap[g.id]?.name || '-'}</td>
+                                    <td className="px-3 py-2 text-center text-sm">{groupSubjectsMap[g.id]?.credits || '-'}</td>
+                                    <td className="px-3 py-2 text-center text-sm">
+                                      {enrolled}/{g.capacity}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECCIÓN 2: Grupos disponibles */}
+                  <div>
+                    <p className="text-xs text-body dark:text-bodydark font-medium mb-2">
+                      Grupos disponibles para inscribirse ({availableCount})
+                    </p>
+                    <div className="overflow-auto max-h-[35vh] border border-stroke rounded bg-white dark:bg-boxdark">
+                      {availableCount === 0 && allowedGroupIds.size > 0 ? (
+                        <div className="p-4 text-sm text-body dark:text-bodydark text-center bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
+                          ✓ Este estudiante está inscrito en todos los grupos disponibles
+                        </div>
+                      ) : allowedGroupIds.size === 0 ? (
+                        <div className="p-4 text-sm text-body dark:text-bodydark text-center">
+                          No hay grupos disponibles para las carreras de este estudiante
+                        </div>
+                      ) : (
+                        <table className="w-full">
+                          <thead className="bg-gray-100 dark:bg-gray-700 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left">Sel</th>
+                              <th className="px-3 py-2 text-left">Código</th>
+                              <th className="px-3 py-2 text-left">Asignatura</th>
+                              <th className="px-3 py-2 text-center">Créditos</th>
+                              <th className="px-3 py-2 text-center">Inscritos</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groups
+                              .filter(g => allowedGroupIds.has(g.id) && !currentEnrollments.some(e => e.group_id === g.id))
+                              .map(g => {
+                                const enrolled = groupEnrollmentCountMap[g.id] || 0;
+                                const isFull = enrolled >= (g.capacity || 0);
+                                
+                                return (
+                                  <tr key={g.id} className={`border-t ${isFull ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
+                                    <td className="px-3 py-2">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={!!selectedGroups[g.id]} 
+                                        onChange={() => !isFull && toggleGroup(g.id)}
+                                        disabled={isFull}
+                                        title={isFull ? 'Grupo lleno' : ''}
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 text-sm font-medium">{g.group_code}</td>
+                                    <td className="px-3 py-2 text-sm">
+                                      {groupSubjectsMap[g.id]?.name || '-'}
+                                      {isFull && <span className="ml-2 text-xs bg-red-200 text-red-800 px-2 py-1 rounded">Lleno</span>}
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-sm">{groupSubjectsMap[g.id]?.credits || '-'}</td>
+                                    <td className="px-3 py-2 text-center text-sm">
+                                      {enrolled}/{g.capacity}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 mt-4">
-                  <button className="rounded border border-stroke px-4 py-2 text-sm" onClick={() => { setSelectedStudent(null); setSelectedGroups({}); }}>
+                <div className="border-t pt-4 flex justify-end gap-3">
+                  <button 
+                    className="rounded border border-stroke px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700" 
+                    onClick={() => { setSelectedStudent(null); setSelectedGroups({}); setCurrentEnrollments([]); }}
+                  >
                     Cancelar
                   </button>
-                  <button className="rounded bg-primary px-4 py-2 text-sm text-white" onClick={handleConfirmEnroll}>Confirmar inscripción</button>
+                  <button 
+                    className={`rounded px-4 py-2 text-sm font-medium text-white ${Object.values(selectedGroups).some(v => v) ? 'bg-primary hover:opacity-90' : 'bg-gray-400 cursor-not-allowed'}`}
+                    onClick={handleConfirmEnroll}
+                    disabled={!Object.values(selectedGroups).some(v => v)}
+                  >
+                    Confirmar inscripción ({Object.values(selectedGroups).filter(v => v).length})
+                  </button>
                 </div>
               </div>
             ) : (

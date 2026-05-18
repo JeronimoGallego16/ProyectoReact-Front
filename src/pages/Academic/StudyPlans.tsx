@@ -148,11 +148,7 @@ const StudyPlansPage: React.FC = () => {
         setIsDetailOpen(true);
     };
 
-    const handleEditSubject = (subject: Subject) => {
-        // Open the add/edit modal to allow adjusting suggested semester or quick edits
-        setSelectedSubjectForEdit(subject);
-        setIsAddingSubject(true);
-    };
+    // Per-subject editing removed
 
     const handleConfirmAddSubject = async () => {
         if (!selectedSubjectForEdit || !selectedCareerId) return;
@@ -164,15 +160,16 @@ const StudyPlansPage: React.FC = () => {
         }
 
         try {
-                setIsAddingSubject(false);
-                const alreadyLinked = planSubjects.some(ps => ps.id === selectedSubjectForEdit.id);
-                if (alreadyLinked) {
-                    showToast("Aviso", `La asignatura "${selectedSubjectForEdit.name}" ya está vinculada al plan.`, 1);
-                    return;
-                }
+            setIsAddingSubject(false);
+            const alreadyLinked = planSubjects.some(ps => ps.id === selectedSubjectForEdit.id);
+            if (alreadyLinked) {
+                showToast("Aviso", `La asignatura "${selectedSubjectForEdit.name}" ya está vinculada al plan.`, 1);
+                return;
+            }
 
-                await studyPlanSubjectService.addSubjectToStudyPlan(planToAddTo.id, selectedSubjectForEdit.id);
+            await studyPlanSubjectService.addSubjectToStudyPlan(planToAddTo.id, selectedSubjectForEdit.id);
             showToast("Éxito", `Asignatura "${selectedSubjectForEdit.name}" agregada exitosamente.`, 0);
+
             setCatalogSearchTerm("");
             await loadStudyPlansByCareer(selectedCareerId);
         } catch (error) {
@@ -211,7 +208,6 @@ const StudyPlansPage: React.FC = () => {
         try {
             setIsConfirmingDelete(false);
             await studyPlanSubjectService.removeSubjectFromStudyPlan(planToDeleteFrom.id, subjectToDelete.id);
-            // no local mappings to remove (suggested_semester was removed)
             showToast("Éxito", `Asignatura "${subjectToDelete.name}" eliminada del plan.`, 0);
             await loadStudyPlansByCareer(selectedCareerId);
         } catch (error) {
@@ -300,16 +296,10 @@ const StudyPlansPage: React.FC = () => {
                 title="Plan de estudios"
                 description="Define y versiona las asignaturas que conforman el plan de estudios de cada carrera."
                 primaryAction={
-                    editable && currentPlan
+                    editable
                         ? {
                             label: draftPlan ? "Publicar plan" : "+ Nueva versión",
-                            onClick: () => {
-                                if (draftPlan) {
-                                    setIsPublishingPlan(true);
-                                } else {
-                                    setIsPublishingPlan(true);
-                                }
-                            },
+                            onClick: () => setIsPublishingPlan(true),
                         }
                         : undefined
                 }
@@ -489,13 +479,11 @@ const StudyPlansPage: React.FC = () => {
                                         ]}
                                         actions={editable ? [
                                             { name: 'view', label: 'Ver' },
-                                            { name: 'edit', label: 'Editar' },
                                             { name: 'delete', label: 'Eliminar' },
                                         ] : [ { name: 'view', label: 'Ver' } ]}
                                         onAction={(actionName, item) => {
                                             const s = item as Subject;
                                             if (actionName === 'view') void handleViewSubject(s);
-                                            if (actionName === 'edit') handleEditSubject(s);
                                             if (actionName === 'delete') void handleDeleteClick(s);
                                         }}
                                     />
@@ -551,7 +539,6 @@ const StudyPlansPage: React.FC = () => {
                                         {selectedSubjectForEdit.code} - {selectedSubjectForEdit.name}
                                     </p>
                                 </div>
-                                {/* Semestre sugerido removed per CU decision */}
                                 <div>
                                     <p className="text-xs text-body dark:text-bodydark">
                                         Créditos: <span className="font-medium">{selectedSubjectForEdit.credits}</span>

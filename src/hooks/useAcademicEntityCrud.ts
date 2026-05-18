@@ -105,13 +105,18 @@ export function useAcademicEntityCrud<T extends { id: string }>(
         const ok = window.confirm(options.getArchiveConfirm(entity));
         if (!ok) return;
 
-        const success = await options.archiveItem(entity.id);
-        if (success) {
-            showToast("Éxito", options.successMessages.archive ?? "Operación completada exitosamente.", 0);
-            close();
-            await options.loadData();
-        } else {
-            showToast("Error", options.errorMessages.archive ?? "No se pudo completar la operación.", 2);
+        try {
+            const success = await options.archiveItem(entity.id);
+            if (success) {
+                showToast("Éxito", options.successMessages.archive ?? "Operación completada exitosamente.", 0);
+                close();
+                await options.loadData();
+            } else {
+                showToast("Error", options.errorMessages.archive ?? "No se pudo completar la operación.", 2);
+            }
+        } catch (err: any) {
+            const message = err?.message || options.errorMessages.archive || 'No se pudo completar la operación.';
+            showToast('Error', message, 2);
         }
     };
 
@@ -121,13 +126,18 @@ export function useAcademicEntityCrud<T extends { id: string }>(
         const ok = window.confirm(options.getReactivateConfirm(entity));
         if (!ok) return;
 
-        const success = await options.reactivateItem(entity.id);
-        if (success) {
-            showToast("Éxito", options.successMessages.reactivate ?? "Operación completada exitosamente.", 0);
-            close();
-            await options.loadData();
-        } else {
-            showToast("Error", options.errorMessages.reactivate ?? "No se pudo completar la operación.", 2);
+        try {
+            const success = await options.reactivateItem(entity.id);
+            if (success) {
+                showToast("Éxito", options.successMessages.reactivate ?? "Operación completada exitosamente.", 0);
+                close();
+                await options.loadData();
+            } else {
+                showToast("Error", options.errorMessages.reactivate ?? "No se pudo completar la operación.", 2);
+            }
+        } catch (err: any) {
+            const message = err?.message || options.errorMessages.reactivate || 'No se pudo completar la operación.';
+            showToast('Error', message, 2);
         }
     };
 
