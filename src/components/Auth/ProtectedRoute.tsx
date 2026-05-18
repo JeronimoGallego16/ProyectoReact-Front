@@ -1,26 +1,22 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { LocalStorageProvider } from "../../storage/LocalStorageProvider";
+import { Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store/store';
 
+interface Props {
+    children: JSX.Element;
+    roles: string[];
+}
 
-const storage = new LocalStorageProvider();
+export default function ProtectedRoute({ children, roles }: Props) {
+    const user = useSelector((state: RootState) => state.user.user);
 
-// Función para verificar si el usuario está autenticado
-const isAuthenticated = () => {
-    const user = storage.getItem("user");
+    // No está logueado
+    if (!user) return <Navigate to="/auth/signin" replace />;
 
-    if (!user) return false;
-
-    try {
-        const parsedUser = JSON.parse(user);
-        return !!parsedUser; // puedes validar más campos aquí si quieres
-    } catch (error) {
-        return false;
+    // No tiene el rol requerido
+    if (!roles.includes(user.role)) {
+        return <Navigate to="/unauthorized" replace />;
     }
-};
 
-// Componente de Ruta Protegida
-const ProtectedRoute = () => {
-    return isAuthenticated() ? <Outlet /> : <Navigate to="/auth/signin" replace />;
-};
-
-export default ProtectedRoute;
+    return children;
+}
