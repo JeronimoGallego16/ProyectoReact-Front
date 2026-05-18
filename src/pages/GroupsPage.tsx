@@ -93,8 +93,8 @@ export default function GroupsPage() {
                 const teacherArray = Array.isArray(teachersRes) ? teachersRes : (teachersRes?.data || []);
                 if (Array.isArray(teacherArray)) {
                     teachers.push(...teacherArray.map((t: any) => ({
-                        id: t.user_id,  // Usar user_id que es lo que guardan los grupos como teacher_id
-                        name: `${t.first_name || ''} ${t.last_name || ''}`.trim() || t.name || 'Sin nombre',
+                        id: t.id,  // ← cambia a t.id
+                        name: `${t.first_name || ''} ${t.last_name || ''}`.trim(),
                     })));
                 }
                 setTeachersData(teachers);
