@@ -5,7 +5,7 @@ interface FilterOption {
     label: string;
     placeholder?: string;
     options?: { value: string; label: string }[];
-    type?: 'text' | 'select';
+    type?: 'text' | 'select' | 'date';
 }
 
 interface FilterTableProps {
@@ -53,6 +53,13 @@ export default function FilterTable({ filters, onFilterChange, initialValues }: 
                                     </option>
                                 ))}
                             </select>
+                        ) : filter.type === 'date' ? (
+                            <input
+                                type="date"
+                                value={filterValues[filter.id]}
+                                onChange={(e) => handleInputChange(filter.id, e.target.value)}
+                                className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            />
                         ) : (
                             <input
                                 type="text"

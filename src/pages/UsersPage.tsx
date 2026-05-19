@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import FilterTable from '../components/FilterTable';
 import GenericTable from '../components/GenericTable';
-import ModalLauncher from '../components/ModalLauncher';
+import GenericDetailModal from '../components/GenericDetailModal';
+import type { DetailField } from '../components/GenericDetailModal';
 import UserModal from '../components/UserModal';
 import DeactivateUserModal from '../components/DeactivateUserModal';
 import apiService from '../services/api';
@@ -361,110 +362,31 @@ export default function UsersPage() {
 
             {/* Modal detalle usuario */}
             {selectedUser && (
-                <ModalLauncher
+                <GenericDetailModal
                     isOpen={isDetailModalOpen}
                     onClose={() => {
                         setIsDetailModalOpen(false);
                         setSelectedUser(null);
                     }}
-                >
-                    {() => (
-                        <div className="space-y-5 p-4">
-                            <div>
-                                <h3 className="text-xl font-semibold text-black dark:text-white">
-                                    Detalles del {selectedUser.role === 'STUDENT' ? 'Estudiante' : selectedUser.role === 'TEACHER' ? 'Docente' : 'Usuario'}
-                                </h3>
-                                <p className="mt-1 text-sm text-body dark:text-bodydark">
-                                    Información completa del usuario.
-                                </p>
-                            </div>
-
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                {/* Cédula */}
-                                {selectedUser.profile?.identification && (
-                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                        <p className="text-sm font-medium text-body dark:text-bodydark">Cédula</p>
-                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile.identification}</p>
-                                    </div>
-                                )}
-
-                                {/* Nombre */}
-                                {selectedUser.profile?.first_name && (
-                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                        <p className="text-sm font-medium text-body dark:text-bodydark">Nombre</p>
-                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile.first_name}</p>
-                                    </div>
-                                )}
-
-                                {/* Apellido */}
-                                {selectedUser.profile?.last_name && (
-                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                        <p className="text-sm font-medium text-body dark:text-bodydark">Apellido</p>
-                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile.last_name}</p>
-                                    </div>
-                                )}
-
-                                {/* Código */}
-                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                    <p className="text-sm font-medium text-body dark:text-bodydark">Código</p>
-                                    <p className="mt-2 text-base text-black dark:text-white">{selectedUser.code}</p>
-                                </div>
-
-                                {/* Rol */}
-                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                    <p className="text-sm font-medium text-body dark:text-bodydark">Rol</p>
-                                    <p className="mt-2 text-base text-black dark:text-white">{getRoleLabel(selectedUser.role)}</p>
-                                </div>
-
-                                {/* Correo */}
-                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                    <p className="text-sm font-medium text-body dark:text-bodydark">Correo</p>
-                                    <p className="mt-2 text-base text-black dark:text-white">{selectedUser.email}</p>
-                                </div>
-
-                                {/* Especialidad (solo para TEACHER) */}
-                                {selectedUser.role === 'TEACHER' && (
-                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                        <p className="text-sm font-medium text-body dark:text-bodydark">Especialidad</p>
-                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile?.specialty || '-'}</p>
-                                    </div>
-                                )}
-
-                                {/* Teléfono (solo para TEACHER) */}
-                                {selectedUser.role === 'TEACHER' && (
-                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                        <p className="text-sm font-medium text-body dark:text-bodydark">Teléfono</p>
-                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.profile?.phone || '-'}</p>
-                                    </div>
-                                )}
-
-                                {/* Carrera/Matrícula (solo para STUDENT) */}
-                                {selectedUser.role === 'STUDENT' && selectedUser.career?.name && (
-                                    <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                        <p className="text-sm font-medium text-body dark:text-bodydark">Carrera</p>
-                                        <p className="mt-2 text-base text-black dark:text-white">{selectedUser.career.name}</p>
-                                    </div>
-                                )}
-
-                                {/* Estado */}
-                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                    <p className="text-sm font-medium text-body dark:text-bodydark">Estado</p>
-                                    <p className="mt-2 text-base text-black dark:text-white">
-                                        {selectedUser.is_active ? '✅ Activo' : '🚫 Inactivo'}
-                                    </p>
-                                </div>
-
-                                {/* Fecha de Creación */}
-                                <div className="rounded-md border border-stroke p-4 dark:border-strokedark">
-                                    <p className="text-sm font-medium text-body dark:text-bodydark">Fecha de Creación</p>
-                                    <p className="mt-2 text-base text-black dark:text-white">
-                                        {formatDate(selectedUser.created_at)}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </ModalLauncher>
+                    title={`Detalles del ${selectedUser.role === 'STUDENT' ? 'Estudiante' : selectedUser.role === 'TEACHER' ? 'Docente' : 'Usuario'}`}
+                    fields={[
+                        ...(selectedUser.profile?.identification ? [{ label: 'Cédula', value: selectedUser.profile.identification }] : []),
+                        ...(selectedUser.profile?.first_name ? [{ label: 'Nombre', value: selectedUser.profile.first_name }] : []),
+                        ...(selectedUser.profile?.last_name ? [{ label: 'Apellido', value: selectedUser.profile.last_name }] : []),
+                        { label: 'Código', value: selectedUser.code },
+                        { label: 'Rol', value: getRoleLabel(selectedUser.role) },
+                        { label: 'Correo', value: selectedUser.email },
+                        ...(selectedUser.role === 'TEACHER' && selectedUser.profile?.specialty ? [{ label: 'Especialidad', value: selectedUser.profile.specialty }] : []),
+                        ...(selectedUser.role === 'TEACHER' && selectedUser.profile?.phone ? [{ label: 'Teléfono', value: selectedUser.profile.phone }] : []),
+                        ...(selectedUser.role === 'STUDENT' && selectedUser.career?.name ? [{ label: 'Carrera', value: selectedUser.career.name }] : []),
+                        {
+                            label: 'Estado',
+                            value: selectedUser.is_active ? '✅ Activo' : '🚫 Inactivo',
+                            color: selectedUser.is_active ? 'text-green-600' : 'text-red-600',
+                        },
+                        { label: 'Fecha de Creación', value: formatDate(selectedUser.created_at) },
+                    ] as DetailField[]}
+                />
             )}
         </div>
     );
