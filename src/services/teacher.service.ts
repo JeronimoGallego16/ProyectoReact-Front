@@ -42,12 +42,12 @@ class TeacherService {
   }
 
   /**
-   * Desactivar docente
+   * Desactivar/Activar docente
    */
-  async deactivateTeacher(teacherId: string): Promise<ApiResponse<Teacher>> {
+  async deactivateTeacher(teacherId: string, isActive: boolean): Promise<ApiResponse<Teacher>> {
     return apiService.patch<Teacher>(
       `${this.endpoint}/${teacherId}/deactivate`,
-      {}
+      { is_active: isActive }
     );
   }
 

@@ -51,10 +51,10 @@ export default function UsersPage() {
     const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [editUserId, setEditUserId] = useState<string>('');
-    const [deactivateUserId, setDeactivateUserId] = useState<string>('');
+    const [deactivateUser, setDeactivateUser] = useState<User | null>(null);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [filteredTableData, setFilteredTableData] = useState<TableUser[]>([]);
-    const [filters, setFilters] = useState<Record<string, string>>({});;
+    const [filters, setFilters] = useState<Record<string, string>>({});
 
     const columns = [
         { key: 'code', label: 'Código' },
@@ -65,6 +65,7 @@ export default function UsersPage() {
         { key: 'created_at', label: 'Fecha Creación' },
         { key: 'is_active', label: 'Estado' }
     ];
+
     const actions = [
         { name: 'view', label: 'Ver' },
         { name: 'edit', label: 'Editar' },
@@ -77,7 +78,9 @@ export default function UsersPage() {
             id: 'carrera',
             label: 'Carrera',
             type: 'select' as const,
-            options: careers.length > 0 ? careers.map(c => ({ value: c.id, label: c.name })) : [{ value: '', label: 'Cargando carreras...' }]
+            options: careers.length > 0
+                ? careers.map(c => ({ value: c.id, label: c.name }))
+                : [{ value: '', label: 'Cargando carreras...' }]
         },
         {
             id: 'role', label: 'Rol', type: 'select' as const, options: [
@@ -115,42 +118,31 @@ export default function UsersPage() {
         setLoading(true);
         try {
             const response = await apiService.get<any>('/users/');
-            // response.data may be processed below; removed empty forEach
 
             if (response.data && Array.isArray(response.data)) {
-                // Los usuarios ya vienen con career desde la API
-                // Solo necesitamos enriquecer si falta la carrera para estudiantes
                 const usersWithCareers = await Promise.all(
-                    response.data.map(async (user) => {
+                    response.data.map(async (user: User) => {
                         if (user.role === 'STUDENT') {
-
                             if (!user.career || !user.career.name) {
                                 try {
-                                    // Usar profile.id como student_id en registrations
-                                    const studentProfileId = user.profile?.id;
+                                    const studentProfileId = (user.profile as any)?.id;
                                     if (studentProfileId) {
                                         const registrations = await registrationService.getRegistrationsByStudent(studentProfileId);
-
-                                        if (registrations.length > 0 && registrations[0].career_id) {
-
-                                            const career = await careerService.getCareerById(registrations[0].career_id);
-
+                                        if (registrations.length > 0 && (registrations[0] as any).career_id) {
+                                            const career = await careerService.getCareerById((registrations[0] as any).career_id);
                                             if (career) {
-                                                user.career = { id: career.id, name: career.name };
+                                                user.career = { id: (career as any).id, name: (career as any).name };
                                             }
                                         }
                                     }
                                 } catch (err) {
-                                    console.error(`  ❌ Error obteniendo carrera:`, err);
+                                    console.error('Error obteniendo carrera:', err);
                                 }
-                            } else {
-                                console.log(`  ✅ Ya tiene carrera: ${user.career.name}`);
                             }
                         }
                         return user;
                     })
                 );
-
 
                 setUsers(usersWithCareers);
                 transformUsersToTable(usersWithCareers);
@@ -163,21 +155,18 @@ export default function UsersPage() {
     };
 
     const transformUsersToTable = (users: User[]) => {
-        const transformed: TableUser[] = users.map(user => {
-            const careerDisplay = user.career?.name ? user.career.name : '-';
-            return {
-                id: user.id,
-                code: user.code || '',
-                name: user.profile?.first_name && user.profile?.last_name
-                    ? `${user.profile.first_name} ${user.profile.last_name}`
-                    : user.email,
-                email: user.email || '',
-                role: getRoleLabel(user.role),
-                career: careerDisplay,
-                is_active: user.is_active ? '✅ Activo' : '🚫 Inactivo',
-                created_at: formatDate(user.created_at),
-            };
-        });
+        const transformed: TableUser[] = users.map(user => ({
+            id: user.id,
+            code: user.code || '',
+            name: user.profile?.first_name && user.profile?.last_name
+                ? `${user.profile.first_name} ${user.profile.last_name}`
+                : user.email,
+            email: user.email || '',
+            role: getRoleLabel(user.role),
+            career: user.career?.name ?? '-',
+            is_active: user.is_active ? '✅ Activo' : '🚫 Inactivo',
+            created_at: formatDate(user.created_at),
+        }));
         setTableData(transformed);
     };
 
@@ -191,7 +180,6 @@ export default function UsersPage() {
         }
 
         if (filters.carrera) {
-            // El filtro carrera ahora es por ID, buscar por nombre de carrera
             const selectedCareer = careers.find(c => c.id === filters.carrera);
             if (selectedCareer) {
                 filtered = filtered.filter(u =>
@@ -211,7 +199,7 @@ export default function UsersPage() {
         }
 
         setFilteredTableData(filtered);
-    };;
+    };
 
     const handleFilterChange = (newFilters: Record<string, string>) => {
         setFilters(newFilters);
@@ -233,8 +221,10 @@ export default function UsersPage() {
                 setIsEditModalOpen(true);
                 break;
             case 'deactivate':
-                setDeactivateUserId(userId);
-                setIsDeactivateModalOpen(true);
+                if (user) {
+                    setDeactivateUser(user);
+                    setIsDeactivateModalOpen(true);
+                }
                 break;
             default:
                 break;
@@ -243,12 +233,9 @@ export default function UsersPage() {
 
     const getRoleLabel = (role: string) => {
         switch (role) {
-            case 'TEACHER':
-                return 'Docente';
-            case 'STUDENT':
-                return 'Estudiante';
-            default:
-                return role;
+            case 'TEACHER': return 'Docente';
+            case 'STUDENT': return 'Estudiante';
+            default: return role;
         }
     };
 
@@ -274,10 +261,8 @@ export default function UsersPage() {
                 }}
             />
 
-            {/* Filters */}
             <FilterTable filters={filterOptions} onFilterChange={handleFilterChange} />
 
-            {/* Tabla de usuarios */}
             {loading ? (
                 <div className="rounded-lg border border-gray-300 bg-white p-6 text-center shadow-default dark:border-strokedark dark:bg-boxdark">
                     <p className="text-gray-600 dark:text-gray-400">Cargando usuarios...</p>
@@ -287,15 +272,14 @@ export default function UsersPage() {
                     <p className="text-gray-600 dark:text-gray-400">No se encontraron usuarios</p>
                 </div>
             ) : (
-                        <GenericTable
+                <GenericTable
                     data={filteredTableData}
                     columns={columns}
                     actions={actions}
-                            onAction={handleAction}
+                    onAction={handleAction}
                 />
             )}
 
-            {/* Información de paginación */}
             {filteredTableData.length > 0 && (
                 <div className="mt-4 rounded-lg border border-gray-300 bg-white p-4 shadow-default dark:border-strokedark dark:bg-boxdark">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -331,33 +315,31 @@ export default function UsersPage() {
                 userId={editUserId || undefined}
             />
 
-            {/* Modal desactivar usuario */}
+            {/* Modal desactivar/activar usuario */}
             <DeactivateUserModal
                 isOpen={isDeactivateModalOpen}
                 onClose={() => {
                     setIsDeactivateModalOpen(false);
-                    setDeactivateUserId('');
+                    setDeactivateUser(null);
                 }}
                 onSuccess={(newIsActive) => {
-                    // Actualizar la tabla localmente
                     setUsers(prevUsers =>
-                        prevUsers.map(user =>
-                            user.id === deactivateUserId
-                                ? { ...user, is_active: newIsActive }
-                                : user
+                        prevUsers.map(u =>
+                            u.id === deactivateUser?.id
+                                ? { ...u, is_active: newIsActive }
+                                : u
                         )
                     );
                     setTableData(prevData =>
                         prevData.map(row =>
-                            row.id === deactivateUserId
+                            row.id === deactivateUser?.id
                                 ? { ...row, is_active: newIsActive ? '✅ Activo' : '🚫 Inactivo' }
                                 : row
                         )
                     );
-                    setIsDeactivateModalOpen(false);
-                    setDeactivateUserId('');
+                    setDeactivateUser(null);
                 }}
-                userId={deactivateUserId || undefined}
+                userId={deactivateUser?.id}
             />
 
             {/* Modal detalle usuario */}
