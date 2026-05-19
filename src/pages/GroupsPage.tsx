@@ -8,7 +8,6 @@ import { subjectService } from '../services/SubjectService';
 import { semesterService } from '../services/SemesterService';
 import teacherService from '../services/teacher.service';
 import TeacherAGroupService from '../services/TeacherAGroupService';
-import DeactivateUserModal from '../components/DeactivateUserModal';
 import { toast } from 'react-hot-toast';
 import { GroupWithDetails, FilterOptionType } from '../models/Group';
 import { Subject, TeacherData } from '../models/Subject';
@@ -27,11 +26,9 @@ export default function GroupsPage() {
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [showDeactivateModal, setShowDeactivateModal] = useState(false);
     const [selectedTeacher, setSelectedTeacher] = useState<string>('');
     const [selectedGroup2, setSelectedGroup2] = useState<string>('');
     const [selectedSemesterAssign, setSelectedSemesterAssign] = useState<string>('');
-    const [groupToDeactivate, setGroupToDeactivate] = useState<string>('');
     const [isAssigning, setIsAssigning] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -64,7 +61,6 @@ export default function GroupsPage() {
         { name: 'view', label: 'Ver' },
         { name: 'edit', label: 'Editar' },
         { name: 'assign', label: 'Asignar Docente' },
-        { name: 'deactivate', label: 'Desactivar' },
     ];
 
     const filterOptions: FilterOptionType[] = [
@@ -233,10 +229,6 @@ export default function GroupsPage() {
                 setSelectedGroup2(groupId);
                 setShowAssignModal(true);
                 break;
-            case 'deactivate':
-                setGroupToDeactivate(groupId);
-                setShowDeactivateModal(true);
-                break;
             default:
                 break;
         }
@@ -333,19 +325,6 @@ export default function GroupsPage() {
         }
     };
 
-    const handleDeactivateGroupSuccess = async () => {
-        try {
-            // Actualizar la lista de grupos después de desactivar
-            const groupsRes = await groupService.getGroups();
-            setGroupsData((groupsRes as GroupWithDetails[]) || []);
-            transformGroupsToTable((groupsRes as GroupWithDetails[]) || [], subjectsData, semestersData, teachersData);
-            setShowDeactivateModal(false);
-            setGroupToDeactivate('');
-            toast.success('Grupo desactivado correctamente');
-        } catch (error) {
-            console.error('Error actualizando grupos:', error);
-        }
-    };
 
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
@@ -747,17 +726,6 @@ export default function GroupsPage() {
                     </div>
                 </div>
             )}
-
-            {/* Modal Desactivar Grupo */}
-            <DeactivateUserModal
-                isOpen={showDeactivateModal}
-                onClose={() => {
-                    setShowDeactivateModal(false);
-                    setGroupToDeactivate('');
-                }}
-                onSuccess={handleDeactivateGroupSuccess}
-                userId={groupToDeactivate}
-            />
         </div>
     );
 }
