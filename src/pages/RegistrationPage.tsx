@@ -78,12 +78,6 @@ export default function RegistrationPage() {
                 const careers = careersRes || [];
                 const regs = registrations || [];
 
-                console.log('Loaded Students:', students);
-                console.log('Student IDs:', students.map(s => ({ id: s.id, name: `${s.profile?.first_name} ${s.profile?.last_name}` })));
-                console.log('Loaded Careers:', careers);
-                console.log('Loaded Registrations:', regs);
-                console.log('Registration student_ids:', regs.map(r => r.student_id));
-
                 setStudentsData(students);
                 setCareersData(careers);
                 setRegistrationsData(regs);
@@ -134,7 +128,6 @@ export default function RegistrationPage() {
                 admission_period_raw: dateOnly,
             };
         });
-        console.table(transformed);
         setTableData(transformed);
         applyFilters(transformed);  // Aplicar filtros
     };

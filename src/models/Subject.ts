@@ -18,4 +18,5 @@ export type SubjectUpdateInput = Partial<SubjectCreateInput>;
 export interface TeacherData {
   id: string;
   name: string;
+  is_active?: boolean;
 }

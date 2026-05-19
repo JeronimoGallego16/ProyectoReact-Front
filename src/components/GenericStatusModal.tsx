@@ -48,10 +48,7 @@ export default function GenericStatusModal({
                     <button
                         onClick={() => onConfirm(!currentStatus)}
                         disabled={isLoading}
-                        className={`flex-1 rounded-md px-4 py-2.5 font-medium text-white transition disabled:opacity-50 ${currentStatus
-                                ? 'bg-red-700 hover:bg-red-800'
-                                : 'bg-green-700 hover:bg-green-800'
-                            }`}
+                        className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
                     >
                         {isLoading ? 'Procesando...' : confirmText}
                     </button>

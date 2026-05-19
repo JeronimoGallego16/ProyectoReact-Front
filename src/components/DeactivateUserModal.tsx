@@ -260,7 +260,7 @@ export default function DeactivateUserModal({
                             <div className="flex gap-3 border-t border-stroke pt-4 dark:border-strokedark">
                                 <button
                                     type="button"
-                                        onClick={resetForm}
+                                        onClick={handleClose}
                                     className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                                 >
                                     Cancelar
@@ -269,10 +269,7 @@ export default function DeactivateUserModal({
                                     type="button"
                                     onClick={handleDeactivate}
                                     disabled={loading}
-                                        className={`flex-1 rounded-md px-4 py-2.5 font-medium text-white transition disabled:opacity-50 ${userData?.is_active
-                                            ? 'bg-red-600 hover:bg-red-700'
-                                            : 'bg-green-600 hover:bg-green-700'
-                                            }`}
+                                        className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
                                 >
                                         {loading
                                             ? 'Procesando...'
