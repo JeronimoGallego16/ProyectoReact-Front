@@ -75,15 +75,8 @@ const EnrollInGroupPage: React.FC = () => {
   const selectStudent = async (student: Student) => {
     setSelectedStudent(student);
     const academicStudentId = student.profile?.id || student.id;
-    
-    // Get active semester and derive its year (used to restrict study plans)
     const activeSem = await semesterService.getActiveSemester();
-    let semYear: number | null = null;
-    if (activeSem) {
-      const hay = (activeSem.name || '') + ' ' + (activeSem.code || '');
-      const m = hay.match(/(19|20)\d{2}/);
-      if (m) semYear = parseInt(m[0], 10);
-    }
+
     // load active registrations for student
     const regs = await registrationService.getActiveRegistrationsByStudent(academicStudentId);
     setRegistrations(regs || []);
@@ -161,10 +154,6 @@ const EnrollInGroupPage: React.FC = () => {
       for (const reg of regs) {
         const activePlan = await studyPlanService.getActiveStudyPlan(reg.career_id);
         if (!activePlan) continue;
-        // Only consider study plans that match the active semester year (if derivable)
-        if (semYear !== null && typeof activePlan.year === 'number' && activePlan.year !== semYear) {
-          continue;
-        }
         const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activePlan.id);
         const subjectIds = new Set((subjects || []).map(s => s.id));
         

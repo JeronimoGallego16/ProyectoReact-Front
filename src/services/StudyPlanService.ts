@@ -1,5 +1,6 @@
 import apiService from './api';
 import { StudyPlan, StudyPlanCreateInput, StudyPlanUpdateInput } from '../models/StudyPlan';
+import { semesterService } from './SemesterService';
 import { studyPlanSubjectService } from './StudyPlanSubjectService';
 
 const API_URL = '/academic/study-plans';
@@ -26,6 +27,42 @@ class StudyPlanService {
     }
   }
 
+  async getPublishedStudyPlanForYear(careerId: string, year: number): Promise<StudyPlan | null> {
+    try {
+      const plans = await this.getStudyPlansByCareer(careerId);
+      const publishedForYear = plans
+        .filter(plan => plan.is_published && plan.year === year)
+        .sort((a, b) => b.year - a.year);
+
+      return publishedForYear[0] || null;
+    } catch (error) {
+      return this._handleError(error);
+    }
+  }
+
+  async getCurrentSemesterYear(): Promise<number | null> {
+    try {
+      const activeSemester = await semesterService.getActiveSemester();
+      if (!activeSemester) return null;
+
+      const startYear = new Date(activeSemester.start_date).getFullYear();
+      if (!Number.isNaN(startYear) && startYear > 0) {
+        return startYear;
+      }
+
+      const endYear = new Date(activeSemester.end_date).getFullYear();
+      if (!Number.isNaN(endYear) && endYear > 0) {
+        return endYear;
+      }
+
+      const hay = `${activeSemester.name || ''} ${activeSemester.code || ''}`;
+      const match = hay.match(/(19|20)\d{2}/);
+      return match ? parseInt(match[0], 10) : null;
+    } catch (error) {
+      return this._handleError(error);
+    }
+  }
+
   // Método para obtener planes de estudio por carrera.
   async getStudyPlansByCareer(careerId: string): Promise<StudyPlan[]> {
     try {
@@ -39,9 +76,12 @@ class StudyPlanService {
   // Método para obtener el plan de estudio vigente (mayor año publicado) de una carrera.
   async getActiveStudyPlan(careerId: string): Promise<StudyPlan | null> {
     try {
-      const plans = await this.getStudyPlansByCareer(careerId);
-      const published = plans.filter(p => p.is_published).sort((a, b) => b.year - a.year);
-      return published[0] || null;
+      const semesterYear = await this.getCurrentSemesterYear();
+      if (semesterYear === null) {
+        return null;
+      }
+
+      return await this.getPublishedStudyPlanForYear(careerId, semesterYear);
     } catch (error) {
       return this._handleError(error);
     }

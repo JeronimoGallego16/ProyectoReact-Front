@@ -84,25 +84,11 @@ class EnrollmentService {
 
   private async getCareerRegistrationForGroup(studentId: string, subjectId: string): Promise<{ careerId: string; registrationId: string } | null> {
     try {
-      const activeSem = await semesterService.getActiveSemester();
-      // derive semester year from name/code if possible
-      let semYear: number | null = null;
-      if (activeSem) {
-        const hay = (activeSem.name || '') + ' ' + (activeSem.code || '');
-        const m = hay.match(/(19|20)\d{2}/);
-        if (m) semYear = parseInt(m[0], 10);
-      }
       // Buscar todas las matrículas (activas e inactivas) y reactivar si hace falta
       const registrations = await registrationService.getRegistrationsByStudent(studentId);
 
       for (const registration of registrations || []) {
         const activeStudyPlan = await studyPlanService.getActiveStudyPlan(registration.career_id);
-        // Enforce that the study plan year matches the active semester year (if we can derive it)
-        if (semYear !== null && activeStudyPlan && typeof activeStudyPlan.year === 'number') {
-          if (activeStudyPlan.year !== semYear) {
-            continue; // ignore plans that are not for the active semester year
-          }
-        }
         if (!activeStudyPlan) continue;
 
         const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activeStudyPlan.id);
