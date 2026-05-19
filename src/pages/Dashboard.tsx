@@ -50,7 +50,7 @@ const Dashboard: React.FC = () => {
         </svg>
       ),
       path: '/rubrics',
-      color: 'from-blue-500 to-blue-600',
+      color: 'from-blue-600 to-blue-700',
       roles: ['ADMIN', 'TEACHER', 'STUDENT'],
     },
     {
@@ -62,7 +62,7 @@ const Dashboard: React.FC = () => {
         </svg>
       ),
       path: '/evaluations',
-      color: 'from-purple-500 to-purple-600',
+      color: 'from-blue-500 to-blue-600',
       roles: ['ADMIN', 'TEACHER', 'STUDENT'],
     },
     {
@@ -74,7 +74,7 @@ const Dashboard: React.FC = () => {
         </svg>
       ),
       path: '/grades',
-      color: 'from-green-500 to-green-600',
+      color: 'from-blue-400 to-blue-500',
       roles: ['ADMIN', 'TEACHER', 'STUDENT'],
     },
 
@@ -88,7 +88,7 @@ const Dashboard: React.FC = () => {
         </svg>
       ),
       path: '/academic',
-      color: 'from-orange-500 to-orange-600',
+      color: 'from-blue-600 to-blue-700',
       roles: ['ADMIN'],
     },
     {
@@ -100,7 +100,7 @@ const Dashboard: React.FC = () => {
         </svg>
       ),
       path: '/academic/subjects',
-      color: 'from-red-500 to-red-600',
+      color: 'from-blue-500 to-blue-600',
       roles: ['ADMIN'],
     },
     {
@@ -112,7 +112,7 @@ const Dashboard: React.FC = () => {
         </svg>
       ),
       path: '/academic/study-plans',
-      color: 'from-indigo-500 to-indigo-600',
+      color: 'from-blue-700 to-blue-600',
       roles: ['ADMIN'],
     },
     {
@@ -124,7 +124,7 @@ const Dashboard: React.FC = () => {
         </svg>
       ),
       path: '/usuarios',
-      color: 'from-pink-500 to-pink-600',
+      color: 'from-blue-600 to-blue-500',
       roles: ['ADMIN'],
     },
     {
@@ -136,7 +136,7 @@ const Dashboard: React.FC = () => {
         </svg>
       ),
       path: '/grupos',
-      color: 'from-cyan-500 to-cyan-600',
+      color: 'from-blue-500 to-blue-700',
       roles: ['ADMIN'],
     },
     {
@@ -148,7 +148,7 @@ const Dashboard: React.FC = () => {
         </svg>
       ),
       path: '/matricula',
-      color: 'from-teal-500 to-teal-600',
+      color: 'from-blue-400 to-blue-600',
       roles: ['ADMIN'],
     },
   ];
@@ -168,6 +168,7 @@ const Dashboard: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                ¡Bienvenido, {user?.profile?.first_name || 'Usuario'}!
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
                 Accede rápidamente a los módulos del portal académico
