@@ -9,6 +9,7 @@ import { studyPlanService } from '../../services/StudyPlanService';
 import { studyPlanSubjectService } from '../../services/StudyPlanSubjectService';
 import { subjectService } from '../../services/SubjectService';
 import { enrollmentService } from '../../services/EnrollmentService';
+import { careerService } from '../../services/CareerService';
 import { Student } from '../../models/student';
 import { Group } from '../../models/Group';
 import { showToast } from '../../hooks/fireToast';
@@ -31,6 +32,8 @@ const EnrollInGroupPage: React.FC = () => {
   
   const [allowedGroupIds, setAllowedGroupIds] = useState<Set<string>>(new Set());
   const [currentEnrollments, setCurrentEnrollments] = useState<any[]>([]);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [careerMap, setCareerMap] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -80,6 +83,18 @@ const EnrollInGroupPage: React.FC = () => {
     // load active registrations for student
     const regs = await registrationService.getActiveRegistrationsByStudent(academicStudentId);
     setRegistrations(regs || []);
+    
+    // Load career information for all registrations
+    const newCareerMap: Record<string, any> = {};
+    for (const reg of regs || []) {
+      if (reg.career_id && !newCareerMap[reg.career_id]) {
+        const career = await careerService.getCareerById(reg.career_id);
+        if (career) {
+          newCareerMap[reg.career_id] = career;
+        }
+      }
+    }
+    setCareerMap(newCareerMap);
     
     // load current enrollments to show what's already enrolled
     const currentEnrols = await enrollmentService.getActiveEnrollmentsByStudent(academicStudentId);
@@ -235,6 +250,15 @@ const EnrollInGroupPage: React.FC = () => {
         // Ensure student has an active registration for the career that contains this subject
         await ensureActiveRegistrationForGroup(academicStudentId, gid);
 
+        // Check if there's a CANCELLED enrollment for this student and group, and delete it if it exists
+        const groupEnrollments = await enrollmentService.getEnrollmentsByGroup(gid);
+        const cancelledEnrollment = groupEnrollments.find(
+          e => e.student_id === academicStudentId && e.status === 'CANCELLED'
+        );
+        if (cancelledEnrollment) {
+          await enrollmentService.deleteEnrollment(cancelledEnrollment.id);
+        }
+
         const created = await enrollmentService.createEnrollment({ student_id: academicStudentId, group_id: gid, status: 'ACTIVE' });
         if (!created) {
           return showToast('Error', `No se pudo crear la inscripción para el grupo ${gid}. Revisa la consola para más detalles.`, 2);
@@ -287,6 +311,51 @@ const EnrollInGroupPage: React.FC = () => {
   };
 
   const availableCount = Array.from(allowedGroupIds).filter(id => !currentEnrollments.some(e => e.group_id === id)).length;
+
+  const handleCancelEnrollment = async (enrollmentId: string) => {
+    if (!selectedStudent) return;
+    
+    try {
+      setIsCancelling(true);
+      const cancelled = await enrollmentService.cancelEnrollment(enrollmentId);
+      
+      if (cancelled) {
+        showToast('Éxito', 'Inscripción cancelada correctamente', 0);
+        
+        // Recarga los datos del estudiante
+        const academicStudentId = selectedStudent.profile?.id || selectedStudent.id;
+        const currentEnrols = await enrollmentService.getActiveEnrollmentsByStudent(academicStudentId);
+        setCurrentEnrollments(currentEnrols || []);
+        
+        const credits = await enrollmentService.getTotalCreditsEnrolled(academicStudentId);
+        setCurrentCredits(credits || 0);
+        
+        // Recalcular IDs permitidos
+        const regs = await registrationService.getActiveRegistrationsByStudent(academicStudentId);
+        const allowedIds = new Set<string>();
+        if (regs && regs.length > 0) {
+          for (const reg of regs) {
+            const activePlan = await studyPlanService.getActiveStudyPlan(reg.career_id);
+            if (!activePlan) continue;
+            const subjects = await studyPlanSubjectService.getSubjectsByStudyPlan(activePlan.id);
+            const subjectIds = new Set((subjects || []).map(s => s.id));
+            for (const g of groups) {
+              if (subjectIds.has(g.subject_id)) {
+                allowedIds.add(g.id);
+              }
+            }
+          }
+        }
+        setAllowedGroupIds(allowedIds);
+      } else {
+        showToast('Error', 'No se pudo cancelar la inscripción', 2);
+      }
+    } catch (err: any) {
+      showToast('Error', `Error al cancelar: ${err?.message || String(err)}`, 2);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
@@ -360,10 +429,11 @@ const EnrollInGroupPage: React.FC = () => {
                   {registrations.length > 0 ? (
                     <div className="space-y-2">
                       {registrations.map((reg, idx) => {
-                        const careerName = reg.career_id ? reg.career_id.substring(0, 8) : 'Unknown';
+                        const career = careerMap[reg.career_id];
+                        const careerCode = career?.code || 'Unknown';
                         return (
                           <div key={reg.id} className="text-sm bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
-                            <div className="font-medium text-blue-900 dark:text-blue-100">Carrera {idx + 1}: {careerName}</div>
+                            <div className="font-medium text-blue-900 dark:text-blue-100">Carrera {idx + 1}: {careerCode}</div>
                             <div className="text-xs text-blue-800 dark:text-blue-200">Estado: {reg.academic_status} {reg.is_active && '✓'}</div>
                           </div>
                         );
@@ -389,6 +459,7 @@ const EnrollInGroupPage: React.FC = () => {
                               <th className="px-3 py-2 text-left">Asignatura</th>
                               <th className="px-3 py-2 text-center">Créditos</th>
                               <th className="px-3 py-2 text-center">Inscritos</th>
+                              <th className="px-3 py-2 text-center">Acciones</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -396,6 +467,7 @@ const EnrollInGroupPage: React.FC = () => {
                               .filter(g => currentEnrollments.some(e => e.group_id === g.id))
                               .map(g => {
                                 const enrolled = groupEnrollmentCountMap[g.id] || 0;
+                                const enrollment = currentEnrollments.find(e => e.group_id === g.id);
                                 return (
                                   <tr key={g.id} className="border-t">
                                     <td className="px-3 py-2 text-sm font-medium">{g.group_code}</td>
@@ -403,6 +475,19 @@ const EnrollInGroupPage: React.FC = () => {
                                     <td className="px-3 py-2 text-center text-sm">{groupSubjectsMap[g.id]?.credits || '-'}</td>
                                     <td className="px-3 py-2 text-center text-sm">
                                       {enrolled}/{g.capacity}
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                      {enrollment && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCancelEnrollment(enrollment.id)}
+                                          disabled={isCancelling}
+                                          className={`text-xs px-2 py-1 rounded font-medium text-black bg-red-100 hover:bg-red-200 disabled:opacity-50 transition dark:bg-red-700 dark:text-white dark:hover:bg-red-600 border border-red-200 dark:border-red-600`}
+                                          title="Cancelar inscripción"
+                                        >
+                                          {isCancelling ? 'Cancelando...' : 'Cancelar'}
+                                        </button>
+                                      )}
                                     </td>
                                   </tr>
                                 );

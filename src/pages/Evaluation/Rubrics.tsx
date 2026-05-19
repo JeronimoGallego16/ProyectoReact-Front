@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 import FilterTable from "../../components/FilterTable";
 import GenericTable from "../../components/GenericTable";
@@ -15,6 +16,7 @@ import { groupService } from "../../services/GroupService";
 import { evaluationService } from "../../services/EvaluationService";
 import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
 import securityService from "../../services/segurity.service";
+import { RootState } from "../../store/store";
 
 import { UserRole } from "../../models/user";
 import { Rubric } from "../../models/Rubric";
@@ -49,6 +51,8 @@ const RubricsPage: React.FC = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const { showConfirm } = useSwalConfirm();
+    const reduxUser = useSelector((state: RootState) => state.user.user);
+    const currentUser = reduxUser ?? securityService.getUser();
 
     const [rubrics, setRubrics] = useState<Rubric[]>([]);
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
@@ -59,8 +63,7 @@ const RubricsPage: React.FC = () => {
     const [titleFilter, setTitleFilter] = useState("");
     const [teacherHasGroups, setTeacherHasGroups] = useState(false);
     
-    const user = securityService.getUser();
-    const role: UserRole = user?.role ?? "STUDENT";
+    const role: UserRole = currentUser?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
@@ -77,16 +80,15 @@ const RubricsPage: React.FC = () => {
             const allEvaluations = Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : [];
             const allGroups = Array.isArray(groupsResponse) ? groupsResponse : [];
 
-            const user = securityService.getUser();
-            const accessibleGroups = await evaluationAuthorizationService.getAccessibleGroupIds(user);
-            const teacherGroups = user?.id ? await groupService.getGroupsByTeacher(user.id) : [];
+            const accessibleGroups = await evaluationAuthorizationService.getAccessibleGroupIds(currentUser);
+            const teacherGroups = currentUser?.id ? await groupService.getGroupsByTeacher(currentUser.id) : [];
 
             const filteredRubrics = await Promise.all(
                 allRubrics.map(async (rubric) => {
                     const relatedEvaluation = allEvaluations.find((evaluation) => evaluation.rubric_id === rubric.id);
 
                     const canView = await evaluationAuthorizationService.canViewRubric(
-                        user,
+                        currentUser,
                         relatedEvaluation ? relatedEvaluation.id : undefined,
                         allEvaluations,
                         rubric

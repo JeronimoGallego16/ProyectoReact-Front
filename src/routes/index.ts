@@ -18,7 +18,7 @@ const StudyPlanDetailsPage = lazy(() => import('../pages/Academic/StudyPlanDetai
 const EnrollInGroupPage = lazy(() => import('../pages/Academic/EnrollInGroup'));
 const UsersPage = lazy(() => import('../pages/UsersPage'));
 const GroupsPage = lazy(() => import('../pages/GroupsPage'));
-const EnrollmentPage = lazy(() => import('../pages/EnrollmentPage'));
+const RegistrationPage = lazy(() => import('../pages/RegistrationPage'));
 
 
 const coreRoutes =[
@@ -55,7 +55,7 @@ const coreRoutes =[
   {
     path: '/matricula',
     title: 'Matricular Estudiante',
-    component: EnrollmentPage,
+    component: RegistrationPage,
     roles: ['ADMIN'], // solo ADMIN
   },
   {

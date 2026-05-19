@@ -337,10 +337,24 @@ export default function UsersPage() {
                     setIsDeactivateModalOpen(false);
                     setDeactivateUserId('');
                 }}
-                onSuccess={() => {
+                onSuccess={(newIsActive) => {
+                    // Actualizar la tabla localmente
+                    setUsers(prevUsers =>
+                        prevUsers.map(user =>
+                            user.id === deactivateUserId
+                                ? { ...user, is_active: newIsActive }
+                                : user
+                        )
+                    );
+                    setTableData(prevData =>
+                        prevData.map(row =>
+                            row.id === deactivateUserId
+                                ? { ...row, is_active: newIsActive ? '✅ Activo' : '🚫 Inactivo' }
+                                : row
+                        )
+                    );
                     setIsDeactivateModalOpen(false);
                     setDeactivateUserId('');
-                    loadUsers();
                 }}
                 userId={deactivateUserId || undefined}
             />

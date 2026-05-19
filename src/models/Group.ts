@@ -6,6 +6,7 @@ export interface Group {
   name: string;
   group_code: string;
   capacity: number;
+  is_active?: boolean;
   created_at?: string;
   updated_at?: string;
 }

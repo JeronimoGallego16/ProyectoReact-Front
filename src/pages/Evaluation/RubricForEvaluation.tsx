@@ -10,6 +10,8 @@ import { showToast } from "../../hooks/fireToast";
 import { rubricService } from "../../services/RubricService";
 import { evaluationService } from "../../services/EvaluationService";
 import securityService from "../../services/segurity.service";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store/store";
 import { extractList, canUserViewRubric, resolveEvaluationContext } from "../../utils/dataResolvers";
 
 import { Rubric } from "../../models/Rubric";
@@ -38,8 +40,9 @@ const RubricForEvaluationPage: React.FC = () => {
     const [selectedRubric, setSelectedRubric] = useState<Rubric | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const user = securityService.getUser();
-    const role: UserRole = user?.role ?? "STUDENT";
+    const reduxUser = useSelector((state: RootState) => state.user.user);
+    const currentUser = reduxUser ?? securityService.getUser();
+    const role: UserRole = currentUser?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
@@ -62,7 +65,7 @@ const RubricForEvaluationPage: React.FC = () => {
 
             // aplicar visibilidad basada en permisos
             const evaluationsList = evaluationData ? [evaluationData] : [];
-            const visiblePromises = available.map(async (rubric: Rubric) => (await canUserViewRubric(user, rubric, evaluationsList)) ? rubric : null);
+            const visiblePromises = available.map(async (rubric: Rubric) => (await canUserViewRubric(currentUser, rubric, evaluationsList)) ? rubric : null);
             const visible = (await Promise.all(visiblePromises)).filter((rubric): rubric is Rubric => rubric !== null);
 
             // Si el usuario es estudiante, mostrar únicamente la rúbrica asociada a la evaluación
