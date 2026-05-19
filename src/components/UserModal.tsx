@@ -261,28 +261,28 @@ export default function UserModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="relative w-full max-w-md transform overflow-hidden rounded-lg bg-white shadow-xl transition-all">
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="relative mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
                 {/* Encabezado */}
-                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                    <h2 className="text-lg font-bold text-gray-900">
+                <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
+                    <h2 className="text-lg font-semibold text-black dark:text-white">
                         {mode === 'create' ? 'Crear usuario' : 'Editar usuario'}
                     </h2>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-body hover:text-black dark:text-bodydark dark:hover:text-white"
                     >
                         ✕
                     </button>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-gray-200 px-6">
+                <div className="flex border-b border-stroke px-6 dark:border-strokedark">
                     <button
                         onClick={() => setCurrentTab(0)}
                         className={`px-4 py-3 font-medium transition-colors ${currentTab === 0
-                                ? 'border-b-2 border-green-600 text-green-600'
-                                : 'text-gray-600 hover:text-gray-900'
+                                ? 'border-b-2 border-primary text-primary'
+                                : 'text-body hover:text-black dark:text-bodydark dark:hover:text-white'
                             }`}
                     >
                         Datos de usuario
@@ -290,15 +290,15 @@ export default function UserModal({
                     <button
                         onClick={() => setCurrentTab(1)}
                         className={`px-4 py-3 font-medium transition-colors ${currentTab === 1
-                            ? 'border-b-2 border-green-600 text-green-600'
-                            : 'text-gray-600 hover:text-gray-900'
+                            ? 'border-b-2 border-primary text-primary'
+                            : 'text-body hover:text-black dark:text-bodydark dark:hover:text-white'
                             }`}
                     >
                         Datos de perfil
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
+                <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-5.5 overflow-y-auto p-6.5">
                     {/* TAB 1: Datos de usuario */}
                     {currentTab === 0 && (
                         <div className="space-y-4">
@@ -509,11 +509,11 @@ export default function UserModal({
                     )}
 
                     {/* Botones */}
-                    <div className="mt-6 flex gap-3 border-t border-gray-200 pt-6">
+                    <div className="mt-6 flex gap-3 border-t border-stroke pt-6 dark:border-strokedark">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+                            className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                         >
                             Cancelar
                         </button>
@@ -521,7 +521,7 @@ export default function UserModal({
                             <button
                                 type="button"
                                 onClick={handleBack}
-                                className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+                                className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                             >
                                 Anterior
                             </button>
@@ -530,7 +530,7 @@ export default function UserModal({
                             type="button"
                             onClick={currentTab === 0 ? handleNext : handleSubmit}
                             disabled={loading || isLoadingData}
-                            className="flex-1 rounded-md bg-green-600 px-4 py-2 font-medium text-white hover:bg-green-700 disabled:bg-gray-400"
+                            className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
                         >
                             {loading ? 'Guardando...' : currentTab === 0 ? 'Siguiente' : 'Guardar'}
                         </button>

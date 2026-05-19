@@ -3,7 +3,6 @@ import { lazy } from 'react';
 const SubjectsPage = lazy(() => import('../pages/Academic/Subjects'));
 const StudyPlansPage = lazy(() => import('../pages/Academic/StudyPlans'));
 const Profile = lazy(() => import('../pages/Profile'));
-const TestUsers = lazy(() => import('../pages/TestUsers'));
 const EvaluationsPage = lazy(() => import('../pages/Evaluation/Evaluations'));
 const RubricsPage = lazy(() => import('../pages/Evaluation/Rubrics'));
 const CriteriaByRubricPage = lazy(() => import('../pages/Evaluation/CriteriaByRubric'));
@@ -50,31 +49,31 @@ const coreRoutes =[
     path: '/academic',
     title: 'Académico',
     component: AcademicPage,
-    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+    roles: ['ADMIN'],
   },
   {
     path: '/academic/subjects',
     title: 'Asignaturas',
     component: SubjectsPage,
-    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+    roles: ['ADMIN'],
   },
   {
     path: '/academic/study-plans',
     title: 'Plan de estudios',
     component: StudyPlansPage,
-    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+    roles: ['ADMIN'],
   },
   {
     path: '/academic/study-plans/:studyPlanId',
     title: 'Study Plan Details',
     component: StudyPlanDetailsPage,
-    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+    roles: ['ADMIN'],
   },
   {
     path: '/academic/enroll-student',
     title: 'Inscribir estudiante en grupo',
     component: EnrollInGroupPage,
-    roles: ['ADMIN', 'TEACHER'],
+    roles: ['ADMIN'],
   },
   {
     path: '/rubrics',

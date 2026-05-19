@@ -32,18 +32,19 @@ export default function FilterTable({ filters, onFilterChange, initialValues }: 
     };
 
     return (
-        <div className="mb-6 rounded-lg bg-white p-6 shadow-md">
+        <div className="mb-6 overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+            <div className="p-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {filters.map((filter) => (
                     <div key={filter.id}>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <label className="mb-2 block font-medium text-black dark:text-white">
                             {filter.label}
                         </label>
                         {filter.type === 'select' ? (
                             <select
                                 value={filterValues[filter.id]}
                                 onChange={(e) => handleInputChange(filter.id, e.target.value)}
-                                className="w-full rounded-lg border-2 border-gray-300 px-4 py-2 text-sm focus:border-purple-500 focus:outline-none hover:border-gray-400 transition"
+                                className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             >
                                 <option value="">{filter.placeholder || `Seleccionar ${filter.label}`}</option>
                                 {filter.options?.map((option) => (
@@ -58,7 +59,7 @@ export default function FilterTable({ filters, onFilterChange, initialValues }: 
                                 value={filterValues[filter.id]}
                                 onChange={(e) => handleInputChange(filter.id, e.target.value)}
                                 placeholder={filter.placeholder || `Buscar por ${filter.label.toLowerCase()}...`}
-                                className="w-full rounded-lg border-2 border-gray-300 px-4 py-2 text-sm focus:border-purple-500 focus:outline-none hover:border-gray-400 transition"
+                                className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             />
                         )}
                     </div>
@@ -69,10 +70,11 @@ export default function FilterTable({ filters, onFilterChange, initialValues }: 
             <div className="mt-4 flex justify-end">
                 <button
                     onClick={handleClearFilters}
-                    className="rounded-lg border-2 border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition"
+                    className="rounded-md border border-stroke px-5 py-2.5 text-sm font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                 >
-                    🔄 Limpiar filtros
+                    Limpiar filtros
                 </button>
+            </div>
             </div>
         </div>
     );

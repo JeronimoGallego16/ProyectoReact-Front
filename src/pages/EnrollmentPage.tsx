@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import PageHeader from '../components/PageHeader';
 import GenericTable from '../components/GenericTable';
 import { careerService } from '../services/CareerService';
 import { registrationService } from '../services/RegistrationService';
@@ -328,21 +329,14 @@ export default function EnrollmentPage() {
 
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
-            {/* Header */}
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-black dark:text-white">📚 Matrículas de Estudiantes</h1>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Administra las matrículas de estudiantes a carreras
-                    </p>
-                </div>
-                <button
-                    onClick={handleOpenEnrollModal}
-                    className="rounded-lg !bg-green-700 px-6 py-2.5 font-medium !text-white hover:!bg-green-800 transition shadow-md"
-                >
-                    ➕ Matricular Estudiante
-                </button>
-            </div>
+            <PageHeader
+                title="Matrículas de Estudiantes"
+                description="Administra las matrículas de estudiantes a carreras"
+                primaryAction={{
+                    label: 'Matricular Estudiante',
+                    onClick: handleOpenEnrollModal,
+                }}
+            />
 
             {/* GenericTable */}
             {filteredTableData.length === 0 ? (
@@ -360,11 +354,13 @@ export default function EnrollmentPage() {
 
             {/* Modal Ver Detalles */}
             {showDetailModal && selectedRegistration && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-boxdark">
-                        <h2 className="mb-4 text-xl font-bold text-black dark:text-white">Detalles de Matrícula</h2>
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
+                        <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
+                            <h2 className="text-xl font-semibold text-black dark:text-white">Detalles de Matrícula</h2>
+                        </div>
 
-                        <div className="space-y-3">
+                        <div className="flex-1 space-y-3 overflow-y-auto p-6.5">
                             <div>
                                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Estudiante</p>
                                 <p className="text-black dark:text-white">
@@ -389,10 +385,10 @@ export default function EnrollmentPage() {
                             </div>
                         </div>
 
-                        <div className="mt-6 flex gap-3">
+                        <div className="flex gap-3 border-t border-stroke p-6.5 pt-0 dark:border-strokedark">
                             <button
                                 onClick={() => setShowDetailModal(false)}
-                                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-black hover:bg-gray-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
+                                className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                             >
                                 Cerrar
                             </button>
@@ -403,68 +399,69 @@ export default function EnrollmentPage() {
 
             {/* Modal Editar Matrícula */}
             {showEditModal && selectedRegistration && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-boxdark">
-                        <h2 className="mb-4 text-xl font-bold text-black dark:text-white">Editar Matrícula</h2>
-                        <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
-                            {selectedStudent
-                                ? `${selectedStudent.profile?.first_name || ''} ${selectedStudent.profile?.last_name || ''}`.trim()
-                                : 'Estudiante no encontrado'} - {selectedCareer?.name || 'Carrera no encontrada'}
-                        </p>
-
-                        <div className="space-y-4">
-                            {/* Período de Ingreso */}
-                            <div>
-                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
-                                    Período de Ingreso *
-                                </label>
-                                <input
-                                    type="date"
-                                    value={formData.admissionPeriod}
-                                    onChange={(e) => {
-                                        setFormData({ ...formData, admissionPeriod: e.target.value });
-                                        setDateError('');
-                                    }}
-                                    className={`w-full rounded border px-4 py-2 text-black dark:bg-boxdark dark:text-white ${dateError ? 'border-red-500' : 'border-gray-300 dark:border-strokedark'
-                                        }`}
-                                />
-                                {dateError && <p className="mt-1 text-xs text-red-500">{dateError}</p>}
-                            </div>
-
-                            {/* Estado Académico */}
-                            <div>
-                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
-                                    Estado Académico *
-                                </label>
-                                <select
-                                    value={formData.academicStatus}
-                                    onChange={(e) => setFormData({ ...formData, academicStatus: e.target.value })}
-                                    className="w-full rounded border border-gray-300 bg-white px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
-                                >
-                                    <option value="ACTIVE">Activo</option>
-                                    <option value="INACTIVE">Inactivo</option>
-                                    <option value="SUSPENDED">Suspendido</option>
-                                    <option value="GRADUATED">Graduado</option>
-                                    <option value="RETIRED">Retirado</option>
-                                </select>
-                            </div>
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
+                        <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
+                            <h2 className="text-xl font-semibold text-black dark:text-white">Editar Matrícula</h2>
                         </div>
+                        <div className="flex-1 overflow-y-auto p-6.5">
+                            <p className="mb-6 text-sm text-body dark:text-bodydark">
+                                {selectedStudent
+                                    ? `${selectedStudent.profile?.first_name || ''} ${selectedStudent.profile?.last_name || ''}`.trim()
+                                    : 'Estudiante no encontrado'} - {selectedCareer?.name || 'Carrera no encontrada'}
+                            </p>
 
-                        <div className="mt-6 flex gap-3">
-                            <button
-                                onClick={() => setShowEditModal(false)}
-                                disabled={isSubmitting}
-                                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-black hover:bg-gray-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleEditEnrollment}
-                                disabled={isSubmitting}
-                                className="flex-1 rounded-lg bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 disabled:opacity-50"
-                            >
-                                {isSubmitting ? 'Guardando...' : 'Guardar'}
-                            </button>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-black dark:text-white">
+                                        Período de Ingreso *
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={formData.admissionPeriod}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, admissionPeriod: e.target.value });
+                                            setDateError('');
+                                        }}
+                                        className={`w-full rounded-lg border px-4 py-3 font-medium text-black outline-none transition dark:bg-transparent dark:text-white ${dateError ? 'border-red-500' : 'border-stroke dark:border-form-strokedark'}`}
+                                    />
+                                    {dateError && <p className="mt-1 text-xs text-red-500">{dateError}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-black dark:text-white">
+                                        Estado Académico *
+                                    </label>
+                                    <select
+                                        value={formData.academicStatus}
+                                        onChange={(e) => setFormData({ ...formData, academicStatus: e.target.value })}
+                                        className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                                    >
+                                        <option value="ACTIVE">Activo</option>
+                                        <option value="INACTIVE">Inactivo</option>
+                                        <option value="SUSPENDED">Suspendido</option>
+                                        <option value="GRADUATED">Graduado</option>
+                                        <option value="RETIRED">Retirado</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="mt-6 flex gap-3 border-t border-stroke pt-6 dark:border-strokedark">
+                                <button
+                                    onClick={() => setShowEditModal(false)}
+                                    disabled={isSubmitting}
+                                    className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleEditEnrollment}
+                                    disabled={isSubmitting}
+                                    className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
+                                >
+                                    {isSubmitting ? 'Guardando...' : 'Guardar'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -472,39 +469,40 @@ export default function EnrollmentPage() {
 
             {/* Modal Cambiar Estado */}
             {showStatusModal && selectedRegistration && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-boxdark">
-                        <h2 className="mb-4 text-xl font-bold text-black dark:text-white">Cambiar Estado</h2>
-                        <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
-                            {selectedStudent
-                                ? `${selectedStudent.profile?.first_name || ''} ${selectedStudent.profile?.last_name || ''}`.trim()
-                                : 'Estudiante no encontrado'}
-                        </p>
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
+                        <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
+                            <h2 className="text-xl font-semibold text-black dark:text-white">Cambiar Estado</h2>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6.5">
+                            <p className="mb-6 text-sm text-body dark:text-bodydark">
+                                {selectedStudent
+                                    ? `${selectedStudent.profile?.first_name || ''} ${selectedStudent.profile?.last_name || ''}`.trim()
+                                    : 'Estudiante no encontrado'}
+                            </p>
 
-                        <p className="mb-6 text-sm text-gray-700 dark:text-gray-300">
-                            {selectedRegistration?.is_active
-                                ? '¿Desea marcar esta matrícula como retirada?'
-                                : '¿Desea reactivar esta matrícula?'}
-                        </p>
+                            <p className="mb-6 text-sm text-body dark:text-bodydark">
+                                {selectedRegistration?.is_active
+                                    ? '¿Desea marcar esta matrícula como retirada?'
+                                    : '¿Desea reactivar esta matrícula?'}
+                            </p>
 
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowStatusModal(false)}
-                                disabled={isSubmitting}
-                                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-black hover:bg-gray-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={() => handleChangeStatus(!selectedRegistration?.is_active)}
-                                disabled={isSubmitting}
-                                className={`flex-1 rounded-lg px-4 py-2 font-medium text-white ${selectedRegistration?.is_active
-                                    ? 'bg-red-700 hover:bg-red-800'
-                                    : 'bg-green-700 hover:bg-green-800'
-                                    } disabled:opacity-50`}
-                            >
-                                {isSubmitting ? 'Procesando...' : selectedRegistration?.is_active ? 'Retirar' : 'Activar'}
-                            </button>
+                            <div className="flex gap-3 border-t border-stroke pt-6 dark:border-strokedark">
+                                <button
+                                    onClick={() => setShowStatusModal(false)}
+                                    disabled={isSubmitting}
+                                    className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => handleChangeStatus(!selectedRegistration?.is_active)}
+                                    disabled={isSubmitting}
+                                    className={`flex-1 rounded-md px-4 py-2.5 font-medium text-white transition ${selectedRegistration?.is_active ? 'bg-red-700 hover:bg-red-800' : 'bg-green-700 hover:bg-green-800'} disabled:opacity-50`}
+                                >
+                                    {isSubmitting ? 'Procesando...' : selectedRegistration?.is_active ? 'Retirar' : 'Activar'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -512,23 +510,22 @@ export default function EnrollmentPage() {
 
             {/* Modal Matricular Estudiante */}
             {showEnrollModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-boxdark">
-                        <h2 className="mb-4 text-xl font-bold text-black dark:text-white">Matricular Estudiante</h2>
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
+                        <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
+                            <h2 className="text-xl font-semibold text-black dark:text-white">Matricular Estudiante</h2>
+                        </div>
 
-                        <div className="space-y-4">
-                            {/* Estudiante */}
+                        <div className="flex-1 space-y-4 overflow-y-auto p-6.5">
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
-                                    Estudiante *
-                                </label>
+                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">Estudiante *</label>
                                 <select
                                     value={formData.studentId}
                                     onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                                    className="w-full rounded border border-gray-300 bg-white px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 >
                                     <option value="">-- Selecciona un estudiante --</option>
-                                    {studentsData.filter(s => s.is_active).map(stud => (
+                                    {studentsData.filter((s) => s.is_active).map((stud) => (
                                         <option key={stud.id} value={stud.id}>
                                             {stud.profile?.first_name} {stud.profile?.last_name} ({stud.profile?.identification})
                                         </option>
@@ -536,18 +533,15 @@ export default function EnrollmentPage() {
                                 </select>
                             </div>
 
-                            {/* Carrera */}
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
-                                    Carrera *
-                                </label>
+                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">Carrera *</label>
                                 <select
                                     value={formData.careerId}
                                     onChange={(e) => setFormData({ ...formData, careerId: e.target.value })}
-                                    className="w-full rounded border border-gray-300 bg-white px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 >
                                     <option value="">-- Selecciona una carrera --</option>
-                                    {careersData.filter(c => c.is_active).map(career => (
+                                    {careersData.filter((c) => c.is_active).map((career) => (
                                         <option key={career.id} value={career.id}>
                                             {career.code} - {career.name}
                                         </option>
@@ -555,11 +549,8 @@ export default function EnrollmentPage() {
                                 </select>
                             </div>
 
-                            {/* Período de Ingreso */}
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
-                                    Período de Ingreso *
-                                </label>
+                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">Período de Ingreso *</label>
                                 <input
                                     type="date"
                                     value={formData.admissionPeriod}
@@ -567,21 +558,17 @@ export default function EnrollmentPage() {
                                         setFormData({ ...formData, admissionPeriod: e.target.value });
                                         setDateError('');
                                     }}
-                                    className={`w-full rounded border px-4 py-2 text-black dark:bg-boxdark dark:text-white ${dateError ? 'border-red-500' : 'border-gray-300 dark:border-strokedark'
-                                        }`}
+                                    className={`w-full rounded-lg border px-4 py-3 font-medium text-black outline-none transition dark:bg-transparent dark:text-white ${dateError ? 'border-red-500' : 'border-stroke dark:border-form-strokedark'}`}
                                 />
                                 {dateError && <p className="mt-1 text-xs text-red-500">{dateError}</p>}
                             </div>
 
-                            {/* Estado Académico */}
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
-                                    Estado Académico *
-                                </label>
+                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">Estado Académico *</label>
                                 <select
                                     value={formData.academicStatus}
                                     onChange={(e) => setFormData({ ...formData, academicStatus: e.target.value })}
-                                    className="w-full rounded border border-gray-300 bg-white px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 >
                                     <option value="ACTIVE">Activo</option>
                                     <option value="INACTIVE">Inactivo</option>
@@ -592,18 +579,18 @@ export default function EnrollmentPage() {
                             </div>
                         </div>
 
-                        <div className="mt-6 flex gap-3">
+                        <div className="flex gap-3 border-t border-stroke p-6.5 pt-0 dark:border-strokedark">
                             <button
                                 onClick={() => setShowEnrollModal(false)}
                                 disabled={isSubmitting}
-                                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-black hover:bg-gray-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
+                                className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleEnrollStudent}
                                 disabled={isSubmitting}
-                                className="flex-1 rounded-lg bg-green-700 px-4 py-2 font-medium text-white hover:bg-green-800 disabled:opacity-50"
+                                className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
                             >
                                 {isSubmitting ? 'Matriculando...' : 'Confirmar Matrícula'}
                             </button>

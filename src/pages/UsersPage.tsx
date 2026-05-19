@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import PageHeader from '../components/PageHeader';
 import FilterTable from '../components/FilterTable';
 import GenericTable from '../components/GenericTable';
 import ModalLauncher from '../components/ModalLauncher';
@@ -265,23 +266,14 @@ export default function UsersPage() {
 
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
-            {/* Header */}
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-black dark:text-white">
-                        Usuarios
-                    </h1>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Gestiona estudiantes y docentes
-                    </p>
-                </div>
-                <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="rounded-lg !bg-blue-700 px-6 py-2.5 font-medium !text-white hover:!bg-blue-800 transition shadow-md"
-                >
-                    ➕ Agregar Usuario
-                </button>
-            </div>
+            <PageHeader
+                title="Usuarios"
+                description="Gestiona estudiantes y docentes"
+                primaryAction={{
+                    label: 'Agregar Usuario',
+                    onClick: () => setIsCreateModalOpen(true),
+                }}
+            />
 
             {/* Filters */}
             <FilterTable filters={filterOptions} onFilterChange={handleFilterChange} />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PageHeader from '../components/PageHeader';
 import FilterTable from '../components/FilterTable';
 import GenericTable from '../components/GenericTable';
 import ModalLauncher from '../components/ModalLauncher';
@@ -348,23 +349,14 @@ export default function GroupsPage() {
 
     return (
         <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
-            {/* Header */}
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-black dark:text-white">
-                        Asignar un docente a un grupo
-                    </h1>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Administra los grupos de clase y asignación de docentes
-                    </p>
-                </div>
-                <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="rounded-lg !bg-green-700 px-6 py-2.5 font-medium !text-white hover:!bg-green-800 transition shadow-md"
-                >
-                    ➕ Crear Grupo
-                </button>
-            </div>
+            <PageHeader
+                title="Asignar un docente a un grupo"
+                description="Administra los grupos de clase y asignación de docentes"
+                primaryAction={{
+                    label: 'Crear Grupo',
+                    onClick: () => setShowCreateModal(true),
+                }}
+            />
 
             {/* Filters */}
             <FilterTable filters={filterOptions} onFilterChange={handleFilterChange} />
@@ -466,29 +458,29 @@ export default function GroupsPage() {
 
             {/* Modal Asignar Docente */}
             {showAssignModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-boxdark">
-                        <h2 className="mb-4 text-xl font-bold text-black dark:text-white">
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
+                        <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
+                            <h2 className="text-xl font-semibold text-black dark:text-white">
                             Asignar Docente a Grupo
-                        </h2>
+                            </h2>
+                        </div>
 
-                        <div className="mb-4">
+                        <div className="flex-1 space-y-4 overflow-y-auto p-6.5">
                             <label className="mb-2 block text-sm font-medium text-black dark:text-white">
                                 Grupo Seleccionado
                             </label>
-                            <div className="w-full rounded border border-gray-300 bg-gray-100 px-4 py-2 text-black dark:border-strokedark dark:bg-gray-700 dark:text-white">
+                            <div className="w-full rounded-lg border border-stroke bg-gray-2 px-4 py-3 text-black dark:border-strokedark dark:bg-meta-4 dark:text-white">
                                 {groupsData.find(g => g.id === selectedGroup2)?.group_code || groupsData.find(g => g.id === selectedGroup2)?.code} - {groupsData.find(g => g.id === selectedGroup2)?.name}
                             </div>
-                        </div>
 
-                        <div className="mb-4">
                             <label className="mb-2 block text-sm font-medium text-black dark:text-white">
                                 Seleccionar Semestre
                             </label>
                             <select
                                 value={selectedSemesterAssign}
                                 onChange={(e) => setSelectedSemesterAssign(e.target.value)}
-                                className="w-full rounded border border-gray-300 bg-white px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             >
                                 <option value="">-- Selecciona un semestre --</option>
                                 {semestersData.map((semester) => (
@@ -497,16 +489,14 @@ export default function GroupsPage() {
                                     </option>
                                 ))}
                             </select>
-                        </div>
 
-                        <div className="mb-6">
                             <label className="mb-2 block text-sm font-medium text-black dark:text-white">
                                 Seleccionar Docente
                             </label>
                             <select
                                 value={selectedTeacher}
                                 onChange={(e) => setSelectedTeacher(e.target.value)}
-                                className="w-full rounded border border-gray-300 bg-white px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             >
                                 <option value="">-- Selecciona un docente --</option>
                                 {teachersData.map((teacher) => (
@@ -517,7 +507,7 @@ export default function GroupsPage() {
                             </select>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 border-t border-stroke p-6.5 pt-0 dark:border-strokedark">
                             <button
                                 onClick={() => {
                                     setShowAssignModal(false);
@@ -526,14 +516,14 @@ export default function GroupsPage() {
                                     setSelectedSemesterAssign('');
                                 }}
                                 disabled={isAssigning}
-                                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-black hover:bg-gray-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
+                                className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleAssignTeacher}
                                 disabled={isAssigning}
-                                className="flex-1 rounded-lg bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+                                className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
                             >
                                 {isAssigning ? 'Asignando...' : 'Asignar'}
                             </button>
@@ -544,13 +534,15 @@ export default function GroupsPage() {
 
             {/* Modal Crear Grupo */}
             {showCreateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-boxdark">
-                        <h2 className="mb-4 text-xl font-bold text-black dark:text-white">
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
+                        <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
+                            <h2 className="text-xl font-semibold text-black dark:text-white">
                             Crear Nuevo Grupo
-                        </h2>
+                            </h2>
+                        </div>
 
-                        <div className="space-y-4">
+                        <div className="flex-1 space-y-4 overflow-y-auto p-6.5">
                             <div>
                                 <label className="mb-2 block text-sm font-medium text-black dark:text-white">
                                     Código Grupo <span className="text-red-500">*</span>
@@ -560,7 +552,7 @@ export default function GroupsPage() {
                                     placeholder="Ej. G-A-01"
                                     value={createFormData.groupCode}
                                     onChange={(e) => setCreateFormData({ ...createFormData, groupCode: e.target.value })}
-                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 />
                             </div>
 
@@ -573,7 +565,7 @@ export default function GroupsPage() {
                                     placeholder="Ej. Grupo A"
                                     value={createFormData.groupName}
                                     onChange={(e) => setCreateFormData({ ...createFormData, groupName: e.target.value })}
-                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 />
                             </div>
 
@@ -584,7 +576,7 @@ export default function GroupsPage() {
                                 <select
                                     value={createFormData.subjectId}
                                     onChange={(e) => setCreateFormData({ ...createFormData, subjectId: e.target.value })}
-                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 >
                                     <option value="">-- Selecciona una asignatura --</option>
                                     {subjectsData.map((subject) => (
@@ -602,7 +594,7 @@ export default function GroupsPage() {
                                 <select
                                     value={createFormData.semesterId}
                                     onChange={(e) => setCreateFormData({ ...createFormData, semesterId: e.target.value })}
-                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 >
                                     <option value="">-- Selecciona un semestre --</option>
                                     {semestersData.map((semester) => (
@@ -620,7 +612,7 @@ export default function GroupsPage() {
                                 <select
                                     value={createFormData.teacherId}
                                     onChange={(e) => setCreateFormData({ ...createFormData, teacherId: e.target.value })}
-                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 >
                                     <option value="">-- Selecciona un docente --</option>
                                     {teachersData.map((teacher) => (
@@ -641,12 +633,12 @@ export default function GroupsPage() {
                                     min="1"
                                     value={createFormData.capacity}
                                     onChange={(e) => setCreateFormData({ ...createFormData, capacity: e.target.value })}
-                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 />
                             </div>
                         </div>
 
-                        <div className="mt-6 flex gap-3">
+                        <div className="flex gap-3 border-t border-stroke p-6.5 pt-0 dark:border-strokedark">
                             <button
                                 onClick={() => {
                                     setShowCreateModal(false);
@@ -660,14 +652,14 @@ export default function GroupsPage() {
                                     });
                                 }}
                                 disabled={isCreating}
-                                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-black hover:bg-gray-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
+                                className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleCreateGroup}
                                 disabled={isCreating}
-                                className="flex-1 rounded-lg bg-green-700 px-4 py-2 font-medium text-white hover:bg-green-800 disabled:opacity-50"
+                                className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
                             >
                                 {isCreating ? 'Creando...' : 'Crear'}
                             </button>
@@ -678,13 +670,15 @@ export default function GroupsPage() {
 
             {/* Modal Editar Grupo */}
             {showEditModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                    <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-boxdark">
-                        <h2 className="mb-4 text-xl font-bold text-black dark:text-white">
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
+                        <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
+                            <h2 className="text-xl font-semibold text-black dark:text-white">
                             Editar Grupo
-                        </h2>
+                            </h2>
+                        </div>
 
-                        <div className="space-y-4">
+                        <div className="flex-1 space-y-4 overflow-y-auto p-6.5">
                             <div>
                                 <label className="mb-2 block text-sm font-medium text-black dark:text-white">
                                     Código Grupo <span className="text-red-500">*</span>
@@ -694,7 +688,7 @@ export default function GroupsPage() {
                                     placeholder="Ej. G-A-01"
                                     value={editFormData.groupCode}
                                     onChange={(e) => setEditFormData({ ...editFormData, groupCode: e.target.value })}
-                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 />
                             </div>
 
@@ -707,7 +701,7 @@ export default function GroupsPage() {
                                     placeholder="Ej. Grupo A"
                                     value={editFormData.groupName}
                                     onChange={(e) => setEditFormData({ ...editFormData, groupName: e.target.value })}
-                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 />
                             </div>
 
@@ -721,12 +715,12 @@ export default function GroupsPage() {
                                     min="1"
                                     value={editFormData.capacity}
                                     onChange={(e) => setEditFormData({ ...editFormData, capacity: e.target.value })}
-                                    className="w-full rounded border border-gray-300 px-4 py-2 text-black dark:border-strokedark dark:bg-boxdark dark:text-white"
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                                 />
                             </div>
                         </div>
 
-                        <div className="mt-6 flex gap-3">
+                        <div className="flex gap-3 border-t border-stroke p-6.5 pt-0 dark:border-strokedark">
                             <button
                                 onClick={() => {
                                     setShowEditModal(false);
@@ -738,14 +732,14 @@ export default function GroupsPage() {
                                     });
                                 }}
                                 disabled={isEditing}
-                                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-black hover:bg-gray-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
+                                className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleEditGroup}
                                 disabled={isEditing}
-                                className="flex-1 rounded-lg bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+                                className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
                             >
                                 {isEditing ? 'Guardando...' : 'Guardar'}
                             </button>

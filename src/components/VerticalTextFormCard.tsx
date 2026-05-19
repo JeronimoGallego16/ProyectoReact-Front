@@ -69,8 +69,8 @@ const VerticalTextFormCard = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="mx-auto mt-20 w-full max-w-2xl overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div className="mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
         <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
           <h3 className="text-lg font-semibold text-black dark:text-white">{title}</h3>
           {description ? (
@@ -78,7 +78,7 @@ const VerticalTextFormCard = ({
           ) : null}
         </div>
 
-        <form onSubmit={handleSubmit} className="flex max-h-[80vh] flex-col gap-5.5 overflow-y-auto p-6.5">
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-5.5 overflow-y-auto p-6.5">
           {fields.map((field) => (
             <div key={field.name}>
               <label className="mb-2.5 block font-medium text-black dark:text-white">

@@ -124,22 +124,22 @@ export default function DeactivateUserModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="relative w-full max-w-md transform overflow-hidden rounded-lg bg-white shadow-xl transition-all">
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="relative mx-auto my-auto flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-stroke bg-white shadow-2xl dark:border-strokedark dark:bg-boxdark">
                 {/* Encabezado */}
-                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-                    <h2 className="text-lg font-bold text-gray-900">
+                <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
+                    <h2 className="text-lg font-semibold text-black dark:text-white">
                         {step === 'input' ? 'Buscar Usuario' : 'Desactivar Usuario'}
                     </h2>
                     <button
                         onClick={handleClose}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-body hover:text-black dark:text-bodydark dark:hover:text-white"
                     >
                         ✕
                     </button>
                 </div>
 
-                <div className="px-6 py-6">
+                <div className="flex-1 overflow-y-auto p-6.5">
                     {step === 'input' ? (
                         // Paso 1: Pedir ID
                         <div className="space-y-4">
@@ -165,11 +165,11 @@ export default function DeactivateUserModal({
                             </div>
 
                             {/* Botones */}
-                            <div className="flex gap-3 border-t border-gray-200 pt-4">
+                            <div className="flex gap-3 border-t border-stroke pt-4 dark:border-strokedark">
                                 <button
                                     type="button"
                                     onClick={handleClose}
-                                    className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+                                    className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                                 >
                                     Cancelar
                                 </button>
@@ -177,7 +177,7 @@ export default function DeactivateUserModal({
                                     type="button"
                                     onClick={handleSearchUser}
                                     disabled={isLoadingUser || !userId.trim()}
-                                    className="flex-1 rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:bg-gray-400"
+                                    className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
                                 >
                                     {isLoadingUser ? 'Buscando...' : 'Buscar'}
                                 </button>
@@ -225,13 +225,13 @@ export default function DeactivateUserModal({
                             )}
 
                             {/* Botones */}
-                            <div className="flex gap-3 border-t border-gray-200 pt-4">
+                            <div className="flex gap-3 border-t border-stroke pt-4 dark:border-strokedark">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         resetForm();
                                     }}
-                                    className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+                                    className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                                 >
                                     Cancelar
                                 </button>
@@ -239,7 +239,7 @@ export default function DeactivateUserModal({
                                     type="button"
                                     onClick={handleDeactivate}
                                     disabled={loading}
-                                    className="flex-1 rounded-md bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:bg-gray-400"
+                                    className="flex-1 rounded-md bg-red-600 px-4 py-2.5 font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
                                 >
                                     {loading ? 'Desactivando...' : 'Desactivar usuario'}
                                 </button>
