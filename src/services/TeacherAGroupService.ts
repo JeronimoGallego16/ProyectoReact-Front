@@ -9,9 +9,9 @@ class TeacherAGroupService {
    * 
    * Validaciones:
    * 1. El grupo existe
-   * 2. El docente existe y es_activo = true
+   * 2. El docente existe y está activo (is_active = true)
    * 3. El grupo tiene asignatura_id definido
-   * 4. El semestre seleccionado existe y está activo
+   * 4. El semestre seleccionado existe y está activo (is_active = true)
    * 5. El docente no tiene otro grupo con la misma asignatura en el mismo semestre
    * 6. El docente actual es diferente al nuevo docente
    */
@@ -50,6 +50,26 @@ class TeacherAGroupService {
         };
       }
       const teacher = teacherResponse.data;
+
+      // Validación 2b: Verificar que el docente está activo
+      if (!teacher.is_active) {
+        return {
+          success: false,
+          error: 'No se puede asignar un docente desactivado. El docente debe estar activo para poder asignarlo a un grupo.',
+        };
+      }
+
+      // Validación 4b: Verificar que el semestre está activo
+      const semesterResponse = await apiService.get<any>(
+        `/academic/semesters/${semesterId}`
+      );
+      const semester = semesterResponse?.data;
+      if (!semester || !semester.is_active) {
+        return {
+          success: false,
+          error: 'No se puede asignar un docente a un grupo en un semestre inactivo. Por favor selecciona un semestre activo.',
+        };
+      }
 
       // Validación 6: Verificar que el docente actual es diferente
       if (group.teacher_id === teacherId) {

@@ -44,6 +44,9 @@ export default function GroupsPage() {
     const [editFormData, setEditFormData] = useState({
         groupCode: '',
         groupName: '',
+        subjectId: '',
+        semesterId: '',
+        teacherId: '',
         capacity: '',
     });
 
@@ -90,7 +93,7 @@ export default function GroupsPage() {
                 const teacherArray = Array.isArray(teachersRes) ? teachersRes : (teachersRes?.data || []);
                 if (Array.isArray(teacherArray)) {
                     teachers.push(...teacherArray.map((t: any) => ({
-                        id: t.id,  // ← cambia a t.id
+                        id: t.id,  // ✅ usa siempre el id del perfil
                         name: `${t.first_name || ''} ${t.last_name || ''}`.trim(),
                     })));
                 }
@@ -275,6 +278,15 @@ export default function GroupsPage() {
         } finally {
             setIsCreating(false);
         }
+
+        console.log('Datos a enviar:', {
+            group_code: createFormData.groupCode,
+            name: createFormData.groupName,
+            subject_id: createFormData.subjectId,
+            semester_id: createFormData.semesterId,
+            capacity: parseInt(createFormData.capacity),
+            teacher_id: createFormData.teacherId,
+        });
     };
 
     const handleOpenEditModal = (group: GroupWithDetails) => {
@@ -282,13 +294,16 @@ export default function GroupsPage() {
         setEditFormData({
             groupCode: group.code || '',
             groupName: group.name || '',
+            subjectId: group.subject_id || '',
+            semesterId: group.semester_id || '',
+            teacherId: group.teacher_id || '',
             capacity: group.capacity.toString() || '',
         });
         setShowEditModal(true);
     };
 
     const handleEditGroup = async () => {
-        if (!editFormData.groupCode || !editFormData.groupName || !editFormData.capacity) {
+        if (!editFormData.groupCode || !editFormData.groupName || !editFormData.subjectId || !editFormData.semesterId || !editFormData.teacherId || !editFormData.capacity) {
             toast.error('Por favor completa todos los campos');
             return;
         }
@@ -298,6 +313,9 @@ export default function GroupsPage() {
             const result = await groupService.updateGroup(editingGroupId, {
                 group_code: editFormData.groupCode,
                 name: editFormData.groupName,
+                subject_id: editFormData.subjectId,
+                semester_id: editFormData.semesterId,
+                teacher_id: editFormData.teacherId,
                 capacity: parseInt(editFormData.capacity),
             });
 
@@ -312,6 +330,9 @@ export default function GroupsPage() {
                 setEditFormData({
                     groupCode: '',
                     groupName: '',
+                    subjectId: '',
+                    semesterId: '',
+                    teacherId: '',
                     capacity: '',
                 });
             } else {
@@ -686,6 +707,60 @@ export default function GroupsPage() {
 
                             <div>
                                 <label className="mb-2 block text-sm font-medium text-black dark:text-white">
+                                    Asignatura <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    value={editFormData.subjectId}
+                                    onChange={(e) => setEditFormData({ ...editFormData, subjectId: e.target.value })}
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                                >
+                                    <option value="">-- Selecciona una asignatura --</option>
+                                    {subjectsData.map((subject) => (
+                                        <option key={subject.id} value={subject.id}>
+                                            {subject.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
+                                    Semestre <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    value={editFormData.semesterId}
+                                    onChange={(e) => setEditFormData({ ...editFormData, semesterId: e.target.value })}
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                                >
+                                    <option value="">-- Selecciona un semestre --</option>
+                                    {semestersData.map((semester) => (
+                                        <option key={semester.id} value={semester.id}>
+                                            {semester.name || semester.id}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
+                                    Docente <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    value={editFormData.teacherId}
+                                    onChange={(e) => setEditFormData({ ...editFormData, teacherId: e.target.value })}
+                                    className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                                >
+                                    <option value="">-- Selecciona un docente --</option>
+                                    {teachersData.map((teacher) => (
+                                        <option key={teacher.id} value={teacher.id}>
+                                            {teacher.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-black dark:text-white">
                                     Capacidad <span className="text-red-500">*</span>
                                 </label>
                                 <input
@@ -707,6 +782,9 @@ export default function GroupsPage() {
                                     setEditFormData({
                                         groupCode: '',
                                         groupName: '',
+                                        subjectId: '',
+                                        semesterId: '',
+                                        teacherId: '',
                                         capacity: '',
                                     });
                                 }}
