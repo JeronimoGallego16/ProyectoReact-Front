@@ -10,6 +10,7 @@ import { UserRole } from "../../models/user";
 import { careerService } from "../../services/CareerService";
 import { semesterService } from "../../services/SemesterService";
 import { useAcademicEntityCrud } from "../../hooks/useAcademicEntityCrud";
+import { useSwalConfirm } from '../../hooks/useSwalConfirm';
 
 const CAREER_COLUMNS = ["code", "name", "description", "is_active_label"];
 const SEMESTER_COLUMNS = ["code", "name", "start_date", "end_date", "is_active_label"];
@@ -82,6 +83,8 @@ const AcademicPage: React.FC = () => {
         void loadData();
     }, []);
 
+    const { showConfirm } = useSwalConfirm();
+
     const careerCrud = useAcademicEntityCrud<Career>({
         emptyForm: emptyCareerForm(),
         loadData,
@@ -152,6 +155,7 @@ const AcademicPage: React.FC = () => {
             reactivate: "No se pudo reactivar la carrera.",
         },
         getReactivateConfirm: (career) => `¿Reactivar la carrera "${career.name}"?`,
+        confirmWith: (message: string) => showConfirm(message, { title: 'Confirmar' }),
     });
 
     const semesterCrud = useAcademicEntityCrud<Semester>({
@@ -231,6 +235,7 @@ const AcademicPage: React.FC = () => {
             return "";
         },
         onView: (semester) => openDetail(semester, 'semester'),
+        confirmWith: (message: string) => showConfirm(message, { title: 'Confirmar' }),
         getViewMessage: (semester) => `Semestre: ${semester.name} (${semester.code})`,
         successMessages: {
             create: "Semestre creado exitosamente.",
@@ -432,6 +437,7 @@ const AcademicPage: React.FC = () => {
                     )}
                 </ModalLauncher>
             )}
+            {/* SweetAlert2 confirmations */}
         </div>
     );
 };

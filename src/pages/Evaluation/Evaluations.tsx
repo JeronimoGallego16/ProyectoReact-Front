@@ -8,6 +8,7 @@ import PageHeader from "../../components/PageHeader";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import ModalLauncher from "../../components/ModalLauncher";
 import { useEntityCrud } from "../../hooks/useEntityCrud";
+import { useSwalConfirm } from '../../hooks/useSwalConfirm';
 import { showToast } from "../../hooks/fireToast";
 
 import { evaluationService } from "../../services/EvaluationService";
@@ -50,6 +51,8 @@ const emptyForm = (): Omit<Evaluation, "id"> => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 const EvaluationsPage: React.FC = () => {
     const navigate = useNavigate();
+
+    const { showConfirm } = useSwalConfirm();
 
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -221,6 +224,7 @@ const EvaluationsPage: React.FC = () => {
             }
             return "";
         },
+        confirmWith: showConfirm,
         successMessages: {
             create: "Evaluación creada exitosamente.",
             update: "Evaluación actualizada exitosamente.",

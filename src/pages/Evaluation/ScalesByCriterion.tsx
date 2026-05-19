@@ -11,6 +11,7 @@ import VerticalTextFormCard, { VerticalTextFormField } from "../../components/Ve
 import { showToast } from "../../hooks/fireToast";
 import { useCopyScaleModal } from "../../hooks/useCopyScaleModal";
 import { useEntityCrud } from "../../hooks/useEntityCrud";
+import { useSwalConfirm } from '../../hooks/useSwalConfirm';
 
 import { criterionService } from "../../services/CriterionService";
 import { rubricService } from "../../services/RubricService";
@@ -60,6 +61,7 @@ const ScalesByCriterionPage: React.FC = () => {
     const user = securityService.getUser();
     const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
+    const { showConfirm } = useSwalConfirm();
 
     const loadData = async () => {
         if (!criterionId) return;
@@ -214,6 +216,7 @@ const ScalesByCriterionPage: React.FC = () => {
             }
             return "";
         },
+        confirmWith: showConfirm,
         successMessages: {
             create: "Escala creada exitosamente.",
             update: "Escala actualizada exitosamente.",

@@ -29,6 +29,8 @@ interface UseAcademicEntityCrudOptions<T extends { id: string }> {
     getFormDescription?: (mode: CrudMode, selectedItem: T | null, form: Omit<T, "id">) => string;
     getArchiveConfirm?: (item: T) => string;
     getReactivateConfirm?: (item: T) => string;
+    /** Optional custom confirm function that returns Promise<boolean>. If provided, used instead of window.confirm. */
+    confirmWith?: (message: string) => Promise<boolean>;
     getViewMessage?: (item: T) => string;
     successMessages: {
         create: string;
@@ -101,8 +103,8 @@ export function useAcademicEntityCrud<T extends { id: string }>(
 
     const handleArchive = async (entity: T) => {
         if (!options.archiveItem || !options.getArchiveConfirm) return;
-
-        const ok = window.confirm(options.getArchiveConfirm(entity));
+        const message = options.getArchiveConfirm(entity);
+        const ok = options.confirmWith ? await options.confirmWith(message) : window.confirm(message);
         if (!ok) return;
 
         try {
@@ -122,8 +124,8 @@ export function useAcademicEntityCrud<T extends { id: string }>(
 
     const handleReactivate = async (entity: T) => {
         if (!options.reactivateItem || !options.getReactivateConfirm) return;
-
-        const ok = window.confirm(options.getReactivateConfirm(entity));
+        const message = options.getReactivateConfirm(entity);
+        const ok = options.confirmWith ? await options.confirmWith(message) : window.confirm(message);
         if (!ok) return;
 
         try {

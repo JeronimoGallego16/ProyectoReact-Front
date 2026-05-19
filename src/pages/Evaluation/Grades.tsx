@@ -6,6 +6,7 @@ import GenericTable from "../../components/GenericTable";
 import PageHeader from "../../components/PageHeader";
 import CriterionCommentBox from "../../components/CriterionCommentBox";
 import { showToast } from "../../hooks/fireToast";
+import { useSwalConfirm } from '../../hooks/useSwalConfirm';
 
 import { gradeService } from "../../services/GradeService";
 import { enrollmentService } from "../../services/EnrollmentService";
@@ -146,6 +147,8 @@ const GradesPage: React.FC = () => {
         return true;
     });
 
+    const { showConfirm } = useSwalConfirm();
+
     const handlePublishAll = async () => {
         const unlockedGrades = grades.filter((grade) => !grade.is_locked);
 
@@ -154,8 +157,9 @@ const GradesPage: React.FC = () => {
             return;
         }
 
-        const ok = window.confirm(
-            `¿Publicar ${unlockedGrades.length} nota(s)? Todas quedarán bloqueadas y no podrán modificarse.`
+        const ok = await showConfirm(
+            `¿Publicar ${unlockedGrades.length} nota(s)? Todas quedarán bloqueadas y no podrán modificarse.`,
+            { title: 'Confirmar publicación' }
         );
         if (!ok) return;
 
@@ -277,6 +281,7 @@ const GradesPage: React.FC = () => {
                     setStudentCodeFilter(filters.student_code ?? "");
                 }}
             />
+            {/* SweetAlert2 used for confirmations */}
 
             {/* Table */}
             <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark max-h-[70vh]">

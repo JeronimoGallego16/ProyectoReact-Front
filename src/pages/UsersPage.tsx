@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
 import FilterTable from '../components/FilterTable';
 import GenericTable from '../components/GenericTable';
@@ -115,8 +114,7 @@ export default function UsersPage() {
         setLoading(true);
         try {
             const response = await apiService.get<any>('/users/');
-            response.data?.forEach((u: any) => {
-            });
+            // response.data may be processed below; removed empty forEach
 
             if (response.data && Array.isArray(response.data)) {
                 // Los usuarios ya vienen con career desde la API

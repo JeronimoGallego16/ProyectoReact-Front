@@ -9,6 +9,7 @@ import TableScroll from "../../components/TableScroll";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import { showToast } from "../../hooks/fireToast";
 import { useEntityCrud } from "../../hooks/useEntityCrud";
+import { useSwalConfirm } from '../../hooks/useSwalConfirm';
 
 import { rubricService } from "../../services/RubricService";
 import { criterionService } from "../../services/CriterionService";
@@ -56,6 +57,7 @@ const CriteriaByRubricPage: React.FC = () => {
     const user = securityService.getUser();
     const role: UserRole = user?.role ?? "STUDENT";
     const editable = canEdit(role);
+    const { showConfirm } = useSwalConfirm();
 
     const handleCreateCriterion = () => {
         if (rubric?.is_public) {
@@ -196,6 +198,7 @@ const CriteriaByRubricPage: React.FC = () => {
             }
             return "";
         },
+        confirmWith: showConfirm,
         successMessages: {
             create: "Criterio creado exitosamente.",
             update: "Criterio actualizado exitosamente.",

@@ -26,6 +26,11 @@ interface UseEntityCrudOptions<T extends { id: string }> {
     getFormTitle: (mode: CrudMode, selectedItem: T | null) => string;
     getFormDescription?: (mode: CrudMode, selectedItem: T | null, form: Omit<T, "id">) => string;
     getConfirmMessage?: (type: "delete" | "archive" | "publish", item: T) => string;
+    /**
+     * Optional custom confirm function that returns a Promise<boolean>.
+     * If provided, it will be used instead of `window.confirm` so pages can show a modal.
+     */
+    confirmWith?: (message: string) => Promise<boolean>;
     successMessages: {
         create: string;
         update: string;
@@ -103,9 +108,8 @@ export function useEntityCrud<T extends { id: string }>(
 
     const handleDeletionAction = async (entity: T, type: "delete" | "archive" | "publish") => {
         if (!options.deleteOrArchive || !options.getConfirmMessage) return;
-
         const confirmMessage = options.getConfirmMessage(type, entity);
-        const ok = window.confirm(confirmMessage);
+        const ok = options.confirmWith ? await options.confirmWith(confirmMessage) : window.confirm(confirmMessage);
         if (!ok) return;
 
         const success = await options.deleteOrArchive(entity.id, type);

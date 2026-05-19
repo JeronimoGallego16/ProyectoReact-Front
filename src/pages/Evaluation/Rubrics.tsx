@@ -7,6 +7,7 @@ import PageHeader from "../../components/PageHeader";
 import ModalLauncher from "../../components/ModalLauncher";
 import VerticalTextFormCard, { VerticalTextFormField } from "../../components/VerticalTextFormCard";
 import { useEntityCrud } from "../../hooks/useEntityCrud";
+import { useSwalConfirm } from '../../hooks/useSwalConfirm';
 import TableScroll from "../../components/TableScroll";
 
 import { rubricService } from "../../services/RubricService";
@@ -47,6 +48,7 @@ const emptyForm = (): Omit<Rubric, "id"> => ({
 const RubricsPage: React.FC = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
+    const { showConfirm } = useSwalConfirm();
 
     const [rubrics, setRubrics] = useState<Rubric[]>([]);
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
@@ -202,6 +204,7 @@ const RubricsPage: React.FC = () => {
             }
             return "";
         },
+        confirmWith: showConfirm,
         successMessages: {
             create: "Rúbrica creada exitosamente.",
             update: "Rúbrica actualizada exitosamente.",

@@ -11,6 +11,7 @@ import { StudyPlan } from "../../models/StudyPlan";
 import { Subject } from "../../models/Subject";
 import { UserRole } from "../../models/user";
 import { showToast } from "../../hooks/fireToast";
+import { useSwalConfirm } from '../../hooks/useSwalConfirm';
 import CatalogPanel from './components/CatalogPanel';
 import TableScroll from '../../components/TableScroll';
 import GenericTable from '../../components/GenericTable';
@@ -46,15 +47,13 @@ const StudyPlansPage: React.FC = () => {
     // Modal state
     const [isAddingSubject, setIsAddingSubject] = useState(false);
     const [selectedSubjectForEdit, setSelectedSubjectForEdit] = useState<Subject | null>(null);
-    const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-    const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
-    const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null);
     const [isPublishingPlan, setIsPublishingPlan] = useState(false);
     const [newPlanYear, setNewPlanYear] = useState<string>(String(new Date().getFullYear() + 1));
 
     // Subject detail modal
     const [detailSubject, setDetailSubject] = useState<Subject | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const { showConfirm, showAlert } = useSwalConfirm();
 
     const role: UserRole = "ADMIN";
     const editable = canEdit(role);
@@ -180,9 +179,6 @@ const StudyPlansPage: React.FC = () => {
     // ── Handle delete subject from plan ────────────────────────────────────
 
     const handleDeleteClick = async (subject: Subject) => {
-        setSubjectToDelete(subject);
-        setDeleteBlockedReason(null);
-
         const planToDeleteFrom = draftPlan || activeStudyPlan;
         if (!planToDeleteFrom) return;
 
@@ -192,23 +188,16 @@ const StudyPlansPage: React.FC = () => {
         );
 
         if (!validation.canRemove) {
-            setDeleteBlockedReason(validation.reason || "No se puede eliminar esta asignatura");
-            setIsConfirmingDelete(true);
-        } else {
-            setIsConfirmingDelete(true);
+            await showAlert(`<p>${validation.reason || "No se puede eliminar esta asignatura"}</p><p>💡 Primero debes finalizar todas las inscripciones activas de esta asignatura.</p>`, { title: 'No se puede eliminar', confirmText: 'Entendido', cancelText: 'Entendido', });
+            return;
         }
-    };
 
-    const handleConfirmDelete = async () => {
-        if (!subjectToDelete || !selectedCareerId) return;
-
-        const planToDeleteFrom = draftPlan || activeStudyPlan;
-        if (!planToDeleteFrom) return;
+        const ok = await showConfirm(`¿Estás seguro que deseas remover <strong>${subject.name}</strong> del plan de estudios?`, { title: 'Confirmar eliminación' });
+        if (!ok) return;
 
         try {
-            setIsConfirmingDelete(false);
-            await studyPlanSubjectService.removeSubjectFromStudyPlan(planToDeleteFrom.id, subjectToDelete.id);
-            showToast("Éxito", `Asignatura "${subjectToDelete.name}" eliminada del plan.`, 0);
+            await studyPlanSubjectService.removeSubjectFromStudyPlan(planToDeleteFrom.id, subject.id);
+            showToast("Éxito", `Asignatura "${subject.name}" eliminada del plan.`, 0);
             await loadStudyPlansByCareer(selectedCareerId);
         } catch (error) {
             showToast("Error", `No se pudo eliminar la asignatura: ${error instanceof Error ? error.message : String(error)}`, 2);
@@ -566,78 +555,7 @@ const StudyPlansPage: React.FC = () => {
                 </ModalLauncher>
             )}
 
-            {/* Modal: Delete Subject */}
-            {isConfirmingDelete && subjectToDelete && (
-                <ModalLauncher
-                    isOpen={isConfirmingDelete}
-                    onClose={() => setIsConfirmingDelete(false)}
-                >
-                    {() => (
-                        <div>
-                            {deleteBlockedReason ? (
-                                <>
-                                    <div className="mb-6 flex justify-center">
-                                        <div className="rounded-full bg-red-100 p-4 dark:bg-red-900/30">
-                                            <p className="text-3xl">⛔</p>
-                                        </div>
-                                    </div>
-                                    <h3 className="mb-2 text-center text-lg font-semibold text-black dark:text-white">
-                                        No se puede eliminar
-                                    </h3>
-                                    <p className="mb-4 text-center text-sm text-body dark:text-bodydark">
-                                        {deleteBlockedReason}
-                                    </p>
-                                    <div className="mb-6 rounded-lg bg-blue-50 p-4 text-center dark:bg-blue-900/20">
-                                        <p className="text-sm text-blue-700 dark:text-blue-200">
-                                            💡 Primero debes finalizar todas las inscripciones activas de esta asignatura.
-                                        </p>
-                                    </div>
-                                    <div className="flex justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsConfirmingDelete(false)}
-                                            className="rounded bg-gray-400 px-6 py-2 text-sm font-medium text-white hover:bg-gray-500"
-                                        >
-                                            Entendido
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="mb-6 flex justify-center">
-                                        <div className="rounded-full bg-red-100 p-4 dark:bg-red-900/30">
-                                            <p className="text-3xl">⚠️</p>
-                                        </div>
-                                    </div>
-                                    <h3 className="mb-2 text-center text-lg font-semibold text-black dark:text-white">
-                                        Confirmar eliminación
-                                    </h3>
-                                    <p className="mb-6 text-center text-sm text-body dark:text-bodydark">
-                                        ¿Estás seguro que deseas remover <span className="font-semibold text-red">{subjectToDelete.name}</span> del plan de
-                                        estudios?
-                                    </p>
-                                    <div className="flex justify-end gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsConfirmingDelete(false)}
-                                            className="rounded border border-stroke px-6 py-2 text-sm font-medium text-body hover:bg-gray-2 dark:border-strokedark dark:text-bodydark dark:hover:bg-meta-4"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleConfirmDelete}
-                                            className="rounded bg-red px-6 py-2 text-sm font-medium text-white hover:bg-opacity-90"
-                                        >
-                                            Eliminar
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </ModalLauncher>
-            )}
+            
 
             {/* Modal: Publish Plan */}
             {isPublishingPlan && (

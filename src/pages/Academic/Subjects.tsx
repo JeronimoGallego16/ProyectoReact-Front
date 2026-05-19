@@ -8,6 +8,7 @@ import FilterTable from '../../components/FilterTable';
 import { Subject } from '../../models/Subject';
 import { subjectService } from '../../services/SubjectService';
 import { useAcademicEntityCrud } from '../../hooks/useAcademicEntityCrud';
+import { useSwalConfirm } from '../../hooks/useSwalConfirm';
 
 const SUBJECT_COLUMNS = ['code', 'name', 'description', 'credits', 'is_active_label'];
 
@@ -82,6 +83,8 @@ const SubjectsPage: React.FC = () => {
     setIsDetailOpen(false);
   };
 
+  const { showConfirm } = useSwalConfirm();
+
   const subjectCrud = useAcademicEntityCrud<Subject>({
     emptyForm: emptySubjectForm(),
     loadData,
@@ -151,6 +154,7 @@ const SubjectsPage: React.FC = () => {
     },
     getArchiveConfirm: (subject) => `¿Archivar la asignatura "${subject.name}"?`,
     getReactivateConfirm: (subject) => `¿Reactivar la asignatura "${subject.name}"?`,
+    confirmWith: (message: string) => showConfirm(message, { title: 'Confirmar' }),
     getViewMessage: (subject) => `Asignatura: ${subject.name} (${subject.code})`,
     successMessages: {
       create: 'Asignatura creada exitosamente.',
@@ -297,6 +301,7 @@ const SubjectsPage: React.FC = () => {
           )}
         </ModalLauncher>
       )}
+      {/* SweetAlert2 confirmations */}
     </div>
   );
 };
