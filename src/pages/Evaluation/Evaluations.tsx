@@ -15,6 +15,8 @@ import { evaluationService } from "../../services/EvaluationService";
 import { groupService } from "../../services/GroupService";
 import { subjectService } from "../../services/SubjectService";
 import securityService from "../../services/segurity.service";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store/store";
 import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
 
 import { Evaluation } from "../../models/Evaluation";
@@ -64,15 +66,15 @@ const EvaluationsPage: React.FC = () => {
     const [accessibleSubjectIds, setAccessibleSubjectIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const user = securityService.getUser();
-    const role: UserRole = user?.role ?? "STUDENT";
+    const reduxUser = useSelector((state: RootState) => state.user.user);
+    const currentUser = reduxUser ?? securityService.getUser();
+    const role: UserRole = currentUser?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
     const loadData = async () => {
         setLoading(true);
         try {
-            const user = securityService.getUser();
 
             const [evaluationsResponse, subjectsData, groupsData] = await Promise.all([
             evaluationService.getEvaluations(),
@@ -81,11 +83,11 @@ const EvaluationsPage: React.FC = () => {
             ]);
 
             const allEvaluations = Array.isArray(evaluationsResponse.data) ? evaluationsResponse.data : [];
-            const accessibleSubjects = await evaluationAuthorizationService.getAccessibleSubjectIds(user);
-            const accessibleGroups = await evaluationAuthorizationService.getAccessibleGroupIds(user);
+            const accessibleSubjects = await evaluationAuthorizationService.getAccessibleSubjectIds(currentUser);
+            const accessibleGroups = await evaluationAuthorizationService.getAccessibleGroupIds(currentUser);
 
             const filteredEvaluations =
-            user?.role === "ADMIN"
+            currentUser?.role === "ADMIN"
                 ? allEvaluations
                 : allEvaluations.filter((evaluation) =>
                     accessibleSubjects.includes(evaluation.subject_id ?? "")
