@@ -61,15 +61,6 @@ function App() {
           </div>
         } />
         <Route element={<DefaultLayout />}>
-          {/* ← index ahora también está protegido */}
-          <Route
-            index
-            element={
-              <ProtectedRoute roles={['ADMIN', 'TEACHER', 'STUDENT']}>
-                <div className="py-10 text-center">Welcome</div>
-              </ProtectedRoute>
-            }
-          />
           {routes.map((route, index) => {
             const { path, component: Component, roles } = route;
             return (

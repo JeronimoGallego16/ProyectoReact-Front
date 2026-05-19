@@ -1,5 +1,6 @@
 import { lazy } from 'react';
 
+const Dashboard = lazy(() => import('../pages/Dashboard'));
 const SubjectsPage = lazy(() => import('../pages/Academic/Subjects'));
 const StudyPlansPage = lazy(() => import('../pages/Academic/StudyPlans'));
 const Profile = lazy(() => import('../pages/Profile'));
@@ -21,6 +22,18 @@ const EnrollmentPage = lazy(() => import('../pages/EnrollmentPage'));
 
 
 const coreRoutes =[
+  {
+    path: '/',
+    title: 'Dashboard',
+    component: Dashboard,
+    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+  },
+  {
+    path: '/dashboard',
+    title: 'Dashboard',
+    component: Dashboard,
+    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
+  },
   {
     path: '/profile',
     title: 'Profile',

@@ -107,6 +107,25 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             </h3>
 
             <ul className="mb-6 flex flex-col gap-1.5">
+              {/* Menu Item Dashboard */}
+              <li>
+                <NavLink
+                  to="/dashboard"
+                  className={({ isActive }) => `group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${isActive ? 'bg-graydark dark:bg-meta-4' : ''}`}
+                >
+                  <svg
+                    className="fill-current"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 18 18"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M3 8.25L9 3l6 5.25V15a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 3 15V8.25zM9 5.25L4.5 9V15h3v-3.75h3V15h3V9L9 5.25z" fill="" />
+                  </svg>
+                  Dashboard
+                </NavLink>
+              </li>
               {/* <!-- Menu Item Rubrics --> */}
               <li>
                   <NavLink
