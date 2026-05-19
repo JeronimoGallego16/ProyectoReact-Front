@@ -374,7 +374,6 @@ export default function UserModal({
                                     >
                                         <option value="STUDENT">Estudiante</option>
                                         <option value="TEACHER">Docente</option>
-                                        <option value="ADMIN">Administrador</option>
                                     </select>
                                 </div>
                             )}
