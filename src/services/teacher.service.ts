@@ -7,7 +7,6 @@ import { CreateTeacherPayload, UpdateTeacherPayload } from '../models/TeacherPay
  */
 class TeacherService {
   private endpoint = '/users';
-  private teacherEndpoint = '/academic/teachers';
   private searchEndpoint = '/academic/teachers/search';
 
   /**
