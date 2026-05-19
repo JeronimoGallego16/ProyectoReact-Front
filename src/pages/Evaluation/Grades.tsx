@@ -12,6 +12,8 @@ import { gradeService } from "../../services/GradeService";
 import { enrollmentService } from "../../services/EnrollmentService";
 import { groupService } from "../../services/GroupService";
 import securityService from "../../services/segurity.service";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store/store";
 import { evaluationAuthorizationService } from "../../utils/EvalationAuthorizationService";
 import { resolveStudentInfoByAcademicStudentId } from "../../utils/dataResolvers";
 
@@ -36,7 +38,7 @@ const STUDENT_ACTIONS = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const canEdit = (role: UserRole): boolean => role === "ADMIN" || role === "TEACHER";
 
-const getActionsForRole = (isEditable: boolean) => (isEditable ? TEACHER_ACTIONS() : STUDENT_ACTIONS);
+const getActionsForRole = (role: UserRole) => (canEdit(role) ? TEACHER_ACTIONS() : STUDENT_ACTIONS);
 
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -45,7 +47,7 @@ const GradesPage: React.FC = () => {
     const [tableData, setTableData] = useState<Record<string, any>[]>([]);
     const navigate = useNavigate();
 
-    const [grades, setGrades] = useState<Grade[]>([]);
+    // grades list is reflected in `tableData` so we don't keep a separate read-only copy
     const [groups, setGroups] = useState<Group[]>([]);
     const [accessibleGroupIds, setAccessibleGroupIds] = useState<string[]>([]);
     const [groupFilterId, setGroupFilterId] = useState("");
@@ -58,8 +60,9 @@ const GradesPage: React.FC = () => {
     const [obsValue, setObsValue] = useState<string>("");
     const [savingObs, setSavingObs] = useState(false);
 
-    const user = securityService.getUser();
-    const role: UserRole = user?.role ?? "STUDENT";
+    const reduxUser = useSelector((state: RootState) => state.user.user);
+    const currentUser = reduxUser ?? securityService.getUser();
+    const role: UserRole = currentUser?.role ?? "STUDENT";
     const editable = canEdit(role);
 
     // ── Data loading ──────────────────────────────────────────────────────────
@@ -74,13 +77,11 @@ const GradesPage: React.FC = () => {
 
             const data: Grade[] = Array.isArray(resp.data) ? resp.data : [];
 
-            const filteredGrades = await evaluationAuthorizationService.filterGradesByUser(user, data);
-
-            setGrades(filteredGrades);
+            const filteredGrades = await evaluationAuthorizationService.filterGradesByUser(currentUser, data);
 
             const [allGroups, accessibleGroups] = await Promise.all([
                 groupService.getGroups(),
-                evaluationAuthorizationService.getAccessibleGroupIds(user),
+                evaluationAuthorizationService.getAccessibleGroupIds(currentUser),
             ]);
 
             setGroups(Array.isArray(allGroups) ? allGroups : []);
@@ -128,6 +129,8 @@ const GradesPage: React.FC = () => {
             setObsValue(grade.observations ?? "");
             setObsModalOpen(true);
         }
+
+        // NOTE: unlocking is prevented by backend; UI action removed.
     };
 
     const groupsForFilter = role === "ADMIN"
@@ -150,7 +153,8 @@ const GradesPage: React.FC = () => {
     const { showConfirm } = useSwalConfirm();
 
     const handlePublishAll = async () => {
-        const unlockedGrades = grades.filter((grade) => !grade.is_locked);
+        // Publish only unlocked grades, optionally filtered by selected group
+        const unlockedGrades = tableData.filter((row) => !row.is_locked_bool && (!groupFilterId || row.group_id === groupFilterId));
 
         if (unlockedGrades.length === 0) {
             showToast("Info", "No hay notas pendientes para publicar.", 1);
@@ -164,15 +168,15 @@ const GradesPage: React.FC = () => {
         if (!ok) return;
 
         let publishedCount = 0;
-        const failedGrades: Grade[] = [];
+        const failedGrades: Record<string, any>[] = [];
 
         const failedErrors: string[] = [];
-        for (const grade of unlockedGrades) {
-            const response = await gradeService.updateGrade(grade.id, { is_locked: true });
+        for (const gradeRow of unlockedGrades) {
+            const response = await gradeService.updateGrade(gradeRow.id, { is_locked: true });
             if (response && (response as any).success === true) {
                 publishedCount += 1;
             } else {
-                failedGrades.push(grade);
+                failedGrades.push(gradeRow);
                 if (response && (response as any).error) failedErrors.push((response as any).error);
             }
         }
@@ -211,10 +215,9 @@ const GradesPage: React.FC = () => {
 
         try {
             const resp = await gradeService.updateGrade(obsGrade.id, { observations: obsValue });
-            if (resp && (resp as any).data) {
+                if (resp && (resp as any).data) {
                 showToast("Éxito", "Observaciones guardadas.", 0);
-                setGrades((prev) => prev.map((g) => (g.id === obsGrade.id ? { ...g, observations: obsValue } : g)));
-                setTableData((prev) => prev.map((row) => (row.id === obsGrade.id ? { ...row, observations: obsValue || "-" } : row)));
+                    setTableData((prev) => prev.map((row) => (row.id === obsGrade.id ? { ...row, observations: obsValue || "-" } : row)));
                 setObsGrade(null);
                 setObsModalOpen(false);
                 return;
@@ -291,10 +294,10 @@ const GradesPage: React.FC = () => {
                     ) : filteredTableData.length === 0 ? (
                         <p className="p-6 text-sm text-body dark:text-bodydark">No se encontraron notas.</p>
                     ) : (
-                        <GenericTable
+                            <GenericTable
                             data={filteredTableData}
                             columns={COLUMNS}
-                            actions={getActionsForRole(editable)}
+                            actions={getActionsForRole(role)}
                             onAction={(actionName, item) => handleAction(actionName, item as Grade)}
                         />
                     )}

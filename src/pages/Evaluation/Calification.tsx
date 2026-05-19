@@ -15,6 +15,8 @@ import { Enrollment } from "../../models/Enrollment";
 import { UserRole } from "../../models/user";
 
 import securityService from "../../services/segurity.service";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store/store";
 
 import { resolveEvaluationContext, resolveStudentInfoByAcademicStudentId } from "../../utils/dataResolvers";
 
@@ -40,8 +42,9 @@ const CalificationPage: React.FC = () => {
     const [subject, setSubject] = useState<Subject | null>(null);
     const [students, setStudents] = useState<StudentRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const user = securityService.getUser();
-    const role: UserRole = user?.role ?? "STUDENT";
+    const reduxUser = useSelector((state: RootState) => state.user.user);
+    const currentUser = reduxUser ?? securityService.getUser();
+    const role: UserRole = currentUser?.role ?? "STUDENT";
     const editable = role === "ADMIN" || role === "TEACHER";
 
     const loadData = async () => {

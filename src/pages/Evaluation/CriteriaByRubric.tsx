@@ -15,6 +15,8 @@ import { rubricService } from "../../services/RubricService";
 import { criterionService } from "../../services/CriterionService";
 import { evaluationService } from "../../services/EvaluationService";
 import securityService from "../../services/segurity.service";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store/store";
 import { canUserViewRubric, fetchCriteriaAndScalesByRubric, extractItem, extractList } from "../../utils/dataResolvers";
 
 import { Rubric } from "../../models/Rubric";
@@ -54,8 +56,9 @@ const CriteriaByRubricPage: React.FC = () => {
     const [criteria, setCriteria] = useState<Criterion[]>([]);
     const [loading, setLoading] = useState(true);
     
-    const user = securityService.getUser();
-    const role: UserRole = user?.role ?? "STUDENT";
+    const reduxUser = useSelector((state: RootState) => state.user.user);
+    const currentUser = reduxUser ?? securityService.getUser();
+    const role: UserRole = currentUser?.role ?? "STUDENT";
     const editable = canEdit(role);
     const { showConfirm } = useSwalConfirm();
 
@@ -82,7 +85,7 @@ const CriteriaByRubricPage: React.FC = () => {
             const allEvaluations = extractList(evaluationsResponse);
 
             const rubricData = extractItem(rubricResponse);
-            const canAccess = await canUserViewRubric(user, rubricData, allEvaluations);
+            const canAccess = await canUserViewRubric(currentUser, rubricData, allEvaluations);
 
             if (!canAccess) {
                 showToast("Error", "No tienes permisos para ver esta rúbrica.", 2);

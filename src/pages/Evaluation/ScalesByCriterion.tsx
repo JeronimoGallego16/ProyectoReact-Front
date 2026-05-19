@@ -17,6 +17,8 @@ import { criterionService } from "../../services/CriterionService";
 import { rubricService } from "../../services/RubricService";
 import { scaleService } from "../../services/ScaleService";
 import securityService from "../../services/segurity.service";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store/store";
 import { canUserViewRubric, extractItem, fetchCriteriaAndScalesByRubric } from "../../utils/dataResolvers";
 
 import { Criterion } from "../../models/Criterion";
@@ -58,8 +60,9 @@ const ScalesByCriterionPage: React.FC = () => {
     const [scales, setScales] = useState<Scale[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const user = securityService.getUser();
-    const role: UserRole = user?.role ?? "STUDENT";
+    const reduxUser = useSelector((state: RootState) => state.user.user);
+    const currentUser = reduxUser ?? securityService.getUser();
+    const role: UserRole = currentUser?.role ?? "STUDENT";
     const editable = canEdit(role);
     const { showConfirm } = useSwalConfirm();
 
@@ -79,7 +82,7 @@ const ScalesByCriterionPage: React.FC = () => {
                     fetchCriteriaAndScalesByRubric(criterionData.rubric_id),
                 ]);
                 const rubricData = extractItem(rubricResponse);
-                const canAccess = await canUserViewRubric(user, rubricData);
+                const canAccess = await canUserViewRubric(currentUser, rubricData);
 
                 if (!canAccess) {
                     showToast("Error", "No tienes permisos para ver estas escalas.", 2);
