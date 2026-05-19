@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../components/PageHeader';
+import FilterTable from '../components/FilterTable';
 import GenericTable from '../components/GenericTable';
-import DetailRegistrationModal from '../components/DetailRegistrationModal';
-import EditRegistrationModal from '../components/EditRegistrationModal';
-import ChangeRegistrationStatusModal from '../components/ChangeRegistrationStatusModal';
-import EnrollRegistrationModal from '../components/EnrollRegistrationModal';
+import GenericDetailModal from '../components/GenericDetailModal';
+import GenericFormModal from '../components/GenericFormModal';
+import type { DetailField } from '../components/GenericDetailModal';
+import type { FormField } from '../components/GenericFormModal';
+import GenericStatusModal from '../components/GenericStatusModal';
 import { careerService } from '../services/CareerService';
 import { registrationService } from '../services/RegistrationService';
 import studentRegistrationService from '../services/StudentRegistrationService';
@@ -19,6 +21,8 @@ export default function RegistrationPage() {
     const [registrationsData, setRegistrationsData] = useState<any[]>([]);
     const [filteredTableData, setFilteredTableData] = useState<Record<string, any>[]>([]);
     const [loading, setLoading] = useState(true);
+    const [tableData, setTableData] = useState<Record<string, any>[]>([]);
+    const [filters, setFilters] = useState<Record<string, string>>({});
 
     // Modales
     const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -109,26 +113,63 @@ export default function RegistrationPage() {
             const stud = studentsData.find(s => s.profile?.id === reg.student_id);
             const career = careersData.find(c => c.id === reg.career_id);
 
+            // Extraer solo YYYY-MM-DD sin convertir a Date (evita cambios de zona horaria)
+            const dateOnly = reg.admission_period?.split('T')[0];
+            const dateForDisplay = dateOnly
+                ? new Date(dateOnly + 'T00:00:00').toLocaleDateString('es-ES')
+                : '-';
+
             return {
                 id: reg.id,
                 student_name: stud
                     ? ((stud as any).name || `${stud.profile?.first_name || ''} ${stud.profile?.last_name || ''}`.trim() || 'Sin nombre')
                     : 'Sin nombre',
                 career_name: career?.name || '-',
-                admission_period: reg.admission_period
-                    ? new Date(reg.admission_period).toLocaleDateString('es-ES')
-                    : '-',
+                admission_period: dateForDisplay,
                 status: reg.is_active ? 'Activo' : 'Retirado',
                 status_color: reg.is_active ? 'green' : 'red',
                 student_id: reg.student_id,
                 career_id: reg.career_id,
                 is_active: reg.is_active,
-                admission_period_raw: reg.admission_period,
+                admission_period_raw: dateOnly,
             };
         });
         console.table(transformed);
-        setFilteredTableData(transformed);
+        setTableData(transformed);
+        applyFilters(transformed);  // Aplicar filtros
     };
+
+    const applyFilters = (dataToFilter?: Record<string, any>[]) => {
+        const data = dataToFilter || tableData;
+        let filtered = data;
+
+        if (filters.student) {
+            filtered = filtered.filter(r =>
+                r.student_name?.toLowerCase().includes(filters.student.toLowerCase())
+            );
+        }
+
+        if (filters.career) {
+            filtered = filtered.filter(r =>
+                r.career_name?.toLowerCase().includes(filters.career.toLowerCase())
+            );
+        }
+
+        if (filters.admissionPeriod) {
+            filtered = filtered.filter(r => r.admission_period_raw === filters.admissionPeriod);
+        }
+
+        if (filters.status) {
+            const statusLabel = filters.status === 'ACTIVE' ? 'Activo' : 'Retirado';
+            filtered = filtered.filter(r => r.status === statusLabel);
+        }
+
+        setFilteredTableData(filtered);
+    };
+
+    useEffect(() => {
+        applyFilters();
+    }, [filters, tableData]);
 
     // Recargar registraciones
     const loadRegistrations = async () => {
@@ -349,6 +390,39 @@ export default function RegistrationPage() {
                 }}
             />
 
+            {/* Filter Table */}
+            <FilterTable
+                filters={[
+                    {
+                        id: 'student',
+                        label: 'Estudiante',
+                        type: 'text',
+                        placeholder: 'Buscar estudiante...',
+                    },
+                    {
+                        id: 'career',
+                        label: 'Carrera',
+                        type: 'select',
+                        options: careersData.map(c => ({ value: c.name, label: c.name })),
+                    },
+                    {
+                        id: 'admissionPeriod',
+                        label: 'Período de Ingreso',
+                        type: 'date',
+                    },
+                    {
+                        id: 'status',
+                        label: 'Estado',
+                        type: 'select',
+                        options: [
+                            { value: 'ACTIVE', label: 'Activo' },
+                            { value: 'INACTIVE', label: 'Retirado' },
+                        ],
+                    },
+                ]}
+                onFilterChange={(newFilters) => setFilters(newFilters)}
+            />
+
             {/* GenericTable */}
             {filteredTableData.length === 0 ? (
                 <div className="rounded-lg border border-gray-300 bg-white p-6 text-center shadow-default dark:border-strokedark dark:bg-boxdark">
@@ -364,48 +438,148 @@ export default function RegistrationPage() {
             )}
 
             {/* Modal Ver Detalles */}
-            <DetailRegistrationModal
-                isOpen={showDetailModal}
-                onClose={() => setShowDetailModal(false)}
-                selectedRegistration={selectedRegistration}
-                selectedStudent={selectedStudent}
-                selectedCareer={selectedCareer}
-            />
+            {selectedRegistration && selectedStudent && selectedCareer && (
+                <GenericDetailModal
+                    isOpen={showDetailModal}
+                    onClose={() => setShowDetailModal(false)}
+                    title="Detalles de Matrícula"
+                    fields={[
+                        { label: 'Estudiante', value: `${selectedStudent.profile?.first_name || ''} ${selectedStudent.profile?.last_name || ''}` },
+                        { label: 'Código Estudiante', value: selectedStudent.code || '-' },
+                        { label: 'Carrera', value: selectedCareer.name },
+                        { label: 'Período de Ingreso', value: selectedRegistration.admission_period },
+                        { label: 'Estado Académico', value: selectedRegistration.is_active ? 'Activo' : 'Retirado', color: selectedRegistration.is_active ? 'text-green-600' : 'text-red-600' },
+                        { label: 'Fecha de Creación', value: new Date(selectedRegistration.created_at).toLocaleDateString() },
+                    ] as DetailField[]}
+                />
+            )}
 
             {/* Modal Editar Matrícula */}
-            <EditRegistrationModal
+            <GenericFormModal
                 isOpen={showEditModal}
                 onClose={() => setShowEditModal(false)}
                 onSave={handleEditEnrollment}
+                title="Editar Matrícula"
                 isLoading={isSubmitting}
-                formData={formData}
-                onFormChange={setFormData}
-                students={studentsData}
-                careers={careersData}
-                dateError={dateError}
+                fields={[
+                    {
+                        id: 'studentId',
+                        label: 'Estudiante',
+                        type: 'select',
+                        value: formData.studentId,
+                        onChange: (v: string) => setFormData({ ...formData, studentId: v }),
+                        options: studentsData.map(s => ({
+                            value: s.id,
+                            label: `${s.profile?.first_name} ${s.profile?.last_name} (${s.code})`,
+                        })),
+                        required: true,
+                    },
+                    {
+                        id: 'careerId',
+                        label: 'Carrera',
+                        type: 'select',
+                        value: formData.careerId,
+                        onChange: (v: string) => setFormData({ ...formData, careerId: v }),
+                        options: careersData.map(c => ({
+                            value: c.id,
+                            label: c.name,
+                        })),
+                        required: true,
+                    },
+                    {
+                        id: 'admissionPeriod',
+                        label: 'Período de Ingreso',
+                        type: 'date',
+                        value: formData.admissionPeriod,
+                        onChange: (v: string) => setFormData({ ...formData, admissionPeriod: v }),
+                        error: dateError,
+                        required: true,
+                    },
+                    {
+                        id: 'academicStatus',
+                        label: 'Estado Académico',
+                        type: 'select',
+                        value: formData.academicStatus,
+                        onChange: (v: string) => setFormData({ ...formData, academicStatus: v }),
+                        options: [
+                            { value: 'ACTIVE', label: 'Activo' },
+                            { value: 'INACTIVE', label: 'Retirado' },
+                        ],
+                        required: true,
+                    },
+                ] as FormField[]}
             />
 
             {/* Modal Cambiar Estado */}
-            <ChangeRegistrationStatusModal
-                isOpen={showStatusModal}
-                onClose={() => setShowStatusModal(false)}
-                onConfirm={handleChangeStatus}
-                isLoading={isSubmitting}
-                selectedStudent={selectedStudent}
-                isActive={selectedRegistration?.is_active || false}
-            />
+            {selectedStudent && selectedRegistration && (
+                <GenericStatusModal
+                    isOpen={showStatusModal}
+                    onClose={() => setShowStatusModal(false)}
+                    onConfirm={() => handleChangeStatus(!selectedRegistration.is_active)}
+                    title="Cambiar Estado de Matrícula"
+                    message={`¿Deseas cambiar el estado de ${selectedStudent.profile?.first_name} ${selectedStudent.profile?.last_name}?`}
+                    itemName={selectedStudent.profile?.first_name || 'Estudiante'}
+                    currentStatus={selectedRegistration.is_active}
+                    confirmText={selectedRegistration.is_active ? 'Desactivar' : 'Activar'}
+                    cancelText="Cancelar"
+                    isLoading={isSubmitting}
+                />
+            )}
 
             {/* Modal Matricular Estudiante */}
-            <EnrollRegistrationModal
+            <GenericFormModal
                 isOpen={showEnrollModal}
                 onClose={() => setShowEnrollModal(false)}
                 onSave={handleEnrollStudent}
+                title="Matricular Estudiante"
                 isLoading={isSubmitting}
-                formData={formData}
-                onFormChange={setFormData}
-                students={studentsData}
-                careers={careersData}
-                dateError={dateError}
+                fields={[
+                    {
+                        id: 'studentId',
+                        label: 'Estudiante',
+                        type: 'select',
+                        value: formData.studentId,
+                        onChange: (v: string) => setFormData({ ...formData, studentId: v }),
+                        options: studentsData.map(s => ({
+                            value: s.id,
+                            label: `${s.profile?.first_name} ${s.profile?.last_name} (${s.code})`,
+                        })),
+                        required: true,
+                    },
+                    {
+                        id: 'careerId',
+                        label: 'Carrera',
+                        type: 'select',
+                        value: formData.careerId,
+                        onChange: (v: string) => setFormData({ ...formData, careerId: v }),
+                        options: careersData.map(c => ({
+                            value: c.id,
+                            label: c.name,
+                        })),
+                        required: true,
+                    },
+                    {
+                        id: 'admissionPeriod',
+                        label: 'Período de Ingreso',
+                        type: 'date',
+                        value: formData.admissionPeriod,
+                        onChange: (v: string) => setFormData({ ...formData, admissionPeriod: v }),
+                        error: dateError,
+                        required: true,
+                    },
+                    {
+                        id: 'academicStatus',
+                        label: 'Estado Académico',
+                        type: 'select',
+                        value: formData.academicStatus,
+                        onChange: (v: string) => setFormData({ ...formData, academicStatus: v }),
+                        options: [
+                            { value: 'ACTIVE', label: 'Activo' },
+                            { value: 'INACTIVE', label: 'Retirado' },
+                        ],
+                        required: true,
+                    },
+                ] as FormField[]}
             />
         </div>
     );

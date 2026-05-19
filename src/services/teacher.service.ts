@@ -7,7 +7,6 @@ import { CreateTeacherPayload, UpdateTeacherPayload } from '../models/TeacherPay
  */
 class TeacherService {
   private endpoint = '/users';
-  private teacherEndpoint = '/academic/teachers';
   private searchEndpoint = '/academic/teachers/search';
 
   /**
@@ -42,12 +41,12 @@ class TeacherService {
   }
 
   /**
-   * Desactivar docente
+   * Desactivar/Activar docente
    */
-  async deactivateTeacher(teacherId: string): Promise<ApiResponse<Teacher>> {
+  async deactivateTeacher(teacherId: string, isActive: boolean): Promise<ApiResponse<Teacher>> {
     return apiService.patch<Teacher>(
       `${this.endpoint}/${teacherId}/deactivate`,
-      {}
+      { is_active: isActive }
     );
   }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import studentService from '../services/student.service';
 import teacherService from '../services/teacher.service';
@@ -9,6 +9,7 @@ interface DeactivateUserModalProps {
     onClose: () => void;
     onSuccess?: (isActive: boolean) => void;
     userId?: string;
+    user?: UserData; // <-- nuevo: pasar el objeto usuario directamente evita re-fetch con datos viejos
 }
 
 interface UserData {
@@ -28,6 +29,7 @@ export default function DeactivateUserModal({
     onClose,
     onSuccess,
     userId: initialUserId,
+    user: initialUser, // <-- nuevo
 }: DeactivateUserModalProps) {
     const [userId, setUserId] = useState('');
     const [loading, setLoading] = useState(false);
@@ -35,14 +37,23 @@ export default function DeactivateUserModal({
     const [userData, setUserData] = useState<UserData | null>(null);
     const [step, setStep] = useState<'input' | 'confirm'>('input');
 
-    // Cargar datos del usuario si se proporciona initialUserId
     useEffect(() => {
-        if (isOpen && initialUserId) {
-            loadUserData(initialUserId);
-        } else if (isOpen) {
+        if (!isOpen) return;
+
+        if (initialUserId) {
+            if (initialUser) {
+                // Si el padre ya mandó el objeto completo, úsalo directamente
+                // Esto garantiza que is_active refleja el estado actual en el padre
+                setUserData(initialUser);
+                setUserId(initialUserId);
+                setStep('confirm');
+            } else {
+                loadUserData(initialUserId);
+            }
+        } else {
             setStep('input');
         }
-    }, [isOpen, initialUserId]);
+    }, [isOpen, initialUserId, initialUser]);
 
     const loadUserData = async (id: string) => {
         setIsLoadingUser(true);
@@ -51,7 +62,6 @@ export default function DeactivateUserModal({
 
             if (!response.data) {
                 toast.error('Usuario no encontrado');
-                setIsLoadingUser(false);
                 return;
             }
 
@@ -71,7 +81,6 @@ export default function DeactivateUserModal({
             toast.error('Ingresa el ID del usuario');
             return;
         }
-
         await loadUserData(userId);
     };
 
@@ -81,34 +90,40 @@ export default function DeactivateUserModal({
         setLoading(true);
         try {
             const role = userData.role || 'STUDENT';
+            const newIsActive = !userData.is_active;
+
+            console.log('Toggling user:', userData.id);
+            console.log('Current is_active:', userData.is_active);
+            console.log('New is_active:', newIsActive);
+
             let response: any;
 
             if (role === 'STUDENT') {
-                response = await studentService.deactivateStudent(userData.id);
+                response = await studentService.deactivateStudent(userData.id, newIsActive);
             } else if (role === 'TEACHER') {
-                response = await teacherService.deactivateTeacher(userData.id);
+                response = await teacherService.deactivateTeacher(userData.id, newIsActive);
             }
 
-            console.log('Deactivate response:', response);
+            console.log('Response:', response);
 
             if (!response?.success) {
-                const errorMsg = response?.error || 'Error al desactivar el usuario';
-                console.error('Deactivation error:', errorMsg);
+                const errorMsg = response?.error || 'Error al actualizar el usuario';
                 toast.error(errorMsg);
-                setLoading(false);
                 return;
             }
 
-            // Como el backend no devuelve el estado actualizado, hacemos toggle del estado actual
-            const newIsActive = !userData?.is_active;
             const message = newIsActive ? 'Usuario activado exitosamente' : 'Usuario desactivado exitosamente';
             toast.success(message);
+
+            // Actualizar userData local para reflejar el nuevo estado
+            setUserData(prev => prev ? { ...prev, is_active: newIsActive } : prev);
+
             resetForm();
             onSuccess?.(newIsActive);
             onClose();
         } catch (error: any) {
             console.error('Exception during deactivation:', error);
-            toast.error(error.response?.data?.message || 'Error al desactivar el usuario');
+            toast.error(error.response?.data?.message || 'Error al actualizar el usuario');
         } finally {
             setLoading(false);
         }
@@ -133,7 +148,11 @@ export default function DeactivateUserModal({
                 {/* Encabezado */}
                 <div className="border-b border-stroke px-6 py-5 dark:border-strokedark">
                     <h2 className="text-lg font-semibold text-black dark:text-white">
-                        {step === 'input' ? 'Buscar Usuario' : userData?.is_active ? 'Desactivar Usuario' : 'Activar Usuario'}
+                        {step === 'input'
+                            ? 'Buscar Usuario'
+                            : userData?.is_active
+                                ? 'Desactivar Usuario'
+                                : 'Activar Usuario'}
                     </h2>
                     <button
                         onClick={handleClose}
@@ -145,7 +164,6 @@ export default function DeactivateUserModal({
 
                 <div className="flex-1 overflow-y-auto p-6.5">
                     {step === 'input' ? (
-                        // Paso 1: Pedir ID
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">
@@ -168,7 +186,6 @@ export default function DeactivateUserModal({
                                 </p>
                             </div>
 
-                            {/* Botones */}
                             <div className="flex gap-3 border-t border-stroke pt-4 dark:border-strokedark">
                                 <button
                                     type="button"
@@ -188,7 +205,6 @@ export default function DeactivateUserModal({
                             </div>
                         </div>
                     ) : (
-                        // Paso 2: Confirmación con datos del usuario
                         <div className="space-y-4">
                             <div className="flex justify-center">
                                     <div className={`flex h-20 w-20 items-center justify-center rounded-full ${userData?.is_active ? 'bg-red-100' : 'bg-green-100'}`}>
@@ -231,17 +247,20 @@ export default function DeactivateUserModal({
                                             <span className="w-20 font-medium text-gray-700">Código:</span>
                                             <span className="text-gray-900">{userData.code}</span>
                                         </div>
+                                            <div className="flex items-start">
+                                                <span className="w-20 font-medium text-gray-700">Estado:</span>
+                                                <span className={`font-semibold ${userData.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {userData.is_active ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                            </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Botones */}
                             <div className="flex gap-3 border-t border-stroke pt-4 dark:border-strokedark">
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        resetForm();
-                                    }}
+                                        onClick={resetForm}
                                     className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                                 >
                                     Cancelar

@@ -49,12 +49,12 @@ class StudentService {
   }
 
   /**
-   * Desactivar estudiante
+   * Desactivar/Activar estudiante
    */
-  async deactivateStudent(studentId: string): Promise<ApiResponse<Student>> {
+  async deactivateStudent(studentId: string, isActive: boolean): Promise<ApiResponse<Student>> {
     return apiService.patch<Student>(
       `${this.usersEndpoint}/${studentId}/deactivate`,
-      {}
+      { is_active: isActive }
     );
   }
 

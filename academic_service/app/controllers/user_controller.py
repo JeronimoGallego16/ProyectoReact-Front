@@ -70,8 +70,11 @@ def delete_user(user_id):
 @user_bp.patch('/<user_id>/deactivate')
 def deactivate_user(user_id):
     try:
-        result = user_service.deactivate_user(user_id)
-        return success_response(result, 'User deactivated')
+        data = request.get_json() or {}
+        is_active = data.get('is_active', False)
+        result = user_service.deactivate_user(user_id, is_active)
+        status_msg = 'User activated' if is_active else 'User deactivated'
+        return success_response(result, status_msg)
     except ValueError as exc:
         return error_response(str(exc), 404)
 

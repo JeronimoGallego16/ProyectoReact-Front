@@ -102,11 +102,11 @@ class UserService:
         self.user_repository.delete(user)
         return {'id': user_id, 'deleted': True, 'entity': 'users'}
 
-    def deactivate_user(self, user_id: str):
+    def deactivate_user(self, user_id: str, is_active: bool = False):
         user = self.user_repository.get_by_id(user_id)
         if not user:
             raise ValueError('user not found')
-        user.is_active = False
+        user.is_active = is_active
         db.session.commit()
         return self.get_user_with_profile(user.id)
 
