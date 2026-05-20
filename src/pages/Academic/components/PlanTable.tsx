@@ -1,3 +1,4 @@
+// Componente para mostrar las asignaturas ya agregadas a un plan de estudios, no para el catálogo de asignaturas.
 import React from 'react';
 import GenericTable from '../../../components/GenericTable';
 import { Subject } from '../../../models/Subject';

@@ -1,3 +1,4 @@
+// Componente solo para el catálogo de asignaturas, no para mostrar las asignaturas ya agregadas a un plan de estudios.
 import React from 'react';
 import { Subject } from '../../../models/Subject';
 
