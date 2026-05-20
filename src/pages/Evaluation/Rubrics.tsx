@@ -27,7 +27,7 @@ import { Evaluation } from "../../models/Evaluation";
 const COLUMNS = ["title", "description", "created_at", "is_public", "is_archived"];
 
 const ADMIN_TEACHER_ACTIONS = [
-    { name: "view", label: "Ver" },
+    { name: "view", label: "Ver Criterios" },
     { name: "edit", label: "Editar" },
     { name: "delete", label: "Eliminar" },
     { name: "archive", label: "Archivar" },

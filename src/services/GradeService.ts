@@ -3,6 +3,7 @@ import { Grade } from '../models/Grade';
 import { GradeDetail } from '../models/GradeDetail';
 
 const API_URL_GRADES = '/evaluation/grades';
+const API_URL_GROUP_FINAL_SCORES = '/evaluation/groups';
 
 class GradeService {
 	private _validateSavePayload(payload: {
@@ -59,6 +60,18 @@ class GradeService {
 			...response,
 			data: grades.filter(grade => grade.rubric_id === rubricId),
 		};
+	}
+
+	// Recalcula y publica las notas finales ponderadas de un grupo completo.
+	async registerFinalScoresByGroup(groupId: string): Promise<ApiResponse<any>> {
+		if (!groupId) {
+			return {
+				success: false,
+				error: 'group_id is required',
+			};
+		}
+
+		return apiService.post<any>(`${API_URL_GROUP_FINAL_SCORES}/${groupId}/register-final-scores`, {});
 	}
 
 	// Método centralizado para crear la nota y sus detalles en una sola llamada.

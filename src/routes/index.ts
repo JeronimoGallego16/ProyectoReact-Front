@@ -98,13 +98,13 @@ const coreRoutes =[
     path: '/rubrics/:rubricId/criteria',
     title: 'Criteria by Rubric Page',
     component: CriteriaByRubricPage,
-    roles: ['ADMIN', 'TEACHER'],
+    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
   },
   {
     path: '/criteria/:criterionId/scales',
     title: 'Scales by Criterion Page',
     component: ScalesByCriterionPage,
-    roles: ['ADMIN', 'TEACHER'],
+    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
   },
   {
     path: '/evaluations',
@@ -116,7 +116,7 @@ const coreRoutes =[
     path: '/evaluations/:evaluationId/rubric',
     title: 'Rubric for Evaluation',
     component: RubricForEvaluationPage,
-    roles: ['ADMIN', 'TEACHER'],
+    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
   },
   {
     path: '/evaluations/:evaluationId/califications',

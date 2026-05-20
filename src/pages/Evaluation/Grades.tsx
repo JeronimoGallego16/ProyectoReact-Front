@@ -152,48 +152,55 @@ const GradesPage: React.FC = () => {
 
     const { showConfirm } = useSwalConfirm();
 
-    const handlePublishAll = async () => {
-        // Publish only unlocked grades, optionally filtered by selected group
-        const unlockedGrades = tableData.filter((row) => !row.is_locked_bool && (!groupFilterId || row.group_id === groupFilterId));
+    const getTargetGroupIdsForPublishing = () => {
+        if (groupFilterId) {
+            return [groupFilterId];
+        }
 
-        if (unlockedGrades.length === 0) {
+        return Array.from(new Set(tableData.map((row) => row.group_id).filter(Boolean)));
+    };
+
+    const handlePublishAll = async () => {
+        const targetGroupIds = getTargetGroupIdsForPublishing();
+
+        if (targetGroupIds.length === 0) {
             showToast("Info", "No hay notas pendientes para publicar.", 1);
             return;
         }
 
         const ok = await showConfirm(
-            `¿Publicar ${unlockedGrades.length} nota(s)? Todas quedarán bloqueadas y no podrán modificarse.`,
+            `¿Publicar y recalcular las notas finales de ${targetGroupIds.length} grupo(s)? Todas las notas del grupo quedarán bloqueadas y no podrán modificarse.`,
             { title: 'Confirmar publicación' }
         );
         if (!ok) return;
 
         let publishedCount = 0;
-        const failedGrades: Record<string, any>[] = [];
+        const failedGroups: string[] = [];
 
         const failedErrors: string[] = [];
-        for (const gradeRow of unlockedGrades) {
-            const response = await gradeService.updateGrade(gradeRow.id, { is_locked: true });
+        for (const groupId of targetGroupIds) {
+            const response = await gradeService.registerFinalScoresByGroup(groupId);
             if (response && (response as any).success === true) {
                 publishedCount += 1;
             } else {
-                failedGrades.push(gradeRow);
+                failedGroups.push(groupId);
                 if (response && (response as any).error) failedErrors.push((response as any).error);
             }
         }
 
-        if (failedGrades.length === 0) {
-            showToast("Éxito", `${publishedCount} nota(s) publicadas y bloqueadas exitosamente.`, 0);
+        if (failedGroups.length === 0) {
+            showToast("Éxito", `${publishedCount} grupo(s) recalculados y publicados exitosamente.`, 0);
         } else {
             const uniqueErrors = Array.from(new Set(failedErrors.filter(Boolean))).slice(0, 3);
             const errorSuffix = uniqueErrors.length ? ` Errores: ${uniqueErrors.join("; ")}` : "";
             if (publishedCount > 0) {
                 showToast(
                     "Error",
-                    `Se publicaron ${publishedCount} nota(s), pero ${failedGrades.length} no pudieron bloquearse.${errorSuffix}`,
+                    `Se publicaron ${publishedCount} grupo(s), pero ${failedGroups.length} no pudieron recalcularse.${errorSuffix}`,
                     2
                 );
             } else {
-                showToast("Error", `No se pudieron publicar las notas.${errorSuffix}`.trim(), 2);
+                showToast("Error", `No se pudieron publicar los grupos.${errorSuffix}`.trim(), 2);
             }
         }
 

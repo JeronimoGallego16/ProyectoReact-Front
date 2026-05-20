@@ -132,6 +132,12 @@ const CriteriaByRubricPage: React.FC = () => {
         ];
     };
 
+    const getCriteriaTotal = (excludedCriterionId?: string) => {
+        return criteria
+            .filter((criterion) => criterion.id !== excludedCriterionId)
+            .reduce((sum, criterion) => sum + (Number(criterion.weight) || 0), 0);
+    };
+
     // ── useEntityCrud hook ────────────────────────────────────────────────────
     const {
         isOpen: isCrudModalOpen,
@@ -176,8 +182,8 @@ const CriteriaByRubricPage: React.FC = () => {
             description: values.description,
             weight: Number(values.weight) || 0,
         }),
-        validateSave: (values) => {
-            const totalWeight = criteria.reduce((sum, c) => sum + (c.weight ?? 0), 0);
+        validateSave: (values, _form, mode, selectedItem) => {
+            const totalWeight = getCriteriaTotal(mode === "edit" ? selectedItem?.id : undefined);
             const newWeight = Number(values.weight) || 0;
             if (totalWeight + newWeight > 100) {
                 return `La suma de pesos no puede exceder 100%. Actual: ${totalWeight}% + ${newWeight}% = ${totalWeight + newWeight}%.`;
