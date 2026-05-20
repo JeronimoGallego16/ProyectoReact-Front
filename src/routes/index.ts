@@ -92,7 +92,7 @@ const coreRoutes =[
     path: '/rubrics',
     title: 'Rubrics Page',
     component: RubricsPage,
-    roles: ['ADMIN', 'TEACHER'],
+    roles: ['ADMIN', 'TEACHER', 'STUDENT'],
   },
   {
     path: '/rubrics/:rubricId/criteria',
