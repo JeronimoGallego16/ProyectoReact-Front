@@ -207,29 +207,29 @@ export default function DeactivateUserModal({
                     ) : (
                         <div className="space-y-4">
                             <div className="flex justify-center">
-                                    <div className={`flex h-20 w-20 items-center justify-center rounded-full ${userData?.is_active ? 'bg-red-100' : 'bg-green-100'}`}>
-                                        <span className="text-3xl">{userData?.is_active ? '🔴' : '🟢'}</span>
+                                <div className={`flex h-20 w-20 items-center justify-center rounded-full ${userData?.is_active ? 'bg-red-100' : 'bg-green-100'}`}>
+                                    <span className="text-3xl">{userData?.is_active ? '🔴' : '🟢'}</span>
                                 </div>
                             </div>
 
                             <div className="text-center">
                                 <h3 className="text-lg font-bold text-gray-900">
-                                        {userData?.is_active
-                                            ? '¿Estás seguro que deseas desactivar este usuario?'
-                                            : '¿Estás seguro que deseas activar este usuario?'}
+                                    {userData?.is_active
+                                        ? '¿Estás seguro que deseas desactivar este usuario?'
+                                        : '¿Estás seguro que deseas activar este usuario?'}
                                 </h3>
                                 <p className="mt-2 text-sm text-gray-600">
-                                        {userData?.is_active
-                                            ? 'El usuario no podrá iniciar sesión en el sistema, pero su información se mantendrá.'
-                                            : 'El usuario podrá acceder nuevamente al sistema.'}
+                                    {userData?.is_active
+                                        ? 'El usuario no podrá iniciar sesión en el sistema, pero su información se mantendrá.'
+                                        : 'El usuario podrá acceder nuevamente al sistema.'}
                                 </p>
                             </div>
 
                             {userData && (
-                                    <div className={`rounded-lg border p-4 ${userData.is_active
-                                        ? 'border-red-200 bg-red-50'
-                                        : 'border-green-200 bg-green-50'
-                                        }`}>
+                                <div className={`rounded-lg border p-4 ${userData.is_active
+                                    ? 'border-red-200 bg-red-50'
+                                    : 'border-green-200 bg-green-50'
+                                    }`}>
                                     <div className="space-y-3 text-sm">
                                         <div className="flex items-start">
                                             <span className="w-20 font-medium text-gray-700">Usuario:</span>
@@ -247,12 +247,12 @@ export default function DeactivateUserModal({
                                             <span className="w-20 font-medium text-gray-700">Código:</span>
                                             <span className="text-gray-900">{userData.code}</span>
                                         </div>
-                                            <div className="flex items-start">
-                                                <span className="w-20 font-medium text-gray-700">Estado:</span>
-                                                <span className={`font-semibold ${userData.is_active ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {userData.is_active ? 'Activo' : 'Inactivo'}
-                                                </span>
-                                            </div>
+                                        <div className="flex items-start">
+                                            <span className="w-20 font-medium text-gray-700">Estado:</span>
+                                            <span className={`font-semibold ${userData.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                                                {userData.is_active ? 'Activo' : 'Inactivo'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -260,7 +260,7 @@ export default function DeactivateUserModal({
                             <div className="flex gap-3 border-t border-stroke pt-4 dark:border-strokedark">
                                 <button
                                     type="button"
-                                        onClick={handleClose}
+                                    onClick={handleClose}
                                     className="flex-1 rounded-md border border-stroke px-4 py-2.5 font-medium text-black transition hover:bg-gray-2 dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
                                 >
                                     Cancelar
@@ -269,13 +269,13 @@ export default function DeactivateUserModal({
                                     type="button"
                                     onClick={handleDeactivate}
                                     disabled={loading}
-                                        className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
+                                    className="flex-1 rounded-md bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-opacity-90 disabled:opacity-50"
                                 >
-                                        {loading
-                                            ? 'Procesando...'
-                                            : userData?.is_active
-                                                ? 'Desactivar usuario'
-                                                : 'Activar usuario'}
+                                    {loading
+                                        ? 'Procesando...'
+                                        : userData?.is_active
+                                            ? 'Desactivar usuario'
+                                            : 'Activar usuario'}
                                 </button>
                             </div>
                         </div>

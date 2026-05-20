@@ -82,8 +82,9 @@ export default function GroupsPage() {
                 const teacherArray = Array.isArray(teachersRes) ? teachersRes : (teachersRes?.data || []);
                 if (Array.isArray(teacherArray)) {
                     teachers.push(...teacherArray.map((t: any) => ({
-                        id: t.id,  // ✅ usa siempre el id del perfil
+                        id: t.user_id || t.id,  // ✅ usa user_id si existe, sino usa id
                         name: `${t.first_name || ''} ${t.last_name || ''}`.trim(),
+                        is_active: t.is_active !== false,  // ✅ incluir is_active
                     })));
                 }
                 setTeachersData(teachers);
@@ -218,7 +219,7 @@ export default function GroupsPage() {
             case 'edit':
                 modals.setSelectedItem(group);
                 setFormData({
-                    groupCode: group.code || '',
+                    groupCode: group.group_code || group.code || '',
                     groupName: group.name || '',
                     subjectId: group.subject_id || '',
                     semesterId: group.semester_id || '',
