@@ -6,7 +6,7 @@ import { useDispatch } from 'react-redux';
 import { clearUser } from './store/userSlice';
 
 import SignIn from './pages/Authentication/SignIn';
-import SignUp from './pages/Authentication/SignUp';
+
 import Loader from './common/Loader';
 import routes from './routes';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
@@ -53,7 +53,6 @@ function App() {
       />
       <Routes>
         <Route path="/auth/signin" element={<SignIn />} />
-        <Route path="/auth/signup" element={<SignUp />} />
         <Route path="/unauthorized" element={
           <div className="py-20 text-center">
             <h1 className="text-2xl font-bold">🚫 Acceso denegado</h1>

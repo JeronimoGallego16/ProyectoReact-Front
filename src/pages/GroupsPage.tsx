@@ -82,8 +82,9 @@ export default function GroupsPage() {
                 const teacherArray = Array.isArray(teachersRes) ? teachersRes : (teachersRes?.data || []);
                 if (Array.isArray(teacherArray)) {
                     teachers.push(...teacherArray.map((t: any) => ({
-                        id: t.id,  // ✅ usa siempre el id del perfil
+                        id: t.user_id || t.id,  // ✅ usa user_id si existe, sino usa id
                         name: `${t.first_name || ''} ${t.last_name || ''}`.trim(),
+                        is_active: t.is_active !== false,  // ✅ incluir is_active
                     })));
                 }
                 setTeachersData(teachers);
@@ -169,6 +170,14 @@ export default function GroupsPage() {
                 return;
             }
 
+            // Validar que el docente seleccionado esté activo
+            const selectedTeacherData = teachersData.find(t => t.id === selectedTeacher);
+            if (!selectedTeacherData || !selectedTeacherData.is_active) {
+                toast.error('No se puede asignar un docente desactivado');
+                setIsAssigning(false);
+                return;
+            }
+
             const result = await TeacherAGroupService.assignTeacherToGroup({
                 semesterId: selectedSemesterAssign,
                 groupId: modals.selectedItem.id,
@@ -210,7 +219,7 @@ export default function GroupsPage() {
             case 'edit':
                 modals.setSelectedItem(group);
                 setFormData({
-                    groupCode: group.code || '',
+                    groupCode: group.group_code || group.code || '',
                     groupName: group.name || '',
                     subjectId: group.subject_id || '',
                     semesterId: group.semester_id || '',
@@ -232,6 +241,13 @@ export default function GroupsPage() {
     const handleCreateGroup = async () => {
         if (!formData.groupCode || !formData.groupName || !formData.subjectId || !formData.semesterId || !formData.teacherId || !formData.capacity) {
             toast.error('Por favor completa todos los campos');
+            return;
+        }
+
+        // Validar que el docente seleccionado esté activo
+        const selectedTeacherData = teachersData.find(t => t.id === formData.teacherId);
+        if (!selectedTeacherData || !selectedTeacherData.is_active) {
+            toast.error('No se puede asignar un docente desactivado');
             return;
         }
 
@@ -267,6 +283,13 @@ export default function GroupsPage() {
     const handleEditGroup = async () => {
         if (!formData.groupCode || !formData.groupName || !formData.subjectId || !formData.semesterId || !formData.teacherId || !formData.capacity) {
             toast.error('Por favor completa todos los campos');
+            return;
+        }
+
+        // Validar que el docente seleccionado esté activo
+        const selectedTeacherData = teachersData.find(t => t.id === formData.teacherId);
+        if (!selectedTeacherData || !selectedTeacherData.is_active) {
+            toast.error('No se puede asignar un docente desactivado');
             return;
         }
 
@@ -429,7 +452,9 @@ export default function GroupsPage() {
                             type: 'select',
                             value: formData.teacherId,
                             onChange: (v) => setFormData({ ...formData, teacherId: v }),
-                            options: teachersData.map(t => ({ value: t.id, label: t.name })),
+                            options: teachersData
+                                .filter(t => t.is_active !== false)
+                                .map(t => ({ value: t.id, label: t.name })),
                             required: true,
                         },
                         {
@@ -490,11 +515,13 @@ export default function GroupsPage() {
                                     className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 font-medium text-black outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white"
                                 >
                                     <option value="">-- Selecciona un docente --</option>
-                                    {teachersData.map((teacher) => (
-                                        <option key={teacher.id} value={teacher.id}>
-                                            {teacher.name}
-                                        </option>
-                                    ))}
+                                    {teachersData
+                                        .filter(t => t.is_active !== false)
+                                        .map((teacher) => (
+                                            <option key={teacher.id} value={teacher.id}>
+                                                {teacher.name}
+                                            </option>
+                                        ))}
                                 </select>
                             </div>
                         </div> as any
